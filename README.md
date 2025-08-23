@@ -28,8 +28,8 @@ This is a starter template for building a SaaS application using **Next.js** wit
 ## Getting Started
 
 ```bash
-git clone https://github.com/nextjs/saas-starter
-cd saas-starter
+git clone https://github.com/finnformica/optik
+cd optik
 pnpm install
 ```
 

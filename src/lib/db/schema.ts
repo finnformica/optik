@@ -1,5 +1,7 @@
 import { relations } from 'drizzle-orm';
 import {
+  date,
+  decimal,
   integer,
   pgTable,
   serial,
@@ -82,6 +84,26 @@ export const userAccessTokens = pgTable('user_access_tokens', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+export const transactions = pgTable('transactions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  broker: varchar('broker', { length: 50 }).notNull(), // schwab, robinhood, etc
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  // Core transaction fields
+  date: date('date').notNull(), // date of the transaction
+  action: varchar('action', { length: 50 }).notNull(), // buy, sell, buy_to_open, sell_to_close, interest, dividend, etc
+  ticker: varchar('ticker', { length: 50 }).notNull(), // AAPL, MSFT, etc
+  description: text('description'),
+  quantity: decimal('quantity', { precision: 18, scale: 8 }).notNull(), // number of shares, number of contracts, etc
+  fees: decimal('fees', { precision: 18, scale: 8 }).notNull().default("0"), // fees paid for the transaction
+  amount: decimal('amount', { precision: 18, scale: 8 }).notNull(), // total amount paid or received for the transaction
+  // Options fields
+  strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
+  expiryDate: date('expiry_date'),
+  optionType: varchar('option_type', { length: 50 }),
+});
+
 export const teamsRelations = relations(teams, ({ many }) => ({
   teamMembers: many(teamMembers),
   activityLogs: many(activityLogs),
@@ -92,6 +114,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   teamMembers: many(teamMembers),
   invitationsSent: many(invitations),
   accessTokens: many(userAccessTokens),
+  transactions: many(transactions),
 }));
 
 export const invitationsRelations = relations(invitations, ({ one }) => ({

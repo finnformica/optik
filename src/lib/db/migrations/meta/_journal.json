@@ -15,6 +15,20 @@
       "when": 1755949135705,
       "tag": "0001_rapid_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1755978129373,
+      "tag": "0002_sharp_spacker_dave",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1755978802035,
+      "tag": "0003_blue_sumo",
+      "breakpoints": true
     }
   ]
 }
