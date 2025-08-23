@@ -11,74 +11,53 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+interface MenuItem {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  bottom?: boolean;
+}
+
+const menuItems: MenuItem[] = [
+  { href: "/dashboard", icon: LayoutDashboard, title: "Dashboard" },
+  { href: "/positions", icon: TrendingUp, title: "Positions" },
+  { href: "/analysis", icon: BarChart3, title: "Analysis" },
+  { href: "/settings", icon: Settings, title: "Settings", bottom: true },
+  { href: "/help", icon: HelpCircle, title: "Help", bottom: true },
+  { href: "/logout", icon: LogOut, title: "Logout", bottom: true },
+];
+
 const Sidebar = () => {
   const pathname = usePathname();
+
+  const renderMenuItem = (item: MenuItem) => {
+    const Icon = item.icon;
+    const isActive = pathname === item.href;
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={`flex items-center justify-center p-4 my-1 mx-2 rounded-lg ${
+          isActive ? "bg-blue-900/50 text-blue-400" : "hover:bg-gray-800"
+        }`}
+        title={item.title}
+      >
+        <Icon className="h-5 w-5" />
+      </Link>
+    );
+  };
+
+  const topMenuItems = menuItems.filter((item) => !item.bottom);
+  const bottomMenuItems = menuItems.filter((item) => item.bottom);
 
   return (
     <div className="w-16 bg-[#0a101e] text-white flex flex-col h-screen fixed left-0 top-0">
       <div className="p-4 border-b border-gray-800 flex justify-center">
-        <h1 className="text-xl font-bold">OT</h1>
+        <h1 className="text-xl font-bold">XYZ</h1>
       </div>
-      <nav className="flex-1 pt-4">
-        <Link
-          href="/dashboard"
-          className={`flex items-center justify-center p-4 my-1 mx-2 rounded-lg ${
-            pathname === "/dashboard"
-              ? "bg-blue-900/50 text-blue-400"
-              : "hover:bg-gray-800"
-          }`}
-          title="Dashboard"
-        >
-          <LayoutDashboard className="h-5 w-5" />
-        </Link>
-        <Link
-          href="/positions"
-          className={`flex items-center justify-center p-4 my-1 mx-2 rounded-lg ${
-            pathname === "/positions"
-              ? "bg-blue-900/50 text-blue-400"
-              : "hover:bg-gray-800"
-          }`}
-          title="Positions"
-        >
-          <TrendingUp className="h-5 w-5" />
-        </Link>
-        <Link
-          href="/analysis"
-          className={`flex items-center justify-center p-4 my-1 mx-2 rounded-lg ${
-            pathname === "/analysis"
-              ? "bg-blue-900/50 text-blue-400"
-              : "hover:bg-gray-800"
-          }`}
-          title="Analysis"
-        >
-          <BarChart3 className="h-5 w-5" />
-        </Link>
-      </nav>
-      <div className="mt-auto pb-4">
-        <Link
-          href="/settings"
-          className={`flex items-center justify-center p-4 my-1 mx-2 rounded-lg ${
-            pathname === "/settings"
-              ? "bg-blue-900/50 text-blue-400"
-              : "hover:bg-gray-800"
-          }`}
-          title="Settings"
-        >
-          <Settings className="h-5 w-5" />
-        </Link>
-        <button
-          className="flex items-center justify-center p-4 my-1 mx-2 rounded-lg hover:bg-gray-800"
-          title="Help"
-        >
-          <HelpCircle className="h-5 w-5" />
-        </button>
-        <button
-          className="flex items-center justify-center p-4 my-1 mx-2 rounded-lg hover:bg-gray-800"
-          title="Logout"
-        >
-          <LogOut className="h-5 w-5" />
-        </button>
-      </div>
+      <nav className="flex-1 pt-4">{topMenuItems.map(renderMenuItem)}</nav>
+      <div className="mt-auto pb-4">{bottomMenuItems.map(renderMenuItem)}</div>
     </div>
   );
 };

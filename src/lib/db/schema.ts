@@ -1,12 +1,12 @@
+import { relations } from 'drizzle-orm';
 import {
+  integer,
   pgTable,
   serial,
-  varchar,
   text,
   timestamp,
-  integer,
+  varchar,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -68,6 +68,20 @@ export const invitations = pgTable('invitations', {
   status: varchar('status', { length: 20 }).notNull().default('pending'),
 });
 
+export const userAccessTokens = pgTable('user_access_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  encryptedTokens: text('encrypted_tokens').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  tokenType: varchar('token_type', { length: 50 }).notNull(),
+  scope: varchar('scope', { length: 255 }).notNull(),
+  provider: varchar('provider', { length: 50 }).notNull().default('schwab'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const teamsRelations = relations(teams, ({ many }) => ({
   teamMembers: many(teamMembers),
   activityLogs: many(activityLogs),
@@ -77,6 +91,7 @@ export const teamsRelations = relations(teams, ({ many }) => ({
 export const usersRelations = relations(users, ({ many }) => ({
   teamMembers: many(teamMembers),
   invitationsSent: many(invitations),
+  accessTokens: many(userAccessTokens),
 }));
 
 export const invitationsRelations = relations(invitations, ({ one }) => ({
@@ -112,6 +127,13 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   }),
 }));
 
+export const userAccessTokensRelations = relations(userAccessTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [userAccessTokens.userId],
+    references: [users.id],
+  }),
+}));
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Team = typeof teams.$inferSelect;
@@ -122,6 +144,8 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type NewActivityLog = typeof activityLogs.$inferInsert;
 export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
+export type UserAccessToken = typeof userAccessTokens.$inferSelect;
+export type NewUserAccessToken = typeof userAccessTokens.$inferInsert;
 export type TeamDataWithMembers = Team & {
   teamMembers: (TeamMember & {
     user: Pick<User, 'id' | 'name' | 'email'>;
