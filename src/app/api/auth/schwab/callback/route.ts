@@ -1,0 +1,47 @@
+import { SecureSchwabAuth } from '@/lib/auth/schwab-oauth'
+import { getSession } from '@/lib/auth/session'
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const baseUrl = process.env.BASE_URL || request.nextUrl.origin
+  
+  try {
+    const session = await getSession()
+    
+    if (!session?.user?.id) {
+      return NextResponse.redirect(`${baseUrl}/sign-in?error=not_authenticated&provider=schwab`)
+    }
+
+    const searchParams = request.nextUrl.searchParams
+    const code = searchParams.get('code')
+    const error = searchParams.get('error')
+
+    if (error) {
+      console.error('Schwab OAuth error:', error)
+      return NextResponse.redirect(`${baseUrl}/settings/connections?error=oauth_error&provider=schwab`)
+    }
+
+    if (!code) {
+      return NextResponse.redirect(`${baseUrl}/settings/connections?error=no_code&provider=schwab`)
+    }
+
+    const schwabAuth = new SecureSchwabAuth()
+    const redirectUri = `${baseUrl}/api/auth/schwab/callback`
+
+    try {
+      // Exchange the authorization code for tokens
+      const tokens = await schwabAuth.exchangeCodeForTokens(code, redirectUri)
+      
+      // Store the tokens securely
+      await schwabAuth.storeTokens(session.user.id.toString(), tokens)
+      
+      return NextResponse.redirect(`${baseUrl}/settings/connections?success=connected&provider=schwab`)
+    } catch (tokenError) {
+      console.error('Token exchange error:', tokenError)
+      return NextResponse.redirect(`${baseUrl}/settings/connections?error=token_exchange_failed&provider=schwab`)
+    }
+  } catch (error) {
+    console.error('Schwab OAuth callback error:', error)
+    return NextResponse.redirect(`${baseUrl}/settings/connections?error=callback_error&provider=schwab`)
+  }
+}

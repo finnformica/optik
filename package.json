@@ -4,6 +4,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "ngrok": "ngrok http --domain=prawn-verified-oddly.ngrok-free.app 3000",
     "db:setup": "npx tsx src/lib/db/setup.ts",
     "db:seed": "npx tsx src/lib/db/seed.ts",
     "db:reset": "npx tsx src/lib/db/reset.ts",

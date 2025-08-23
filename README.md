@@ -15,6 +15,7 @@ This is a starter template for building a SaaS application using **Next.js** wit
 - Global middleware to protect logged-in routes
 - Local middleware to protect Server Actions or validate Zod schemas
 - Activity logging system for any user events
+- OAuth integration with Schwab API for portfolio data
 
 ## Tech Stack
 
@@ -68,6 +69,14 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser to see the app in action.
 
+### For Schwab OAuth Integration (HTTPS Required)
+
+If you're using Schwab OAuth integration, you need to proxy the localhost app through ngrok. Create a new ngrok tunnel through their dashboard and use a static domain as the callback endpoint for your Schwab Developer Portal app. Update the package.json script to use the static domain:
+
+```bash
+npm run ngrok
+```
+
 You can listen for Stripe webhooks locally through their CLI to handle subscription change events:
 
 ```bash
@@ -81,6 +90,43 @@ To test Stripe payments, use the following test card details:
 - Card Number: `4242 4242 4242 4242`
 - Expiration: Any future date
 - CVC: Any 3-digit number
+
+## Setting Up Schwab API Integration
+
+To connect to Schwab for portfolio data, you'll need to set up a Schwab Developer account:
+
+1. **Create a Schwab Developer Account**
+
+   - Visit [Schwab Developer Portal](https://developer.schwab.com/)
+   - Sign up for a developer account
+   - Create a new application
+
+2. **Configure Your App**
+
+   - Set the callback URL to: `https://127.0.0.1:3000/api/auth/schwab/callback`
+   - Note: This must be exact - Schwab is strict about callback URLs
+   - Your app will need approval from Schwab (typically takes a few days)
+
+3. **Add Environment Variables**
+   Your `.env` file should include:
+
+   ```bash
+   # Schwab API credentials
+   SCHWAB_APP_KEY=your_app_key
+   SCHWAB_APP_SECRET=your_app_secret
+   TOKEN_ENCRYPTION_KEY=your_token_encryption_key
+   ```
+
+4. **Generate TOKEN_ENCRYPTION_KEY**
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+5. **Test the Integration**
+   - Start the localhost server proxy: `npm run ngrok`
+   - Navigate to Settings → Connections
+   - Click "Connect Schwab" to test the OAuth flow
 
 ## Going to Production
 

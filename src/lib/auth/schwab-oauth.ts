@@ -14,13 +14,11 @@ export interface SchwabTokens {
 export class SecureSchwabAuth {
   private appKey: string
   private appSecret: string
-  private clientId: string
   private baseUrl: string = 'https://api.schwabapi.com'
 
   constructor() {
     this.appKey = process.env.SCHWAB_APP_KEY!
     this.appSecret = process.env.SCHWAB_APP_SECRET!
-    this.clientId = process.env.SCHWAB_CLIENT_ID!
   }
 
   // Store tokens
@@ -140,18 +138,68 @@ export class SecureSchwabAuth {
     }
   }
 
-  // Rest of the OAuth methods remain the same...
-  async refreshAccessToken(refreshToken: string): Promise<SchwabTokens> {
-    const credentials = btoa(`${this.appKey}:${this.appSecret}`)
+  // Generate OAuth authorization URL
+  getAuthorizationUrl(redirectUri: string): string {
+    console.log('Schwab OAuth Configuration:', {
+      appKey: this.appKey.substring(0, 10) + '...',
+      redirectUri,
+      baseUrl: this.baseUrl
+    })
 
     const params = new URLSearchParams({
-        response_type: 'code',
-        client_id: this.clientId,
-        scope: 'readonly',
-        redirect_uri: 'https://developer.schwab.com/oauth2-redirect.html',
+      response_type: 'code',
+      client_id: this.appKey,
+      redirect_uri: redirectUri,
     })
+
+    const authUrl = `${this.baseUrl}/v1/oauth/authorize?${params.toString()}`
+    console.log('Generated OAuth URL:', authUrl)
+    return authUrl
+  }
+
+  // Exchange authorization code for access tokens
+  async exchangeCodeForTokens(authorizationCode: string, redirectUri: string): Promise<SchwabTokens> {
+    const credentials = btoa(`${this.appKey}:${this.appSecret}`)
+
+    console.log('Token Exchange Request:', {
+      authorizationCode: authorizationCode.substring(0, 10) + '...', // Only log first 10 chars
+      redirectUri,
+      appKey: this.appKey.substring(0, 10) + '...'
+    })
+
+    const response = await fetch(`${this.baseUrl}/v1/oauth/token`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: authorizationCode,
+        redirect_uri: redirectUri,
+      }),
+    })
+
+    console.log('Token Exchange Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Token exchange error details:', errorText)
+      throw new Error(`Token exchange failed: ${response.statusText} - ${errorText}`)
+    }
+
+    return response.json()
+  }
+
+  // Refresh access token using refresh token
+  async refreshAccessToken(refreshToken: string): Promise<SchwabTokens> {
+    const credentials = btoa(`${this.appKey}:${this.appSecret}`)
     
-    const response = await fetch(`${this.baseUrl}/v1/oauth/token?${params.toString()}`, {
+    const response = await fetch(`${this.baseUrl}/v1/oauth/token`, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${credentials}`,
@@ -164,9 +212,24 @@ export class SecureSchwabAuth {
     })
 
     if (!response.ok) {
-      throw new Error(`Token refresh failed: ${response.statusText}`)
+      const errorText = await response.text()
+      throw new Error(`Token refresh failed: ${response.statusText} - ${errorText}`)
     }
 
     return response.json()
+  }
+
+  // Make authenticated API request
+  async makeAuthenticatedRequest(userId: string, endpoint: string, options: RequestInit = {}): Promise<Response> {
+    const accessToken = await this.refreshAccessTokenSecurely(userId)
+    
+    return fetch(`${this.baseUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    })
   }
 }

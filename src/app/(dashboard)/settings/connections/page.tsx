@@ -39,7 +39,11 @@ async function getSchwabConnectionStatus(userId: number) {
   }
 }
 
-export default async function ConnectionsPage() {
+export default async function ConnectionsPage({
+  searchParams,
+}: {
+  searchParams: { error?: string; success?: string; provider?: string };
+}) {
   const session = await getSession();
 
   if (!session?.user?.id) {
@@ -49,9 +53,63 @@ export default async function ConnectionsPage() {
   const userId = session.user.id;
   const { connected, expiresAt } = await getSchwabConnectionStatus(userId);
 
+  const errorMessages = {
+    oauth_error: "OAuth authentication was cancelled or failed",
+    no_code: "No authorization code received",
+    token_exchange_failed: "Failed to exchange authorization code for tokens",
+    callback_error: "An error occurred during the OAuth callback",
+    not_authenticated: "You must be logged in to connect your account",
+  };
+
+  const successMessages = {
+    connected: "Successfully connected!",
+  };
+
+  const getProviderDisplayName = (provider?: string) => {
+    switch (provider) {
+      case "schwab":
+        return "Schwab";
+      case "td_ameritrade":
+        return "TD Ameritrade";
+      case "etrade":
+        return "E*TRADE";
+      case "fidelity":
+        return "Fidelity";
+      case "vanguard":
+        return "Vanguard";
+      default:
+        return provider || "Account";
+    }
+  };
+
   return (
     <section className="flex-1">
       <h1 className="text-2xl font-bold text-white mb-6">Connections</h1>
+
+      {/* Success Messages */}
+      {searchParams.success && (
+        <div className="mb-6 p-4 bg-green-900/20 border border-green-700 rounded-lg">
+          <p className="text-green-400">
+            {`${getProviderDisplayName(searchParams.provider)} ${
+              successMessages[
+                searchParams.success as keyof typeof successMessages
+              ] || "Operation completed successfully"
+            }`}
+          </p>
+        </div>
+      )}
+
+      {/* Error Messages */}
+      {searchParams.error && (
+        <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg">
+          <p className="text-red-400">
+            {`${getProviderDisplayName(searchParams.provider)}: ${
+              errorMessages[searchParams.error as keyof typeof errorMessages] ||
+              "An error occurred"
+            }`}
+          </p>
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Schwab Connection */}
