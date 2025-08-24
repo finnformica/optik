@@ -401,7 +401,7 @@ export const weeklyPerformance = pgView('weekly_performance').as((qb) =>
       transactionCount: sql<string>`COUNT(*)`.as('transaction_count'),
     })
     .from(transactions)
-    .where(sql`${transactions.action} NOT IN ('transfer', 'other')`)
+    .where(sql`${transactions.action} NOT IN ('transfer', 'other') AND ${transactions.date} <= CURRENT_DATE`)
     .groupBy(transactions.userId, sql`DATE_TRUNC('week', ${transactions.date})`)
     .orderBy(transactions.userId, sql`week_start DESC`)
 );
@@ -425,7 +425,7 @@ export const accountValueOverTime = pgView('account_value_over_time', {
         ELSE 0
       END) as weekly_gains
     FROM transactions
-    WHERE action != 'other'
+    WHERE action != 'other' AND date <= CURRENT_DATE
     GROUP BY user_id, DATE_TRUNC('week', date)
   )
   SELECT 
