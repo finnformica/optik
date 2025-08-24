@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   BarChart3,
   HelpCircle,
   LayoutDashboard,
@@ -37,16 +42,21 @@ const Sidebar = () => {
     const isActive = pathname === item.href;
 
     return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className={`flex items-center justify-center p-4 my-1 mx-2 rounded-lg ${
-          isActive ? "bg-blue-900/50 text-blue-400" : "hover:bg-gray-800"
-        }`}
-        title={item.title}
-      >
-        <Icon className="h-5 w-5" />
-      </Link>
+      <Tooltip key={item.href}>
+        <TooltipTrigger asChild>
+          <Link
+            href={item.href}
+            className={`flex items-center justify-center p-4 my-1 mx-2 rounded-lg transition-colors ${
+              isActive ? "bg-blue-900/50 text-blue-400" : "hover:bg-gray-800"
+            }`}
+          >
+            <Icon className="h-5 w-5" />
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="right" showArrow={false} sideOffset={10}>
+          <p>{item.title}</p>
+        </TooltipContent>
+      </Tooltip>
     );
   };
 
