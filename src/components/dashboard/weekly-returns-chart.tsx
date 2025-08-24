@@ -114,9 +114,9 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
                   yAxisId="percent"
                   type="monotone"
                   dataKey="percentReturns"
-                  stroke="#10b981"
+                  stroke="#FFF"
                   strokeWidth={2}
-                  dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
+                  dot={{ fill: "#FFF", strokeWidth: 2, r: 4 }}
                 />
               </ComposedChart>
             </ResponsiveContainer>

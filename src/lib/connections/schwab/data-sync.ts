@@ -179,11 +179,11 @@ export class SchwabAPISync {
     // Parse date from ISO string to YYYY-MM-DD
     const date = this.parseISODate(activity.tradeDate);
     
-    // Get quantity (absolute value)
-    const quantity = Math.abs(mainItem.amount);
+    // Normalize quantity: positive = position gained, negative = position lost
+    const normalizedQuantity = this.normalizeQuantity(action, mainItem.amount);
     
-    // Calculate net amount (absolute value for database)
-    const netAmount = Math.abs(activity.netAmount);
+    // Normalize amount: positive = cash received, negative = cash paid
+    const normalizedAmount = this.normalizeAmount(action, activity.netAmount);
 
     if (mainItem.instrument.assetType === 'OPTION') {
       return this.processOptionsTransaction(
@@ -192,8 +192,8 @@ export class SchwabAPISync {
         mainItem, 
         action, 
         date, 
-        quantity, 
-        netAmount, 
+        normalizedQuantity, 
+        normalizedAmount, 
         totalFees
       );
     } else if (mainItem.instrument.assetType === 'EQUITY' || mainItem.instrument.assetType === 'COLLECTIVE_INVESTMENT') {
@@ -203,8 +203,8 @@ export class SchwabAPISync {
         mainItem, 
         action, 
         date, 
-        quantity, 
-        netAmount, 
+        normalizedQuantity, 
+        normalizedAmount, 
         totalFees
       );
     }
@@ -314,16 +314,25 @@ export class SchwabAPISync {
     const mainItem = nonCurrencyItems[0];
     const date = this.parseISODate(activity.tradeDate);
     
-    // For RECEIVE_AND_DELIVER, typically involves option expiry/exercise
+    // For RECEIVE_AND_DELIVER, determine action based on description and asset type
     let ticker: string;
     let action: ITransactionAction;
     
     if (mainItem.instrument.assetType === 'OPTION') {
       ticker = mainItem.instrument.underlyingSymbol || mainItem.instrument.symbol;
-      action = 'transfer'; // Use transfer for expirations/assignments
+      
+      // Determine if it's expiration or assignment based on description
+      const description = activity.description?.toLowerCase() || '';
+      if (description.includes('expiration') || description.includes('expire')) {
+        action = 'expire';
+      } else if (description.includes('assignment') || description.includes('assign') || description.includes('exercise')) {
+        action = 'assign';
+      } else {
+        action = 'expire'; // Default to expire for options RECEIVE_AND_DELIVER
+      }
     } else {
       ticker = mainItem.instrument.symbol;
-      action = 'transfer';
+      action = 'transfer'; // Keep as transfer for non-option instruments
     }
 
     return {
@@ -334,9 +343,9 @@ export class SchwabAPISync {
       action,
       ticker,
       description: activity.description || mainItem.instrument.description,
-      quantity: Math.abs(mainItem.amount).toString(),
+      quantity: this.normalizeQuantity(action, mainItem.amount).toString(),
       fees: '0',
-      amount: Math.abs(activity.netAmount).toString(),
+      amount: this.normalizeAmount(action, activity.netAmount).toString(),
       strikePrice: mainItem.instrument.strikePrice?.toString() || null,
       expiryDate: mainItem.instrument.expirationDate ? this.parseISODate(mainItem.instrument.expirationDate) : null,
       optionType: mainItem.instrument.putCall || null,
@@ -364,7 +373,7 @@ export class SchwabAPISync {
       description: activity.description || 'Dividend/Interest payment',
       quantity: '1',
       fees: '0',
-      amount: Math.abs(activity.netAmount).toString(),
+      amount: this.normalizeAmount(action, activity.netAmount).toString(),
       strikePrice: null,
       expiryDate: null,
       optionType: null,
@@ -385,7 +394,7 @@ export class SchwabAPISync {
       description: activity.description || 'Wire transfer in',
       quantity: '1',
       fees: '0',
-      amount: Math.abs(activity.netAmount).toString(),
+      amount: this.normalizeAmount('transfer', activity.netAmount).toString(),
       strikePrice: null,
       expiryDate: null,
       optionType: null,
@@ -406,7 +415,7 @@ export class SchwabAPISync {
       description: activity.description || 'Wire transfer out',
       quantity: '1',
       fees: '0',
-      amount: Math.abs(activity.netAmount).toString(),
+      amount: this.normalizeAmount('transfer', activity.netAmount).toString(),
       strikePrice: null,
       expiryDate: null,
       optionType: null,
@@ -427,7 +436,7 @@ export class SchwabAPISync {
       description: 'SMA adjustment - ' + activity.description ,
       quantity: '1',
       fees: '0',
-      amount: Math.abs(activity.netAmount).toString(),
+      amount: this.normalizeAmount('other', activity.netAmount).toString(),
       strikePrice: null,
       expiryDate: null,
       optionType: null,
@@ -438,5 +447,65 @@ export class SchwabAPISync {
   private static parseISODate(isoString: string): string {
     const date = new Date(isoString);
     return date.toISOString().split('T')[0];
+  }
+
+  // Normalize amount: positive = cash received, negative = cash paid
+  private static normalizeAmount(action: ITransactionAction, netAmount: number): number {
+    switch (action) {
+      // Cash received (positive)
+      case 'sell':
+      case 'sell_to_close':
+      case 'sell_to_open':
+      case 'dividend':
+      case 'interest':
+        return Math.abs(netAmount);
+      
+      // Cash paid (negative)  
+      case 'buy':
+      case 'buy_to_open':
+      case 'buy_to_close':
+        return -Math.abs(netAmount);
+      
+      // No cash flow
+      case 'expire':
+      case 'assign':
+        return 0;
+      
+      // Transfers keep original sign
+      case 'transfer':
+        return netAmount;
+      
+      default:
+        return netAmount;
+    }
+  }
+
+  // Normalize quantity: positive = position gained, negative = position lost
+  private static normalizeQuantity(action: ITransactionAction, amount: number): number {
+    switch (action) {
+      // Position gained (positive)
+      case 'buy':
+      case 'buy_to_open':
+      case 'sell_to_open':
+        return Math.abs(amount);
+      
+      // Position lost/closed (negative)
+      case 'sell':
+      case 'sell_to_close':
+      case 'buy_to_close':
+      case 'expire':
+      case 'assign':
+        return -Math.abs(amount);
+      
+      // Transfers/other keep absolute value
+      case 'transfer':
+      case 'dividend':
+      case 'interest':
+      case 'other':
+        return Math.abs(amount);
+      
+      default:
+        return Math.abs(amount);
+    }
   }
 }

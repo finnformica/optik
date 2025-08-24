@@ -22,6 +22,8 @@ export const transactionAction = pgEnum("transaction_action", [
   "sell_to_close", 
   "sell_to_open", 
   "buy_to_close",
+  "expire",
+  "assign",
   "dividend", 
   "interest",
   "transfer",
@@ -231,19 +233,12 @@ export const currentPositions = pgView('current_positions').as((qb) =>
       optionType: transactions.optionType,
       strikePrice: transactions.strikePrice,
       expiryDate: transactions.expiryDate,
-      // Net quantity: positive = LONG, negative = SHORT
-      netQuantity: sql<string>`SUM(CASE 
-        WHEN ${transactions.action} IN ('buy', 'buy_to_open', 'buy_to_close') THEN ${transactions.quantity}::numeric
-        WHEN ${transactions.action} IN ('sell', 'sell_to_close', 'sell_to_open') THEN -${transactions.quantity}::numeric
-        ELSE 0
-      END)`.as('net_quantity'),
-      // Cost basis represents cash flow: positive = cash spent (LONG), negative = cash received (SHORT)
+      // Net quantity: sum of normalized quantities (positive = LONG, negative = SHORT)
+      netQuantity: sql<string>`SUM(${transactions.quantity}::numeric)`.as('net_quantity'),
+      // Cost basis: strike*100*quantity for options, amount for stocks
       costBasis: sql<string>`SUM(CASE 
-        WHEN ${transactions.action} IN ('buy') THEN (${transactions.amount}::numeric + ${transactions.fees}::numeric)
-        WHEN ${transactions.action} IN ('sell') THEN -(${transactions.amount}::numeric - ${transactions.fees}::numeric)
-        WHEN ${transactions.action} IN ('sell_to_open', 'sell_to_close') THEN -(${transactions.strikePrice}::numeric * ${transactions.quantity}::numeric * 100 + ${transactions.fees}::numeric)
-        WHEN ${transactions.action} IN ('buy_to_open', 'buy_to_close') THEN (${transactions.strikePrice}::numeric * ${transactions.quantity}::numeric * 100 + ${transactions.fees}::numeric)
-        ELSE 0
+        WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric * 100 * ${transactions.quantity}::numeric
+        ELSE ${transactions.amount}::numeric
       END)`.as('cost_basis'),
       lastTransactionDate: sql<string>`MAX(${transactions.date})`.as('last_transaction_date'),
       positionType: sql<string>`CASE 
@@ -260,13 +255,7 @@ export const currentPositions = pgView('current_positions').as((qb) =>
       transactions.strikePrice,
       transactions.expiryDate
     )
-    .having(sql`SUM(CASE 
-      WHEN ${transactions.action} IN ('buy', 'buy_to_open') THEN ${transactions.quantity}::numeric
-      WHEN ${transactions.action} IN ('sell', 'sell_to_close') THEN -${transactions.quantity}::numeric
-      WHEN ${transactions.action} IN ('sell_to_open') THEN -${transactions.quantity}::numeric
-      WHEN ${transactions.action} IN ('buy_to_close') THEN ${transactions.quantity}::numeric
-      ELSE 0
-    END) != 0`)
+    .having(sql`SUM(${transactions.quantity}::numeric) != 0`)
 );
 
 // 2. Portfolio Summary View - For SummaryStats component
@@ -289,15 +278,9 @@ export const portfolioSummary = pgView('portfolio_summary', {
   WITH portfolio_totals AS (
     SELECT 
       user_id,
-      -- Portfolio Value = Total account value (transfers + all gains/losses + dividends + interest)
-      SUM(CASE 
-        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
-        WHEN action IN ('sell', 'sell_to_open', 'sell_to_close') THEN (amount::numeric - fees::numeric)
-        WHEN action IN ('dividend', 'interest') THEN amount::numeric
-        WHEN action = 'transfer' THEN amount::numeric
-        ELSE 0
-      END) as portfolio_value,
-      -- Total transfers (money deposited)
+      -- Portfolio Value = Sum of all normalized amounts minus fees
+      SUM(amount::numeric) - SUM(fees::numeric) as portfolio_value,
+      -- Total transfers (money deposited/withdrawn)
       SUM(CASE WHEN action = 'transfer' THEN amount::numeric ELSE 0 END) as total_transfers,
       SUM(CASE WHEN action IN ('dividend', 'interest') THEN amount::numeric ELSE 0 END) as total_income,
       SUM(fees::numeric) as total_fees,
@@ -312,13 +295,7 @@ export const portfolioSummary = pgView('portfolio_summary', {
   monthly_pnl AS (
     SELECT 
       user_id,
-      SUM(CASE 
-        WHEN action IN ('sell', 'sell_to_close') THEN (amount::numeric - fees::numeric)
-        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
-        WHEN action = 'sell_to_open' THEN (amount::numeric - fees::numeric)
-        WHEN action IN ('dividend', 'interest') THEN amount::numeric
-        ELSE 0
-      END) as monthly_pnl
+      SUM(amount::numeric) - SUM(fees::numeric) as monthly_pnl
     FROM transactions
     WHERE action NOT IN ('transfer', 'other') 
       AND date >= DATE_TRUNC('month', CURRENT_DATE)
@@ -327,13 +304,7 @@ export const portfolioSummary = pgView('portfolio_summary', {
   yearly_pnl AS (
     SELECT 
       user_id,
-      SUM(CASE 
-        WHEN action IN ('sell', 'sell_to_close') THEN (amount::numeric - fees::numeric)
-        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
-        WHEN action = 'sell_to_open' THEN (amount::numeric - fees::numeric)
-        WHEN action IN ('dividend', 'interest') THEN amount::numeric
-        ELSE 0
-      END) as yearly_pnl
+      SUM(amount::numeric) - SUM(fees::numeric) as yearly_pnl
     FROM transactions
     WHERE action NOT IN ('transfer', 'other')
       AND date >= DATE_TRUNC('year', CURRENT_DATE)
@@ -350,13 +321,7 @@ export const portfolioSummary = pgView('portfolio_summary', {
   weekly_pnl AS (
     SELECT 
       user_id,
-      SUM(CASE 
-        WHEN action IN ('sell', 'sell_to_close') THEN (amount::numeric - fees::numeric)
-        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
-        WHEN action = 'sell_to_open' THEN (amount::numeric - fees::numeric)
-        WHEN action IN ('dividend', 'interest') THEN amount::numeric
-        ELSE 0
-      END) as weekly_pnl
+      SUM(amount::numeric) - SUM(fees::numeric) as weekly_pnl
     FROM transactions
     WHERE action NOT IN ('transfer', 'other') 
       AND date >= DATE_TRUNC('week', CURRENT_DATE)
@@ -366,7 +331,7 @@ export const portfolioSummary = pgView('portfolio_summary', {
     pt.user_id,
     pt.portfolio_value::text,
     -- Cash Balance = Portfolio Value - Position Cost Basis (available cash)
-    (pt.portfolio_value + COALESCE(pv.total_position_cost, 0))::text as cash_balance,
+    (pt.portfolio_value - COALESCE(pv.total_position_cost, 0))::text as cash_balance,
     COALESCE(mp.monthly_pnl, 0)::text as monthly_pnl,
     COALESCE(yp.yearly_pnl, 0)::text as yearly_pnl,
     -- Weekly P&L amount (absolute dollar change this week)
@@ -426,14 +391,8 @@ export const weeklyPerformance = pgView('weekly_performance').as((qb) =>
     .select({
       userId: transactions.userId,
       weekStart: sql<string>`DATE_TRUNC('week', ${transactions.date})::date`.as('week_start'),
-      // Weekly P/L from actual profit/loss on stocks, options, dividends, and interest
-      weeklyPnl: sql<string>`SUM(CASE 
-        WHEN ${transactions.action} IN ('sell', 'sell_to_close') THEN (${transactions.amount}::numeric - ${transactions.fees}::numeric)
-        WHEN ${transactions.action} IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(${transactions.amount}::numeric + ${transactions.fees}::numeric)
-        WHEN ${transactions.action} = 'sell_to_open' THEN (${transactions.amount}::numeric - ${transactions.fees}::numeric)
-        WHEN ${transactions.action} IN ('dividend', 'interest') THEN ${transactions.amount}::numeric
-        ELSE 0
-      END)`.as('weekly_pnl'),
+      // Weekly P/L from normalized amounts minus fees
+      weeklyPnl: sql<string>`SUM(${transactions.amount}::numeric) - SUM(${transactions.fees}::numeric)`.as('weekly_pnl'),
       transactionCount: sql<string>`COUNT(*)`.as('transaction_count'),
     })
     .from(transactions)
@@ -457,9 +416,7 @@ export const accountValueOverTime = pgView('account_value_over_time', {
       SUM(CASE WHEN action = 'transfer' THEN amount::numeric ELSE 0 END) as weekly_transfers,
       -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
       SUM(CASE 
-        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
-        WHEN action IN ('sell', 'sell_to_open', 'sell_to_close') THEN (amount::numeric - fees::numeric)
-        WHEN action IN ('dividend', 'interest') THEN amount::numeric
+        WHEN action != 'transfer' THEN amount::numeric - fees::numeric
         ELSE 0
       END) as weekly_gains
     FROM transactions
