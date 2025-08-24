@@ -45,7 +45,7 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
     cumulativeValue += absoluteReturns; // Update running total for next week
 
     return {
-      week: new Date(item.weekStart || "").toLocaleDateString("en-US", {
+      week: new Date(item.weekStart || "").toLocaleDateString("en-GB", {
         month: "short",
         day: "numeric",
       }),
@@ -98,9 +98,9 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
                   }}
                   formatter={(value: number, name: string) => {
                     if (name === "absoluteReturns") {
-                      return [`$${value.toLocaleString()}`, "Absolute Returns"];
+                      return [`$${value.toLocaleString()}`, "Absolute"];
                     }
-                    return [`${value.toFixed(2)}%`, "Percent Returns"];
+                    return [`${value.toFixed(2)}%`, "Percent"];
                   }}
                 />
                 <Bar
@@ -114,9 +114,21 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
                   yAxisId="percent"
                   type="monotone"
                   dataKey="percentReturns"
-                  stroke="#FFF"
-                  strokeWidth={2}
-                  dot={{ fill: "#FFF", strokeWidth: 2, r: 4 }}
+                  stroke="#8b5cf6"
+                  strokeWidth={0}
+                  opacity={0}
+                  dot={{
+                    fill: "transparent",
+                    strokeWidth: 0,
+                    r: 0,
+                    opacity: 0,
+                  }}
+                  activeDot={{
+                    fill: "transparent",
+                    r: 0,
+                    strokeWidth: 0,
+                    opacity: 0,
+                  }}
                 />
               </ComposedChart>
             </ResponsiveContainer>

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccountValueOverTime } from "@/lib/db/schema";
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -18,7 +19,7 @@ interface AccountValueChartProps {
 
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString("en-GB", {
     month: "short",
     day: "numeric",
   });
@@ -32,15 +33,15 @@ const AccountValueChart = ({ accountValueData }: AccountValueChartProps) => {
 
     return {
       week: formatDate(item.weekStart || ""),
-      transfers: Math.abs(transfers),
-      portfolioValue: Math.abs(portfolioValue),
+      "Account Value": Math.abs(portfolioValue),
+      Transfers: Math.abs(transfers),
       date: item.weekStart,
     };
   }); // Data is already ordered by week_start ASC in the view
   return (
-    <Card className="bg-[#1a2236] border-gray-800 pt-0">
+    <Card className="bg-[#1a2236] border-gray-800 py-0">
       <CardHeader className="border-b border-gray-800 p-4">
-        <CardTitle className="text-white">Account Value Over Time</CardTitle>
+        <CardTitle className="text-white">Account Value</CardTitle>
       </CardHeader>
       <CardContent className="px-2">
         <div className="h-[300px]">
@@ -54,7 +55,7 @@ const AccountValueChart = ({ accountValueData }: AccountValueChartProps) => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={chartData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="week" stroke="#9CA3AF" fontSize={12} />
@@ -72,33 +73,52 @@ const AccountValueChart = ({ accountValueData }: AccountValueChartProps) => {
                   }}
                   formatter={(value: number, name: string) => [
                     `$${value.toLocaleString()}`,
-                    name === "transfers" ? "Transfers" : "Portfolio",
+                    name,
                   ]}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="transfers"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  dot={{ fill: "#8b5cf6", strokeWidth: 2, r: 3 }}
-                  activeDot={{
-                    r: 5,
-                    stroke: "#8b5cf6",
-                    strokeWidth: 2,
-                    fill: "#1a2236",
+                <Legend
+                  verticalAlign="bottom"
+                  align="center"
+                  wrapperStyle={{
+                    color: "#fff",
+                    fontSize: "12px",
                   }}
                 />
                 <Line
                   type="monotone"
-                  dataKey="portfolioValue"
+                  dataKey="Transfers"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={{
+                    fill: "#fff",
+                    stroke: "#8b5cf6",
+                    strokeWidth: 2,
+                    r: 4,
+                  }}
+                  activeDot={{
+                    r: 5,
+                    stroke: "#8b5cf6",
+                    strokeWidth: 2,
+                    fill: "#fff",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="Account Value"
                   stroke="#3b82f6"
                   strokeWidth={3}
-                  dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}
-                  activeDot={{
-                    r: 6,
+                  dot={{
+                    fill: "#fff",
                     stroke: "#3b82f6",
                     strokeWidth: 2,
-                    fill: "#1a2236",
+                    r: 4,
+                  }}
+                  activeDot={{
+                    r: 5,
+                    stroke: "#3b82f6",
+                    strokeWidth: 2,
+                    fill: "#fff",
                   }}
                 />
               </LineChart>
