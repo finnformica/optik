@@ -10,7 +10,8 @@
     "db:reset": "npx supabase db reset",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:restart": "npx supabase stop && npx supabase start"
   },
   "dependencies": {
     "@tailwindcss/postcss": "4.1.7",
@@ -27,6 +28,7 @@
     "drizzle-orm": "^0.43.1",
     "drizzle-zod": "^0.8.3",
     "jose": "^6.0.11",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.511.0",
     "next": "15.4.0-canary.47",
     "postcss": "^8.5.3",
@@ -46,6 +48,7 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.20",
     "drizzle-seed": "^0.3.1"
   }
 }

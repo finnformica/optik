@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import _ from "lodash";
 import {
   AlertCircle,
   ChevronDown,
@@ -15,8 +16,6 @@ import {
   Info,
   RefreshCw,
   Search,
-  TrendingDown,
-  TrendingUp,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -95,15 +94,6 @@ export default function TransactionsPage() {
       return "bg-red-100 text-red-800";
     }
     return "bg-gray-100 text-gray-800";
-  };
-
-  const getActionIcon = (action: string) => {
-    if (action.includes("buy") || action.includes("open")) {
-      return <TrendingUp className="w-4 h-4" />;
-    } else if (action.includes("sell") || action.includes("close")) {
-      return <TrendingDown className="w-4 h-4" />;
-    }
-    return null;
   };
 
   // Get unique actions and brokers for filters
@@ -339,7 +329,7 @@ export default function TransactionsPage() {
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
                         onClick={() => handleSort("action")}
-                        className="flex items-center gap-1 hover:text-white transition-colors"
+                        className="flex items-center gap-1 hover:text-white transition-colors min-w-32"
                       >
                         Action
                         <SortIcon field="action" />
@@ -405,7 +395,7 @@ export default function TransactionsPage() {
                               {transaction.ticker}
                             </div>
                             {transaction.description && (
-                              <div className="text-sm text-gray-400 truncate max-w-48">
+                              <div className="text-sm text-gray-400 line-clamp-2 break-words">
                                 {transaction.description}
                               </div>
                             )}
@@ -413,11 +403,12 @@ export default function TransactionsPage() {
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            {getActionIcon(transaction.action)}
                             <Badge
-                              className={getActionColor(transaction.action)}
+                              className={`${getActionColor(
+                                transaction.action
+                              )} min-w-fit`}
                             >
-                              {transaction.action.replace(/_/g, " ")}
+                              {_.startCase(transaction.action)}
                             </Badge>
                           </div>
                         </td>
@@ -427,9 +418,11 @@ export default function TransactionsPage() {
                         <td className="p-3">
                           <span
                             className={`font-medium ${
-                              parseFloat(transaction.amount) >= 0
+                              parseFloat(transaction.amount) > 0
                                 ? "text-green-400"
-                                : "text-red-400"
+                                : parseFloat(transaction.amount) < 0
+                                ? "text-red-400"
+                                : ""
                             }`}
                           >
                             {formatCurrency(transaction.amount)}
