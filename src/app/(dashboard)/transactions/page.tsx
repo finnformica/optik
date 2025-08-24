@@ -125,7 +125,7 @@ export default function TransactionsPage() {
   const filteredAndSortedTransactions = useMemo(() => {
     let filtered = transactions.filter((transaction: Transaction) => {
       const matchesSearch =
-        transaction.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.ticker?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (transaction.description &&
           transaction.description
             .toLowerCase()

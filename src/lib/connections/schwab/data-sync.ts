@@ -353,7 +353,6 @@ export class SchwabAPISync {
     const action: ITransactionAction = isInterest ? 'interest' : 'dividend';
     
     // Use a generic ticker for cash activities - could be enhanced to parse actual ticker from description
-    const ticker = 'CASH';
     
     return {
       userId,
@@ -361,7 +360,7 @@ export class SchwabAPISync {
       broker: 'schwab',
       date,
       action,
-      ticker,
+      ticker: null,
       description: activity.description || 'Dividend/Interest payment',
       quantity: '1',
       fees: '0',
@@ -382,7 +381,7 @@ export class SchwabAPISync {
       broker: 'schwab',
       date,
       action: 'transfer',
-      ticker: 'CASH',
+      ticker: null,
       description: activity.description || 'Wire transfer in',
       quantity: '1',
       fees: '0',
@@ -403,7 +402,7 @@ export class SchwabAPISync {
       broker: 'schwab',
       date,
       action: 'transfer',
-      ticker: 'CASH',
+      ticker: null,
       description: activity.description || 'Wire transfer out',
       quantity: '1',
       fees: '0',
@@ -423,9 +422,9 @@ export class SchwabAPISync {
       transactionId: activity.activityId,
       broker: 'schwab',
       date,
-      action: 'transfer',
-      ticker: 'CASH',
-      description: activity.description || 'SMA adjustment',
+      action: 'other',
+      ticker: null,
+      description: 'SMA adjustment - ' + activity.description ,
       quantity: '1',
       fees: '0',
       amount: Math.abs(activity.netAmount).toString(),

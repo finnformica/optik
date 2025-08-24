@@ -70,7 +70,7 @@ async function seed() {
     role: 'owner',
   });
 
-  await createStripeProducts();
+  // await createStripeProducts();
 }
 
 seed()

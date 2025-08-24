@@ -1,70 +1,112 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WeeklyPerformance } from "@/lib/db/schema";
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const data = [
-  {
-    week: "Week 1",
-    returns: 1250,
-    percent: 2.3,
-  },
-  {
-    week: "Week 2",
-    returns: -450,
-    percent: -0.8,
-  },
-  {
-    week: "Week 3",
-    returns: 2100,
-    percent: 3.7,
-  },
-  {
-    week: "Week 4",
-    returns: 1650,
-    percent: 2.8,
-  },
-  {
-    week: "Week 5",
-    returns: -850,
-    percent: -1.4,
-  },
-  {
-    week: "Week 6",
-    returns: 1400,
-    percent: 2.4,
-  },
-];
+interface WeeklyReturnsChartProps {
+  weeklyData: WeeklyPerformance[];
+}
 
-const WeeklyReturnsChart = () => {
+const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
+  // Sort data by date to ensure proper chronological order
+  const sortedData = [...weeklyData].sort((a, b) => 
+    new Date(a.weekStart || '').getTime() - new Date(b.weekStart || '').getTime()
+  );
+  
+  // Calculate cumulative portfolio value to determine percentage returns
+  let cumulativeValue = 0;
+  
+  // Format data for chart, calculating running portfolio value
+  const chartData = sortedData.map((item, index) => {
+    const absoluteReturns = parseFloat(item.weeklyPnl || '0');
+    
+    // For the first week, assume a base portfolio value or use the absolute returns as base
+    if (index === 0 && cumulativeValue === 0) {
+      cumulativeValue = Math.abs(absoluteReturns) > 1000 ? Math.abs(absoluteReturns) * 10 : 10000;
+    }
+    
+    const percentReturns = cumulativeValue > 0 ? (absoluteReturns / cumulativeValue) * 100 : 0;
+    cumulativeValue += absoluteReturns; // Update running total for next week
+    
+    return {
+      week: new Date(item.weekStart || '').toLocaleDateString("en-US", { 
+        month: "short", 
+        day: "numeric" 
+      }),
+      absoluteReturns,
+      percentReturns,
+      date: item.weekStart,
+    };
+  });
   return (
     <Card className="bg-[#1a2236] border-gray-800">
       <CardHeader className="border-b border-gray-800">
         <CardTitle className="text-white">Weekly Returns</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="h-[300px] flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-gray-400 mb-4">
-              Chart visualization would go here
-            </p>
-            <div className="space-y-2">
-              {data.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between items-center p-2 bg-[#14192a] rounded"
-                >
-                  <span className="text-white">{item.week}</span>
-                  <span
-                    className={`font-medium ${
-                      item.returns >= 0 ? "text-green-400" : "text-red-400"
-                    }`}
-                  >
-                    ${item.returns.toLocaleString()}
-                  </span>
-                </div>
-              ))}
+        <div className="h-[300px]">
+          {chartData.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-gray-400">
+                No weekly data available
+              </div>
             </div>
-          </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis 
+                  dataKey="week" 
+                  stroke="#9CA3AF"
+                  fontSize={12}
+                />
+                <YAxis 
+                  yAxisId="absolute"
+                  orientation="left"
+                  stroke="#9CA3AF"
+                  fontSize={12}
+                  tickFormatter={(value) => `$${value}`}
+                />
+                <YAxis 
+                  yAxisId="percent"
+                  orientation="right"
+                  stroke="#9CA3AF"
+                  fontSize={12}
+                  tickFormatter={(value) => `${value.toFixed(1)}%`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1a2236',
+                    border: '1px solid #374151',
+                    borderRadius: '8px',
+                    color: '#fff'
+                  }}
+                  formatter={(value: number, name: string) => {
+                    if (name === 'absoluteReturns') {
+                      return [`$${value.toLocaleString()}`, 'Absolute Returns'];
+                    }
+                    return [`${value.toFixed(2)}%`, 'Percent Returns'];
+                  }}
+                />
+                <Bar 
+                  yAxisId="absolute"
+                  dataKey="absoluteReturns" 
+                  fill="#3b82f6"
+                  radius={[2, 2, 0, 0]}
+                  opacity={0.8}
+                />
+                <Line 
+                  yAxisId="percent"
+                  type="monotone"
+                  dataKey="percentReturns"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </CardContent>
     </Card>

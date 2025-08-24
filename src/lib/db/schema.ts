@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   bigint,
   date,
@@ -6,6 +6,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  pgView,
   serial,
   text,
   timestamp,
@@ -24,6 +25,7 @@ export const transactionAction = pgEnum("transaction_action", [
   "dividend", 
   "interest",
   "transfer",
+  "other",
 ]);
 export const transactionActionSchema = createSelectSchema(transactionAction);
 export type ITransactionAction = typeof transactionAction.enumValues[number];
@@ -121,7 +123,7 @@ export const transactions = pgTable('transactions', {
   // Core transaction fields
   date: date('date').notNull(), // date of the transaction
   action: transactionAction('action').notNull(), // buy, sell, buy_to_open, sell_to_close, interest, dividend, etc
-  ticker: varchar('ticker', { length: 50 }).notNull(), // AAPL, MSFT, etc
+  ticker: varchar('ticker', { length: 50 }), // AAPL, MSFT, etc, null for transfers
   description: text('description'),
   quantity: decimal('quantity', { precision: 18, scale: 8 }).notNull(), // number of shares, number of contracts, etc
   fees: decimal('fees', { precision: 18, scale: 8 }).notNull().default("0"), // fees paid for the transaction
@@ -217,3 +219,266 @@ export enum ActivityType {
   INVITE_TEAM_MEMBER = 'INVITE_TEAM_MEMBER',
   ACCEPT_INVITATION = 'ACCEPT_INVITATION',
 }
+
+// Analytics Views for Dashboard Components
+
+// 1. Current Positions View - For CurrentPositions component
+export const currentPositions = pgView('current_positions').as((qb) =>
+  qb
+    .select({
+      userId: transactions.userId,
+      ticker: transactions.ticker,
+      optionType: transactions.optionType,
+      strikePrice: transactions.strikePrice,
+      expiryDate: transactions.expiryDate,
+      // Net quantity: positive = LONG, negative = SHORT
+      netQuantity: sql<string>`SUM(CASE 
+        WHEN ${transactions.action} IN ('buy', 'buy_to_open', 'buy_to_close') THEN ${transactions.quantity}::numeric
+        WHEN ${transactions.action} IN ('sell', 'sell_to_close', 'sell_to_open') THEN -${transactions.quantity}::numeric
+        ELSE 0
+      END)`.as('net_quantity'),
+      // Cost basis represents cash flow: positive = cash spent (LONG), negative = cash received (SHORT)
+      costBasis: sql<string>`SUM(CASE 
+        WHEN ${transactions.action} IN ('buy') THEN (${transactions.amount}::numeric + ${transactions.fees}::numeric)
+        WHEN ${transactions.action} IN ('sell') THEN -(${transactions.amount}::numeric - ${transactions.fees}::numeric)
+        WHEN ${transactions.action} IN ('sell_to_open', 'sell_to_close') THEN -(${transactions.strikePrice}::numeric * ${transactions.quantity}::numeric * 100 + ${transactions.fees}::numeric)
+        WHEN ${transactions.action} IN ('buy_to_open', 'buy_to_close') THEN (${transactions.strikePrice}::numeric * ${transactions.quantity}::numeric * 100 + ${transactions.fees}::numeric)
+        ELSE 0
+      END)`.as('cost_basis'),
+      lastTransactionDate: sql<string>`MAX(${transactions.date})`.as('last_transaction_date'),
+      positionType: sql<string>`CASE 
+        WHEN ${transactions.optionType} IS NOT NULL THEN 'OPTION'
+        ELSE 'EQUITY'
+      END`.as('position_type'),
+    })
+    .from(transactions)
+    .where(sql`${transactions.action} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
+    .groupBy(
+      transactions.userId,
+      transactions.ticker,
+      transactions.optionType,
+      transactions.strikePrice,
+      transactions.expiryDate
+    )
+    .having(sql`SUM(CASE 
+      WHEN ${transactions.action} IN ('buy', 'buy_to_open') THEN ${transactions.quantity}::numeric
+      WHEN ${transactions.action} IN ('sell', 'sell_to_close') THEN -${transactions.quantity}::numeric
+      WHEN ${transactions.action} IN ('sell_to_open') THEN -${transactions.quantity}::numeric
+      WHEN ${transactions.action} IN ('buy_to_close') THEN ${transactions.quantity}::numeric
+      ELSE 0
+    END) != 0`)
+);
+
+// 2. Portfolio Summary View - For SummaryStats component
+export const portfolioSummary = pgView('portfolio_summary', {
+  userId: integer('user_id'),
+  portfolioValue: text('portfolio_value'),
+  cashBalance: text('cash_balance'),
+  monthlyPnl: text('monthly_pnl'),
+  yearlyPnl: text('yearly_pnl'),
+  weeklyPnlAmount: text('weekly_pnl_amount'),
+  monthlyPnlPercent: text('monthly_pnl_percent'),
+  yearlyPnlPercent: text('yearly_pnl_percent'),
+  totalIncome: text('total_income'),
+  totalFees: text('total_fees'),
+  uniqueTickers: text('unique_tickers'),
+  totalTransactions: text('total_transactions'),
+  firstTransactionDate: text('first_transaction_date'),
+  lastTransactionDate: text('last_transaction_date'),
+}).as(sql`
+  WITH portfolio_totals AS (
+    SELECT 
+      user_id,
+      -- Portfolio Value = Total account value (transfers + all gains/losses + dividends + interest)
+      SUM(CASE 
+        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
+        WHEN action IN ('sell', 'sell_to_open', 'sell_to_close') THEN (amount::numeric - fees::numeric)
+        WHEN action IN ('dividend', 'interest') THEN amount::numeric
+        WHEN action = 'transfer' THEN amount::numeric
+        ELSE 0
+      END) as portfolio_value,
+      -- Total transfers (money deposited)
+      SUM(CASE WHEN action = 'transfer' THEN amount::numeric ELSE 0 END) as total_transfers,
+      SUM(CASE WHEN action IN ('dividend', 'interest') THEN amount::numeric ELSE 0 END) as total_income,
+      SUM(fees::numeric) as total_fees,
+      COUNT(DISTINCT ticker) as unique_tickers,
+      COUNT(*) as total_transactions,
+      MIN(date) as first_transaction_date,
+      MAX(date) as last_transaction_date
+    FROM transactions
+    WHERE action != 'other'
+    GROUP BY user_id
+  ),
+  monthly_pnl AS (
+    SELECT 
+      user_id,
+      SUM(CASE 
+        WHEN action IN ('sell', 'sell_to_close') THEN (amount::numeric - fees::numeric)
+        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
+        WHEN action = 'sell_to_open' THEN (amount::numeric - fees::numeric)
+        WHEN action IN ('dividend', 'interest') THEN amount::numeric
+        ELSE 0
+      END) as monthly_pnl
+    FROM transactions
+    WHERE action NOT IN ('transfer', 'other') 
+      AND date >= DATE_TRUNC('month', CURRENT_DATE)
+    GROUP BY user_id
+  ),
+  yearly_pnl AS (
+    SELECT 
+      user_id,
+      SUM(CASE 
+        WHEN action IN ('sell', 'sell_to_close') THEN (amount::numeric - fees::numeric)
+        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
+        WHEN action = 'sell_to_open' THEN (amount::numeric - fees::numeric)
+        WHEN action IN ('dividend', 'interest') THEN amount::numeric
+        ELSE 0
+      END) as yearly_pnl
+    FROM transactions
+    WHERE action NOT IN ('transfer', 'other')
+      AND date >= DATE_TRUNC('year', CURRENT_DATE)
+    GROUP BY user_id
+  ),
+  position_values AS (
+    SELECT 
+      user_id,
+      -- Sum of cost basis for all current open positions (actual money tied up in positions)
+      COALESCE(SUM(cost_basis::numeric), 0) as total_position_cost
+    FROM current_positions
+    GROUP BY user_id
+  ),
+  weekly_pnl AS (
+    SELECT 
+      user_id,
+      SUM(CASE 
+        WHEN action IN ('sell', 'sell_to_close') THEN (amount::numeric - fees::numeric)
+        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
+        WHEN action = 'sell_to_open' THEN (amount::numeric - fees::numeric)
+        WHEN action IN ('dividend', 'interest') THEN amount::numeric
+        ELSE 0
+      END) as weekly_pnl
+    FROM transactions
+    WHERE action NOT IN ('transfer', 'other') 
+      AND date >= DATE_TRUNC('week', CURRENT_DATE)
+    GROUP BY user_id
+  )
+  SELECT 
+    pt.user_id,
+    pt.portfolio_value::text,
+    -- Cash Balance = Portfolio Value - Position Cost Basis (available cash)
+    (pt.portfolio_value + COALESCE(pv.total_position_cost, 0))::text as cash_balance,
+    COALESCE(mp.monthly_pnl, 0)::text as monthly_pnl,
+    COALESCE(yp.yearly_pnl, 0)::text as yearly_pnl,
+    -- Weekly P&L amount (absolute dollar change this week)
+    COALESCE(wp.weekly_pnl, 0)::text as weekly_pnl_amount,
+    -- Monthly P&L as percentage of portfolio
+    CASE 
+      WHEN pt.portfolio_value > 0 AND mp.monthly_pnl IS NOT NULL
+      THEN ((mp.monthly_pnl / pt.portfolio_value) * 100)::text
+      ELSE '0'
+    END as monthly_pnl_percent,
+    -- Yearly P&L as percentage of portfolio
+    CASE 
+      WHEN pt.portfolio_value > 0 AND yp.yearly_pnl IS NOT NULL
+      THEN ((yp.yearly_pnl / pt.portfolio_value) * 100)::text
+      ELSE '0'
+    END as yearly_pnl_percent,
+    pt.total_income::text,
+    pt.total_fees::text,
+    pt.unique_tickers::text,
+    pt.total_transactions::text,
+    pt.first_transaction_date::text,
+    pt.last_transaction_date::text
+  FROM portfolio_totals pt
+  LEFT JOIN monthly_pnl mp ON pt.user_id = mp.user_id
+  LEFT JOIN yearly_pnl yp ON pt.user_id = yp.user_id
+  LEFT JOIN position_values pv ON pt.user_id = pv.user_id
+  LEFT JOIN weekly_pnl wp ON pt.user_id = wp.user_id
+`);
+
+// 3. Portfolio Distribution View - For PortfolioDistribution component
+export const portfolioDistribution = pgView('portfolio_distribution').as((qb) =>
+  qb
+    .select({
+      userId: currentPositions.userId,
+      ticker: currentPositions.ticker,
+      positionType: currentPositions.positionType,
+      // For options, use contract size (quantity * 100 * strike) or premium paid, for stocks use cost basis
+      positionValue: sql<string>`CASE 
+        WHEN ${currentPositions.positionType} = 'OPTION' AND ${currentPositions.strikePrice} IS NOT NULL 
+        THEN ABS(${currentPositions.netQuantity}::numeric * 100 * ${currentPositions.strikePrice}::numeric)
+        ELSE ABS(${currentPositions.costBasis})
+      END`.as('position_value'),
+      netQuantity: currentPositions.netQuantity,
+      daysHeld: sql<string>`(CURRENT_DATE - ${currentPositions.lastTransactionDate})`.as('days_held'),
+    })
+    .from(currentPositions)
+    .orderBy(sql`CASE 
+      WHEN ${currentPositions.positionType} = 'OPTION' AND ${currentPositions.strikePrice} IS NOT NULL 
+      THEN ABS(${currentPositions.netQuantity}::numeric * 100 * ${currentPositions.strikePrice}::numeric)
+      ELSE ABS(${currentPositions.costBasis})
+    END DESC`)
+);
+
+// 4. Weekly Performance View - For WeeklyReturnsChart component
+export const weeklyPerformance = pgView('weekly_performance').as((qb) =>
+  qb
+    .select({
+      userId: transactions.userId,
+      weekStart: sql<string>`DATE_TRUNC('week', ${transactions.date})::date`.as('week_start'),
+      // Weekly P/L from actual profit/loss on stocks, options, dividends, and interest
+      weeklyPnl: sql<string>`SUM(CASE 
+        WHEN ${transactions.action} IN ('sell', 'sell_to_close') THEN (${transactions.amount}::numeric - ${transactions.fees}::numeric)
+        WHEN ${transactions.action} IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(${transactions.amount}::numeric + ${transactions.fees}::numeric)
+        WHEN ${transactions.action} = 'sell_to_open' THEN (${transactions.amount}::numeric - ${transactions.fees}::numeric)
+        WHEN ${transactions.action} IN ('dividend', 'interest') THEN ${transactions.amount}::numeric
+        ELSE 0
+      END)`.as('weekly_pnl'),
+      transactionCount: sql<string>`COUNT(*)`.as('transaction_count'),
+    })
+    .from(transactions)
+    .where(sql`${transactions.action} NOT IN ('transfer', 'other')`)
+    .groupBy(transactions.userId, sql`DATE_TRUNC('week', ${transactions.date})`)
+    .orderBy(transactions.userId, sql`week_start DESC`)
+);
+
+// 5. Account Value Over Time View - For AccountValueChart component
+export const accountValueOverTime = pgView('account_value_over_time', {
+  userId: integer('user_id'),
+  weekStart: text('week_start'),
+  cumulativeTransfers: text('cumulative_transfers'),
+  cumulativePortfolioValue: text('cumulative_portfolio_value'),
+}).as(sql`
+  WITH weekly_data AS (
+    SELECT 
+      user_id,
+      DATE_TRUNC('week', date)::date as week_start,
+      -- Weekly transfers (money wire in/out)
+      SUM(CASE WHEN action = 'transfer' THEN amount::numeric ELSE 0 END) as weekly_transfers,
+      -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
+      SUM(CASE 
+        WHEN action IN ('buy', 'buy_to_open', 'buy_to_close') THEN -(amount::numeric + fees::numeric)
+        WHEN action IN ('sell', 'sell_to_open', 'sell_to_close') THEN (amount::numeric - fees::numeric)
+        WHEN action IN ('dividend', 'interest') THEN amount::numeric
+        ELSE 0
+      END) as weekly_gains
+    FROM transactions
+    WHERE action != 'other'
+    GROUP BY user_id, DATE_TRUNC('week', date)
+  )
+  SELECT 
+    user_id,
+    week_start,
+    SUM(weekly_transfers) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_transfers,
+    SUM(weekly_transfers) OVER (PARTITION BY user_id ORDER BY week_start) + 
+    SUM(weekly_gains) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_portfolio_value
+  FROM weekly_data
+  ORDER BY user_id, week_start
+`);
+
+// Type exports for the views
+export type CurrentPosition = typeof currentPositions.$inferSelect;
+export type PortfolioSummary = typeof portfolioSummary.$inferSelect;
+export type PortfolioDistribution = typeof portfolioDistribution.$inferSelect;
+export type WeeklyPerformance = typeof weeklyPerformance.$inferSelect;
+export type AccountValueOverTime = typeof accountValueOverTime.$inferSelect;
