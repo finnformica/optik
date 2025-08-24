@@ -42,7 +42,7 @@ const AccountValueChart = ({ accountValueData }: AccountValueChartProps) => {
       <CardHeader className="border-b border-gray-800 p-4">
         <CardTitle className="text-white">Account Value Over Time</CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="px-2">
         <div className="h-[300px]">
           {chartData.length === 0 ? (
             <div className="flex items-center justify-center h-full">

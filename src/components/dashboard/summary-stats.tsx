@@ -66,11 +66,7 @@ const SummaryStats = ({ summary }: SummaryStatsProps) => {
             <h3 className="text-gray-400 text-sm font-medium">Monthly P/L</h3>
             <Calendar className="h-5 w-5 text-purple-500" />
           </div>
-          <p
-            className={`text-2xl font-bold mt-2 ${
-              monthlyPnl >= 0 ? "text-green-400" : "text-red-400"
-            }`}
-          >
+          <p className="text-2xl font-bold mt-2">
             {formatCurrency(monthlyPnl)}
           </p>
           <div
@@ -91,13 +87,7 @@ const SummaryStats = ({ summary }: SummaryStatsProps) => {
             <h3 className="text-gray-400 text-sm font-medium">Yearly P/L</h3>
             <Calendar className="h-5 w-5 text-yellow-500" />
           </div>
-          <p
-            className={`text-2xl font-bold mt-2 ${
-              yearlyPnl >= 0 ? "text-green-400" : "text-red-400"
-            }`}
-          >
-            {formatCurrency(yearlyPnl)}
-          </p>
+          <p className="text-2xl font-bold mt-2">{formatCurrency(yearlyPnl)}</p>
           <div
             className={`flex items-center mt-2 text-sm ${
               yearlyPnlPercent >= 0 ? "text-green-400" : "text-red-400"

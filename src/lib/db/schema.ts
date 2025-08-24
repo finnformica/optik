@@ -245,6 +245,11 @@ export const currentPositions = pgView('current_positions').as((qb) =>
         WHEN ${transactions.optionType} IS NOT NULL THEN 'OPTION'
         ELSE 'EQUITY'
       END`.as('position_type'),
+      expiryDisplay: sql<string>`CASE 
+        WHEN ${transactions.expiryDate} IS NULL THEN NULL
+        WHEN ${transactions.expiryDate} < CURRENT_DATE THEN ${transactions.expiryDate}::text || ' (EXPIRED)'
+        ELSE ${transactions.expiryDate}::text || ' (' || (${transactions.expiryDate} - CURRENT_DATE) || 'd)'
+      END`.as('expiry_display'),
     })
     .from(transactions)
     .where(sql`${transactions.action} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
