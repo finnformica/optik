@@ -38,8 +38,8 @@ const AccountValueChart = ({ accountValueData }: AccountValueChartProps) => {
     };
   }); // Data is already ordered by week_start ASC in the view
   return (
-    <Card className="bg-[#1a2236] border-gray-800">
-      <CardHeader className="border-b border-gray-800">
+    <Card className="bg-[#1a2236] border-gray-800 pt-0">
+      <CardHeader className="border-b border-gray-800 p-4">
         <CardTitle className="text-white">Account Value Over Time</CardTitle>
       </CardHeader>
       <CardContent className="p-4">

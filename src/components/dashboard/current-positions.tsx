@@ -18,8 +18,8 @@ const calculateDaysUntilExpiry = (expiryDate: string | null) => {
 
 const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
   return (
-    <Card className="bg-[#1a2236] border-gray-800">
-      <CardHeader className="border-b border-gray-800 p-1">
+    <Card className="bg-[#1a2236] border-gray-800 pt-0">
+      <CardHeader className="border-b border-gray-800 p-4">
         <CardTitle className="text-white">Current Positions</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
@@ -70,7 +70,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                   );
                   const costBasis = parseFloat(position.costBasis || "0");
                   const isExpired = daysLeft !== null && daysLeft < 0;
-                  
+
                   // For expired options, if we still have a position, it means we collected premium (profit)
                   // For non-expired positions, negative cost basis means profit (we received more than we paid)
                   const isProfit = isExpired ? true : costBasis <= 0;
@@ -93,8 +93,16 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
                         {position.expiryDate || "-"}
                       </td>
-                      <td className={`px-3 py-2 whitespace-nowrap text-sm ${isExpired ? 'text-red-400' : 'text-gray-300'}`}>
-                        {daysLeft !== null ? (isExpired ? 'EXPIRED' : daysLeft) : "-"}
+                      <td
+                        className={`px-3 py-2 whitespace-nowrap text-sm ${
+                          isExpired ? "text-red-400" : "text-gray-300"
+                        }`}
+                      >
+                        {daysLeft !== null
+                          ? isExpired
+                            ? "EXPIRED"
+                            : daysLeft
+                          : "-"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
                         Qty: {parseFloat(position.netQuantity || "0")}

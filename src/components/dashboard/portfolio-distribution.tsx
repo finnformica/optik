@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PortfolioDistribution as PortfolioDistributionType } from "@/lib/db/schema";
-import { PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { Cell, Pie, PieChart, Tooltip } from "recharts";
 
 interface PortfolioDistributionProps {
   distribution: PortfolioDistributionType[];
@@ -10,12 +10,17 @@ interface PortfolioDistributionProps {
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
 
-const PortfolioDistribution = ({ distribution }: PortfolioDistributionProps) => {
-  const totalValue = distribution.reduce((sum, item) => sum + parseFloat(item.positionValue || '0'), 0);
+const PortfolioDistribution = ({
+  distribution,
+}: PortfolioDistributionProps) => {
+  const totalValue = distribution.reduce(
+    (sum, item) => sum + parseFloat(item.positionValue || "0"),
+    0
+  );
 
   return (
-    <Card className="bg-[#1a2236] border-gray-800">
-      <CardHeader className="border-b border-gray-800">
+    <Card className="bg-[#1a2236] border-gray-800 pt-0">
+      <CardHeader className="border-b border-gray-800 p-4">
         <CardTitle className="text-white">Portfolio Distribution</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
@@ -33,7 +38,7 @@ const PortfolioDistribution = ({ distribution }: PortfolioDistributionProps) => 
                   <Pie
                     data={distribution.map((item, index) => ({
                       name: item.ticker,
-                      value: parseFloat(item.positionValue || '0'),
+                      value: parseFloat(item.positionValue || "0"),
                       fill: COLORS[index % COLORS.length],
                     }))}
                     cx="50%"
@@ -44,23 +49,32 @@ const PortfolioDistribution = ({ distribution }: PortfolioDistributionProps) => 
                     dataKey="value"
                   >
                     {distribution.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#1a2236',
-                      border: '1px solid #374151',
-                      borderRadius: '8px',
+                      backgroundColor: "#1a2236",
+                      border: "1px solid #374151",
+                      borderRadius: "8px",
                     }}
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
+                    formatter={(value: number) => [
+                      `$${value.toLocaleString()}`,
+                      "Value",
+                    ]}
                   />
                 </PieChart>
               </div>
               <div className="flex-1 space-y-2 max-h-[250px] overflow-y-auto pr-2">
                 {distribution.map((item, index) => {
-                  const value = parseFloat(item.positionValue || '0');
-                  const percentage = totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : '0';
+                  const value = parseFloat(item.positionValue || "0");
+                  const percentage =
+                    totalValue > 0
+                      ? ((value / totalValue) * 100).toFixed(1)
+                      : "0";
                   return (
                     <div
                       key={`${item.ticker}-${index}`}
@@ -73,7 +87,9 @@ const PortfolioDistribution = ({ distribution }: PortfolioDistributionProps) => 
                             backgroundColor: COLORS[index % COLORS.length],
                           }}
                         />
-                        <span className="text-white text-sm">{item.ticker}</span>
+                        <span className="text-white text-sm">
+                          {item.ticker}
+                        </span>
                       </div>
                       <div className="text-right">
                         <div className="text-gray-300 text-sm">
