@@ -12,4 +12,11 @@ export const endpoints = {
   },
 };
 
-export const paths = {};
+export const paths = {
+  transactions: "/transactions",
+  dashboard: "/dashboard",
+  analysis: "/analysis",
+  settings: "/settings",
+  logout: "/logout",
+  help: "/help",
+};

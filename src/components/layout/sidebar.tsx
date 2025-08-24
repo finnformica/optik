@@ -5,6 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { paths } from "@/lib/utils";
 import {
   BarChart3,
   HelpCircle,
@@ -12,7 +13,6 @@ import {
   LogOut,
   Receipt,
   Settings,
-  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,13 +25,12 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { href: "/dashboard", icon: LayoutDashboard, title: "Dashboard" },
-  { href: "/positions", icon: TrendingUp, title: "Positions" },
-  { href: "/transactions", icon: Receipt, title: "Transactions" },
-  { href: "/analysis", icon: BarChart3, title: "Analysis" },
-  { href: "/settings", icon: Settings, title: "Settings", bottom: true },
-  { href: "/help", icon: HelpCircle, title: "Help", bottom: true },
-  { href: "/logout", icon: LogOut, title: "Logout", bottom: true },
+  { href: paths.dashboard, icon: LayoutDashboard, title: "Dashboard" },
+  { href: paths.transactions, icon: Receipt, title: "Transactions" },
+  { href: paths.analysis, icon: BarChart3, title: "Analysis" },
+  { href: paths.settings, icon: Settings, title: "Settings", bottom: true },
+  { href: paths.help, icon: HelpCircle, title: "Help", bottom: true },
+  { href: paths.logout, icon: LogOut, title: "Logout", bottom: true },
 ];
 
 const Sidebar = () => {
@@ -65,7 +64,7 @@ const Sidebar = () => {
 
   return (
     <div className="w-16 bg-[#0a101e] text-white flex flex-col h-screen fixed left-0 top-0">
-      <div className="p-4 border-b border-gray-800 flex justify-center">
+      <div className="p-4 flex justify-center">
         <h1 className="text-xl font-bold">XYZ</h1>
       </div>
       <nav className="flex-1 pt-4">{topMenuItems.map(renderMenuItem)}</nav>

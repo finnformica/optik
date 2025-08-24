@@ -15,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen bg-background text-foreground">
+      <body className="min-h-screen bg-background">
         <SWRConfig
           value={{
             revalidateOnFocus: false,

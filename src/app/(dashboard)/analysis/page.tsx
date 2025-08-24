@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Typography } from "@/components/ui/typography";
 
 const Analysis = () => {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-white mb-6">
+    <>
+      <Typography variant="h2" className="mb-4">
         Performance Analysis
-      </h1>
+      </Typography>
       <Card className="bg-[#1a2236] border-gray-800">
         <CardHeader className="border-b border-gray-800">
           <CardTitle className="text-white">Trading Performance</CardTitle>
@@ -16,7 +17,7 @@ const Analysis = () => {
           </p>
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 };
 

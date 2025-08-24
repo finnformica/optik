@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Typography } from "@/components/ui/typography";
 import _ from "lodash";
 import {
   AlertCircle,
@@ -191,15 +192,15 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="container mx-auto p-8">
+    <>
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white">Transactions</h1>
-          <p className="text-gray-400 mt-2">
+          <Typography variant="h2">Transactions</Typography>
+          <Typography variant="muted">
             {filteredAndSortedTransactions.length} of {transactions.length}{" "}
             transaction{transactions.length !== 1 ? "s" : ""} shown
-          </p>
+          </Typography>
         </div>
 
         <Button
@@ -320,7 +321,7 @@ export default function TransactionsPage() {
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
                         onClick={() => handleSort("ticker")}
-                        className="flex items-center gap-1 hover:text-white transition-colors"
+                        className="flex items-center gap-1 hover:text-white transition-colors min-w-52"
                       >
                         Ticker
                         <SortIcon field="ticker" />
@@ -447,13 +448,13 @@ export default function TransactionsPage() {
             </div>
 
             {filteredAndSortedTransactions.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
+              <Typography variant="muted" className="text-center py-8">
                 No transactions match your current filters.
-              </div>
+              </Typography>
             )}
           </CardContent>
         </>
       )}
-    </div>
+    </>
   );
 }

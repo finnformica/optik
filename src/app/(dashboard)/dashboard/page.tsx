@@ -77,7 +77,7 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <SummaryStats summary={summary} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
