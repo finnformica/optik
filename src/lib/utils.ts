@@ -5,6 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const endpoints = {};
+export const endpoints = {
+  transactions: "/api/transactions",
+  schwab: {
+    data: "/api/schwab/data"
+  },
+};
 
 export const paths = {};

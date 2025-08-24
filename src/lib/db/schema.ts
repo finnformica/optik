@@ -1,14 +1,43 @@
 import { relations } from 'drizzle-orm';
 import {
+  bigint,
   date,
   decimal,
   integer,
+  pgEnum,
   pgTable,
   serial,
   text,
   timestamp,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { createSelectSchema } from 'drizzle-zod';
+
+
+export const transactionAction = pgEnum("transaction_action", [
+  "buy", 
+  "sell", 
+  "buy_to_open", 
+  "sell_to_close", 
+  "sell_to_open", 
+  "buy_to_close",
+  "dividend", 
+  "interest",
+  "transfer",
+]);
+export const transactionActionSchema = createSelectSchema(transactionAction);
+export type ITransactionAction = typeof transactionAction.enumValues[number];
+
+export const broker = pgEnum("broker", [
+  "schwab",
+  "robinhood",
+  "etrade",
+  "fidelity",
+  "tda",
+  "vanguard",
+]);
+export const brokerSchema = createSelectSchema(broker);
+export type IBroker = typeof broker.enumValues[number];
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -72,14 +101,12 @@ export const invitations = pgTable('invitations', {
 
 export const userAccessTokens = pgTable('user_access_tokens', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id')
-    .notNull()
-    .references(() => users.id),
+  userId: integer('user_id').notNull().references(() => users.id),
   encryptedTokens: text('encrypted_tokens').notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   tokenType: varchar('token_type', { length: 50 }).notNull(),
   scope: varchar('scope', { length: 255 }).notNull(),
-  provider: varchar('provider', { length: 50 }).notNull().default('schwab'),
+  broker: broker('broker').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -87,12 +114,13 @@ export const userAccessTokens = pgTable('user_access_tokens', {
 export const transactions = pgTable('transactions', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id),
-  broker: varchar('broker', { length: 50 }).notNull(), // schwab, robinhood, etc
+  transactionId: bigint('transaction_id', { mode: 'number' }).unique(), // Unique identifier from broker API
+  broker: broker('broker').notNull(), // schwab, robinhood, etc
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   // Core transaction fields
   date: date('date').notNull(), // date of the transaction
-  action: varchar('action', { length: 50 }).notNull(), // buy, sell, buy_to_open, sell_to_close, interest, dividend, etc
+  action: transactionAction('action').notNull(), // buy, sell, buy_to_open, sell_to_close, interest, dividend, etc
   ticker: varchar('ticker', { length: 50 }).notNull(), // AAPL, MSFT, etc
   description: text('description'),
   quantity: decimal('quantity', { precision: 18, scale: 8 }).notNull(), // number of shares, number of contracts, etc
@@ -167,6 +195,8 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type NewActivityLog = typeof activityLogs.$inferInsert;
 export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
+export type Transaction = typeof transactions.$inferSelect;
+export type NewTransaction = typeof transactions.$inferInsert;
 export type UserAccessToken = typeof userAccessTokens.$inferSelect;
 export type NewUserAccessToken = typeof userAccessTokens.$inferInsert;
 export type TeamDataWithMembers = Team & {

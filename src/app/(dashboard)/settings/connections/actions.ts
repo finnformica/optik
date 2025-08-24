@@ -1,7 +1,7 @@
 'use server';
 
 import { getSession } from "@/lib/auth/session";
-import { db } from "@/lib/db/drizzle";
+import { db } from "@/lib/db/config";
 import { userAccessTokens } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";

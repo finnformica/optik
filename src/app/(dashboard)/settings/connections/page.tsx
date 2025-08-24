@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
-import { db } from "@/lib/db/drizzle";
+import { db } from "@/lib/db/config";
 import { userAccessTokens } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { CheckCircle, ExternalLink, XCircle } from "lucide-react";

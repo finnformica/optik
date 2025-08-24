@@ -1,6 +1,6 @@
 // path to a file with schema you want to reset
 import { reset } from "drizzle-seed";
-import { db } from "./drizzle";
+import { db } from "./config";
 import * as schema from "./schema";
 
 

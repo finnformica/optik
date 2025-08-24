@@ -1,30 +1,30 @@
 'use server';
 
-import { z } from 'zod';
-import { and, eq, sql } from 'drizzle-orm';
-import { db } from '@/lib/db/drizzle';
-import {
-  User,
-  users,
-  teams,
-  teamMembers,
-  activityLogs,
-  type NewUser,
-  type NewTeam,
-  type NewTeamMember,
-  type NewActivityLog,
-  ActivityType,
-  invitations
-} from '@/lib/db/schema';
-import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
-import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
-import { createCheckoutSession } from '@/lib/payments/stripe';
-import { getUser, getUserWithTeam } from '@/lib/db/queries';
 import {
   validatedAction,
   validatedActionWithUser
 } from '@/lib/auth/middleware';
+import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
+import { db } from '@/lib/db/config';
+import { getUser, getUserWithTeam } from '@/lib/db/queries';
+import {
+  activityLogs,
+  ActivityType,
+  invitations,
+  teamMembers,
+  teams,
+  User,
+  users,
+  type NewActivityLog,
+  type NewTeam,
+  type NewTeamMember,
+  type NewUser
+} from '@/lib/db/schema';
+import { createCheckoutSession } from '@/lib/payments/stripe';
+import { and, eq, sql } from 'drizzle-orm';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { z } from 'zod';
 
 async function logActivity(
   teamId: number | null | undefined,

@@ -5,6 +5,7 @@ import {
   HelpCircle,
   LayoutDashboard,
   LogOut,
+  Receipt,
   Settings,
   TrendingUp,
 } from "lucide-react";
@@ -21,6 +22,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, title: "Dashboard" },
   { href: "/positions", icon: TrendingUp, title: "Positions" },
+  { href: "/transactions", icon: Receipt, title: "Transactions" },
   { href: "/analysis", icon: BarChart3, title: "Analysis" },
   { href: "/settings", icon: Settings, title: "Settings", bottom: true },
   { href: "/help", icon: HelpCircle, title: "Help", bottom: true },

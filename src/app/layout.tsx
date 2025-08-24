@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SWRConfig } from "swr";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,8 +14,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="bg-[#111827]">
-      <body className="min-h-screen bg-[#111827] text-white">{children}</body>
+    <html lang="en" className="dark">
+      <body className="min-h-screen bg-background text-foreground">
+        <SWRConfig
+          value={{
+            revalidateOnFocus: false,
+            revalidateOnReconnect: true,
+            keepPreviousData: true,
+          }}
+        >
+          {children}
+        </SWRConfig>
+      </body>
     </html>
   );
 }

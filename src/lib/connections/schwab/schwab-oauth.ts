@@ -1,7 +1,7 @@
-import { db } from '@/lib/db/drizzle'
+import { TokenEncryption } from '@/lib/auth/token-encryption'
+import { db } from '@/lib/db/config'
 import { userAccessTokens } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
-import { TokenEncryption } from './token-encryption'
 
 export interface SchwabTokens {
   access_token: string
@@ -11,7 +11,7 @@ export interface SchwabTokens {
   scope: string
 }
 
-export class SecureSchwabAuth {
+export class SchwabAuth {
   private appKey: string
   private appSecret: string
   private baseUrl: string = 'https://api.schwabapi.com'
@@ -42,10 +42,10 @@ export class SecureSchwabAuth {
           expiresAt,
           tokenType: tokens.token_type,
           scope: tokens.scope,
-          provider: 'schwab',
+          broker: 'schwab',
         })
         .onConflictDoUpdate({
-          target: [userAccessTokens.userId, userAccessTokens.provider],
+          target: [userAccessTokens.userId, userAccessTokens.broker],
           set: {
             encryptedTokens,
             expiresAt,
@@ -67,7 +67,7 @@ export class SecureSchwabAuth {
         .from(userAccessTokens)
         .where(and(
           eq(userAccessTokens.userId, parseInt(userId)),
-          eq(userAccessTokens.provider, 'schwab')
+          eq(userAccessTokens.broker, 'schwab')
         ))
 
       if (!data || data.length === 0) {
@@ -130,7 +130,7 @@ export class SecureSchwabAuth {
         .delete(userAccessTokens)
         .where(and(
           eq(userAccessTokens.userId, parseInt(userId)),
-          eq(userAccessTokens.provider, 'schwab')
+          eq(userAccessTokens.broker, 'schwab')
         ))
     } catch (error) {
       console.error('Failed to clear tokens:', error)
