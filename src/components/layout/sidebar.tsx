@@ -45,7 +45,7 @@ const Sidebar = () => {
         <TooltipTrigger asChild>
           <Link
             href={item.href}
-            className={`flex items-center justify-center p-4 my-1 mx-2 rounded-lg transition-colors ${
+            className={`flex items-center justify-center p-4 mb-2 mx-2 rounded-lg transition-colors ${
               isActive ? "bg-blue-900/50 text-blue-400" : "hover:bg-gray-800"
             }`}
           >
@@ -63,11 +63,11 @@ const Sidebar = () => {
   const bottomMenuItems = menuItems.filter((item) => item.bottom);
 
   return (
-    <div className="w-16 bg-[#0a101e] text-white flex flex-col h-screen fixed left-0 top-0">
-      <div className="p-4 flex justify-center">
-        <h1 className="text-xl font-bold">XYZ</h1>
+    <div className="w-18 bg-[#0a101e] text-white flex flex-col h-screen fixed left-0 top-0">
+      <div className="m-2 mb-2 rounded-lg p-4 flex justify-center bg-muted">
+        <h1 className="text-md font-bold">XYZ</h1>
       </div>
-      <nav className="flex-1 pt-4">{topMenuItems.map(renderMenuItem)}</nav>
+      <nav className="flex-1">{topMenuItems.map(renderMenuItem)}</nav>
       <div className="mt-auto pb-4">{bottomMenuItems.map(renderMenuItem)}</div>
     </div>
   );

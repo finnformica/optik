@@ -14,6 +14,7 @@
     "db:restart": "npx supabase stop && npx supabase start"
   },
   "dependencies": {
+    "@radix-ui/react-separator": "^1.1.7",
     "@tailwindcss/postcss": "4.1.7",
     "@types/node": "^22.15.18",
     "@types/react": "19.1.4",

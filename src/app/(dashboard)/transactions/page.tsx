@@ -4,9 +4,10 @@ import { syncTransactions, useTransactions } from "@/api/transactions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Typography } from "@/components/ui/typography";
 import _ from "lodash";
 import {
@@ -233,27 +234,17 @@ export default function TransactionsPage() {
       )}
 
       {transactions.length === 0 ? (
-        <Card className="bg-gray-900/50 border-gray-700 p-0">
-          <CardContent className="flex items-center justify-center h-32">
+        <div className="bg-gray-900/50 border-gray-700">
+          <CardContent className="flex items-center justify-center h-64">
             <div className="text-center">
-              <p className="text-gray-400 mb-4">No transactions found</p>
-              <Button
-                onClick={syncData}
-                disabled={syncing}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`}
-                />
-                Sync Data
-              </Button>
+              <p className="text-gray-400">No transactions found</p>
             </div>
           </CardContent>
-        </Card>
+        </div>
       ) : (
         <>
-          <CardHeader className="p-0">
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          <CardHeader className="px-0 py-2 flex flex-col gap-4">
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between w-full">
               {/* Search */}
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -276,11 +267,13 @@ export default function TransactionsPage() {
               </Button>
             </div>
 
+            <Separator />
+
             {/* Filters Panel */}
             {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full border-b border-gray-700 pb-4">
                 <div>
-                  <Label className="text-gray-300">Action Type</Label>
+                  <Label className="text-gray-300 pb-1">Action Type</Label>
                   <select
                     value={selectedAction}
                     onChange={(e) => setSelectedAction(e.target.value)}
@@ -295,7 +288,7 @@ export default function TransactionsPage() {
                   </select>
                 </div>
                 <div>
-                  <Label className="text-gray-300">Broker</Label>
+                  <Label className="text-gray-300 pb-1">Broker</Label>
                   <select
                     value={selectedBroker}
                     onChange={(e) => setSelectedBroker(e.target.value)}

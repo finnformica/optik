@@ -10,7 +10,7 @@ export default function DashboardLayout({
     <>
       <Sidebar />
       <div className="h-screen w-screen py-2 pr-2">
-        <main className="h-full overflow-y-scroll ml-16 p-6 rounded-lg bg-[#111827]">
+        <main className="h-full overflow-y-scroll ml-18 p-6 rounded-lg bg-[#111827]">
           {children}
         </main>
       </div>
