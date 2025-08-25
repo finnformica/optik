@@ -16,7 +16,6 @@ const COLORS = [
   "#06b6d4",
   "#f59e0b",
   "#10b981",
-  "#ef4444",
 ];
 
 // Function to get a distinct color for each index
@@ -24,9 +23,8 @@ const getColor = (index: number) => {
   if (index < COLORS.length) {
     return COLORS[index];
   }
-  // For additional colors, use a different hue rotation
-  const hue = (index * 137.5) % 360; // Golden angle approximation
-  return `hsl(${hue}, 70%, 60%)`;
+
+  return COLORS[(index + 2) % COLORS.length];
 };
 
 const PortfolioDistribution = ({
