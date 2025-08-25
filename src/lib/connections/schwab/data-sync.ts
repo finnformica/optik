@@ -147,7 +147,6 @@ export class SchwabAPISync {
       case 'WIRE_OUT':
         return this.processWireOutActivity(userId, activity);
       case 'SMA_ADJUSTMENT':
-        return this.processSMAActivity(userId, activity);
       default:
         console.log(`Unsupported activity type: ${activity.type}`);
         return null;
@@ -416,27 +415,6 @@ export class SchwabAPISync {
       quantity: '1',
       fees: '0',
       amount: this.normalizeAmount('transfer', activity.netAmount).toString(),
-      strikePrice: null,
-      expiryDate: null,
-      optionType: null,
-    };
-  }
-
-  // Process SMA_ADJUSTMENT activities
-  private static processSMAActivity(userId: number, activity: SchwabActivity): NewTransaction | null {
-    const date = this.parseISODate(activity.tradeDate);
-    
-    return {
-      userId,
-      transactionId: activity.activityId,
-      broker: 'schwab',
-      date,
-      action: 'other',
-      ticker: null,
-      description: 'SMA adjustment - ' + activity.description ,
-      quantity: '1',
-      fees: '0',
-      amount: this.normalizeAmount('other', activity.netAmount).toString(),
       strikePrice: null,
       expiryDate: null,
       optionType: null,

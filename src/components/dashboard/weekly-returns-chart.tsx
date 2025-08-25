@@ -55,11 +55,11 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
     };
   });
   return (
-    <Card className="bg-[#1a2236] border-gray-800 pt-0">
+    <Card className="bg-[#1a2236] border-gray-800 py-0">
       <CardHeader className="border-b border-gray-800 p-4">
         <CardTitle className="text-white">Weekly Returns</CardTitle>
       </CardHeader>
-      <CardContent className="px-2">
+      <CardContent className="px-2 py-0">
         <div className="h-[300px]">
           {chartData.length === 0 ? (
             <div className="flex items-center justify-center h-full">

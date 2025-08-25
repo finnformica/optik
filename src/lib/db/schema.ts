@@ -130,6 +130,7 @@ export const transactions = pgTable('transactions', {
   quantity: decimal('quantity', { precision: 18, scale: 8 }).notNull(), // number of shares, number of contracts, etc
   fees: decimal('fees', { precision: 18, scale: 8 }).notNull().default("0"), // fees paid for the transaction
   amount: decimal('amount', { precision: 18, scale: 8 }).notNull(), // total amount paid or received for the transaction
+  currency: varchar('currency', { length: 3 }).notNull().default('USD'), // USD, EUR, etc
   // Options fields
   strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
   expiryDate: date('expiry_date'),

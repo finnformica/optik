@@ -1,14 +1,5 @@
 "use client";
 
-import { syncTransactions, useTransactions } from "@/api/transactions";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Typography } from "@/components/ui/typography";
 import _ from "lodash";
 import {
   AlertCircle,
@@ -21,13 +12,73 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { syncTransactions, useTransactions } from "@/api/transactions";
+import { ITransactionAction } from "@/lib/db/schema";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Typography } from "@/components/ui/typography";
+import { cn } from "@/lib/utils";
+
+const renderTransactionActionBadges = (action: ITransactionAction) => {
+  const badges: React.ReactNode[] = [];
+
+  // Handle compound actions by splitting and processing each part
+  const actionParts = action.split("_");
+
+  actionParts.forEach((part, index) => {
+    let className;
+
+    switch (part) {
+      case "buy":
+      case "open":
+        className = "text-green-500";
+        break;
+      case "sell":
+      case "close":
+        className = "text-red-500";
+        break;
+      case "expire":
+      case "assign":
+      case "other":
+        className = "text-slate-400";
+        break;
+      case "dividend":
+      case "interest":
+      case "transfer":
+        className = "text-blue-500";
+        break;
+      default:
+        break;
+    }
+
+    if (className) {
+      badges.push(
+        <Badge
+          key={`${action}-${index}`}
+          className={cn("bg-muted border-muted hover:bg-muted/80", className)}
+        >
+          {_.startCase(part)}
+        </Badge>
+      );
+    }
+  });
+
+  return badges;
+};
+
 interface Transaction {
   id: number;
   userId: number;
   transactionId: number;
   broker: string;
   date: string;
-  action: string;
+  action: ITransactionAction;
   ticker: string;
   description: string | null;
   quantity: string;
@@ -87,15 +138,6 @@ export default function TransactionsPage() {
   const formatQuantity = (quantity: string) => {
     const num = parseFloat(quantity);
     return num.toLocaleString();
-  };
-
-  const getActionColor = (action: string) => {
-    if (action.includes("buy") || action.includes("open")) {
-      return "bg-green-100 text-green-800";
-    } else if (action.includes("sell") || action.includes("close")) {
-      return "bg-red-100 text-red-800";
-    }
-    return "bg-gray-100 text-gray-800";
   };
 
   // Get unique actions and brokers for filters
@@ -397,13 +439,7 @@ export default function TransactionsPage() {
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <Badge
-                              className={`${getActionColor(
-                                transaction.action
-                              )} min-w-fit`}
-                            >
-                              {_.startCase(transaction.action)}
-                            </Badge>
+                            {renderTransactionActionBadges(transaction.action)}
                           </div>
                         </td>
                         <td className="p-3 text-white">

@@ -6,7 +6,7 @@ interface CurrentPositionsProps {
 
 const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
   return (
-    <Card className="bg-[#1a2236] border-gray-800 pt-0">
+    <Card className="bg-[#1a2236] border-gray-800 py-0">
       <CardHeader className="border-b border-gray-800 p-4">
         <CardTitle className="text-white">Current Positions</CardTitle>
       </CardHeader>
