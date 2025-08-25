@@ -90,8 +90,6 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
     return new Date(dateString).toISOString().split("T")[0];
   };
 
-  console.log(transaction);
-
   return (
     <>
       {/* Transaction Summary Row */}

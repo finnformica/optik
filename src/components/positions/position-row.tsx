@@ -187,6 +187,12 @@ export function PositionRow({ position, index }: PositionRowProps) {
                     {pos.optionType && (
                       <span>{`${pos.ticker} $${pos.strikePrice} ${pos.optionType} - ${pos.daysHeld} days in trade`}</span>
                     )}
+                    <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                      <span>Cost Basis: {formatCurrency(pos.costBasis)}</span>
+                      <span>Fees: {formatCurrency(pos.totalFees)}</span>
+                      <span>Opened: {new Date(pos.openedAt).toLocaleDateString()}</span>
+                      {pos.closedAt && <span>Closed: {new Date(pos.closedAt).toLocaleDateString()}</span>}
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell className="w-32 p-2">
