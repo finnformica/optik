@@ -85,7 +85,7 @@ export function PositionTable({
       <Table>
         <TableHeader>
           <TableRow className="border-border hover:bg-muted/50">
-            <TableHead className="text-muted-foreground font-semibold w-8" />
+            <TableHead className="text-muted-foreground font-semibold w-20" />
             <TableHead className="text-muted-foreground font-semibold">
               Symbol
             </TableHead>

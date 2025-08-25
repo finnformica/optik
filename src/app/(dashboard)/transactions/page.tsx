@@ -1,6 +1,5 @@
 "use client";
 
-import _ from "lodash";
 import {
   AlertCircle,
   ChevronDown,
@@ -16,62 +15,14 @@ import { syncTransactions, useTransactions } from "@/api/transactions";
 import { ITransactionAction } from "@/lib/db/schema";
 
 import { Loading } from "@/components/global/loading";
+import ActionBadge from "@/components/global/trade-action-badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Typography } from "@/components/ui/typography";
-import { cn } from "@/lib/utils";
-
-const renderTransactionActionBadges = (action: ITransactionAction) => {
-  const badges: React.ReactNode[] = [];
-
-  // Handle compound actions by splitting and processing each part
-  const actionParts = action.split("_");
-
-  actionParts.forEach((part, index) => {
-    let className;
-
-    switch (part) {
-      case "buy":
-      case "open":
-        className = "text-green-500";
-        break;
-      case "sell":
-      case "close":
-        className = "text-red-500";
-        break;
-      case "expire":
-      case "assign":
-      case "other":
-        className = "text-slate-400";
-        break;
-      case "dividend":
-      case "interest":
-      case "transfer":
-        className = "text-blue-500";
-        break;
-      default:
-        break;
-    }
-
-    if (className) {
-      badges.push(
-        <Badge
-          key={`${action}-${index}`}
-          className={cn("bg-muted border-muted hover:bg-muted/80", className)}
-        >
-          {_.startCase(part)}
-        </Badge>
-      );
-    }
-  });
-
-  return badges;
-};
 
 interface Transaction {
   id: number;
@@ -435,7 +386,7 @@ export default function TransactionsPage() {
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            {renderTransactionActionBadges(transaction.action)}
+                            <ActionBadge action={transaction.action} />
                           </div>
                         </td>
                         <td className="p-3 text-white">

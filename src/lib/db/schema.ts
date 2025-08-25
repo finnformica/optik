@@ -233,7 +233,6 @@ export const currentPositions = pgView('current_positions').as((qb) =>
       ticker: transactions.ticker,
       optionType: transactions.optionType,
       strikePrice: transactions.strikePrice,
-      expiryDate: transactions.expiryDate,
       // Net quantity: sum of normalized quantities (positive = LONG, negative = SHORT)
       netQuantity: sql<string>`SUM(${transactions.quantity}::numeric)`.as('net_quantity'),
       // Cost basis: strike*100*quantity for options, amount for stocks
@@ -246,11 +245,6 @@ export const currentPositions = pgView('current_positions').as((qb) =>
         WHEN ${transactions.optionType} IS NOT NULL THEN 'OPTION'
         ELSE 'EQUITY'
       END`.as('position_type'),
-      expiryDisplay: sql<string>`CASE 
-        WHEN ${transactions.expiryDate} IS NULL THEN NULL
-        WHEN ${transactions.expiryDate} < CURRENT_DATE THEN ${transactions.expiryDate}::text || ' (EXPIRED)'
-        ELSE ${transactions.expiryDate}::text || ' (' || (${transactions.expiryDate} - CURRENT_DATE) || 'd)'
-      END`.as('expiry_display'),
     })
     .from(transactions)
     .where(sql`${transactions.action} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
@@ -258,8 +252,7 @@ export const currentPositions = pgView('current_positions').as((qb) =>
       transactions.userId,
       transactions.ticker,
       transactions.optionType,
-      transactions.strikePrice,
-      transactions.expiryDate
+      transactions.strikePrice
     )
     .having(sql`SUM(${transactions.quantity}::numeric) != 0`)
 );
@@ -447,9 +440,8 @@ export const openPositions = pgView('open_positions').as((qb) =>
       ticker: transactions.ticker,
       optionType: transactions.optionType,
       strikePrice: transactions.strikePrice,
-      expiryDate: transactions.expiryDate,
-      // Position key for grouping
-      positionKey: sql<string>`CONCAT(${transactions.ticker}, '-', COALESCE(${transactions.optionType}, 'STOCK'), '-', COALESCE(${transactions.strikePrice}::text, '0'), '-', COALESCE(${transactions.expiryDate}::text, ''))`.as('position_key'),
+      // Position key for grouping (without expiry date)
+      positionKey: sql<string>`CONCAT(${transactions.ticker}, '-', COALESCE(${transactions.optionType}, 'STOCK'), '-', COALESCE(${transactions.strikePrice}::text, '0'))`.as('position_key'),
       // Net quantity calculation
       netQuantity: sql<string>`SUM(${transactions.quantity}::numeric)`.as('net_quantity'),
       // Strategy detection based on option type and net quantity
@@ -480,15 +472,8 @@ export const openPositions = pgView('open_positions').as((qb) =>
       openedAt: sql<string>`MIN(${transactions.date})`.as('opened_at'),
       lastTransactionAt: sql<string>`MAX(${transactions.date})`.as('last_transaction_at'),
       daysHeld: sql<string>`CURRENT_DATE - MIN(${transactions.date})`.as('days_held'),
-      daysToExpiry: sql<string>`CASE 
-        WHEN ${transactions.expiryDate} IS NULL THEN NULL
-        ELSE ${transactions.expiryDate} - CURRENT_DATE
-      END`.as('days_to_expiry'),
-      // Status flags
-      isExpiringSoon: sql<string>`CASE 
-        WHEN ${transactions.expiryDate} IS NOT NULL AND ${transactions.expiryDate} - CURRENT_DATE <= 7 THEN true
-        ELSE false
-      END`.as('is_expiring_soon'),
+      // Status flags (simplified without expiry date)
+      isExpiringSoon: sql<string>`false`.as('is_expiring_soon'),
       // Transaction details as JSON array
       transactionDetails: sql<string>`JSON_AGG(
         JSON_BUILD_OBJECT(
@@ -525,8 +510,7 @@ export const openPositions = pgView('open_positions').as((qb) =>
       transactions.userId,
       transactions.ticker,
       transactions.optionType,
-      transactions.strikePrice,
-      transactions.expiryDate
+      transactions.strikePrice
     )
     .having(sql`SUM(${transactions.quantity}::numeric) != 0`)
 );
@@ -539,9 +523,8 @@ export const closedPositions = pgView('closed_positions').as((qb) =>
       ticker: transactions.ticker,
       optionType: transactions.optionType,
       strikePrice: transactions.strikePrice,
-      expiryDate: transactions.expiryDate,
-      // Position key for grouping
-      positionKey: sql<string>`CONCAT(${transactions.ticker}, '-', COALESCE(${transactions.optionType}, 'STOCK'), '-', COALESCE(${transactions.strikePrice}::text, '0'), '-', COALESCE(${transactions.expiryDate}::text, ''))`.as('position_key'),
+      // Position key for grouping (without expiry date)
+      positionKey: sql<string>`CONCAT(${transactions.ticker}, '-', COALESCE(${transactions.optionType}, 'STOCK'), '-', COALESCE(${transactions.strikePrice}::text, '0'))`.as('position_key'),
       // Net quantity (always 0 for closed positions)
       netQuantity: sql<string>`0`.as('net_quantity'),
       // Strategy detection based on option type and transaction pattern
@@ -567,10 +550,6 @@ export const closedPositions = pgView('closed_positions').as((qb) =>
       closedAt: sql<string>`MAX(${transactions.date})`.as('closed_at'),
       lastTransactionAt: sql<string>`MAX(${transactions.date})`.as('last_transaction_at'),
       daysHeld: sql<string>`MAX(${transactions.date}) - MIN(${transactions.date})`.as('days_held'),
-      daysToExpiry: sql<string>`CASE 
-        WHEN ${transactions.expiryDate} IS NULL THEN NULL
-        ELSE ${transactions.expiryDate} - MAX(${transactions.date})
-      END`.as('days_to_expiry'),
       // Status flags (always false for closed positions)
       isExpiringSoon: sql<string>`false`.as('is_expiring_soon'),
       // Transaction details as JSON array
@@ -610,7 +589,6 @@ export const closedPositions = pgView('closed_positions').as((qb) =>
       transactions.ticker,
       transactions.optionType,
       transactions.strikePrice,
-      transactions.expiryDate
     )
     .having(sql`SUM(${transactions.quantity}::numeric) = 0`)
 );
@@ -642,7 +620,6 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
           'ticker', ticker,
           'optionType', option_type,
           'strikePrice', strike_price,
-          'expiryDate', expiry_date,
           'strategy', strategy,
           'netQuantity', net_quantity,
           'totalPnl', total_pnl,
@@ -652,7 +629,6 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
           'openedAt', opened_at,
           'lastTransactionAt', last_transaction_at,
           'daysHeld', days_held,
-          'daysToExpiry', days_to_expiry,
           'isExpiringSoon', is_expiring_soon,
           'transactions', transaction_details
         ) ORDER BY opened_at DESC
@@ -677,7 +653,6 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
           'ticker', ticker,
           'optionType', option_type,
           'strikePrice', strike_price,
-          'expiryDate', expiry_date,
           'strategy', strategy,
           'netQuantity', net_quantity,
           'totalPnl', total_pnl,
@@ -688,7 +663,6 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
           'closedAt', closed_at,
           'lastTransactionAt', last_transaction_at,
           'daysHeld', days_held,
-          'daysToExpiry', days_to_expiry,
           'isExpiringSoon', is_expiring_soon,
           'transactions', transaction_details
         ) ORDER BY closed_at DESC

@@ -1,9 +1,11 @@
 // Position-related TypeScript interfaces
 
+import { ITransactionAction } from "@/lib/db/schema";
+
 export interface PositionTransaction {
   id: number;
   date: string;
-  action: string;
+  action: ITransactionAction;
   displayAction: string;
   positionEffect: string;
   quantity: string;
