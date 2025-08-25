@@ -1,12 +1,9 @@
 "use client";
 
 import {
-  BarChart3,
-  Check,
   ChevronDown,
   ChevronRight,
   Clock,
-  Mail,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -107,6 +104,9 @@ export function PositionRow({ position, index }: PositionRowProps) {
             )}
           </div>
         </TableCell>
+        <TableCell className="w-20 p-2 text-muted-foreground text-sm text-center">
+          —
+        </TableCell>
         <TableCell className="w-32 p-2">
           <span
             className={`font-medium flex items-center text-sm ${
@@ -129,30 +129,11 @@ export function PositionRow({ position, index }: PositionRowProps) {
         <TableCell className="w-32 p-2 text-muted-foreground text-sm">
           {formatCurrency(0)} {/* Will calculate when we have realized P/L */}
         </TableCell>
-        <TableCell className="w-20 p-2">
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <BarChart3 className="h-3 w-3" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <Mail className="h-3 w-3" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <Check className="h-3 w-3" />
-            </Button>
-          </div>
+        <TableCell className="w-32 p-2 text-muted-foreground text-sm">
+          —
+        </TableCell>
+        <TableCell className="w-24 p-2 text-muted-foreground text-sm">
+          —
         </TableCell>
       </TableRow>
 
@@ -187,13 +168,10 @@ export function PositionRow({ position, index }: PositionRowProps) {
                     {pos.optionType && (
                       <span>{`${pos.ticker} $${pos.strikePrice} ${pos.optionType} - ${pos.daysHeld} days in trade`}</span>
                     )}
-                    <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
-                      <span>Cost Basis: {formatCurrency(pos.costBasis)}</span>
-                      <span>Fees: {formatCurrency(pos.totalFees)}</span>
-                      <span>Opened: {new Date(pos.openedAt).toLocaleDateString()}</span>
-                      {pos.closedAt && <span>Closed: {new Date(pos.closedAt).toLocaleDateString()}</span>}
-                    </div>
                   </div>
+                </TableCell>
+                <TableCell className="w-20 p-2 text-muted-foreground text-sm text-center">
+                  —
                 </TableCell>
                 <TableCell className="w-32 p-2">
                   <span
@@ -212,7 +190,12 @@ export function PositionRow({ position, index }: PositionRowProps) {
                 <TableCell className="w-32 p-2 text-muted-foreground text-sm">
                   {formatCurrency(pos.realizedPnl)}
                 </TableCell>
-                <TableCell className="w-20 p-2" />
+                <TableCell className="w-32 p-2 text-muted-foreground text-sm">
+                  {formatCurrency(pos.costBasis)}
+                </TableCell>
+                <TableCell className="w-24 p-2 text-muted-foreground text-sm">
+                  {formatCurrency(pos.totalFees)}
+                </TableCell>
               </TableRow>
 
               {/* Position Details Row */}

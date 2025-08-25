@@ -118,7 +118,13 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
             </div>
           </div>
         </TableCell>
-        <TableCell className="w-32 p-2" />
+        <TableCell className="w-20 p-2 text-center">
+          <span className="text-xs font-medium">
+            {parseFloat(transaction.quantity) > 0
+              ? `+${transaction.quantity}`
+              : transaction.quantity}
+          </span>
+        </TableCell>
         <TableCell className="w-32 p-2">
           <span
             className={`text-xs font-medium ${
@@ -135,13 +141,27 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
             {formatCurrency(transaction.amount)}
           </span>
         </TableCell>
-        <TableCell className="w-20 p-2" />
+        <TableCell className="w-32 p-2">
+          <span className="text-xs text-muted-foreground">
+            {formatCurrency(transaction.amount)}
+          </span>
+        </TableCell>
+        <TableCell className="w-32 p-2">
+          <span className="text-xs text-muted-foreground">
+            {formatCurrency(transaction.amount)}
+          </span>
+        </TableCell>
+        <TableCell className="w-24 p-2">
+          <span className="text-xs text-muted-foreground">
+            {formatCurrency(transaction.fees)}
+          </span>
+        </TableCell>
       </TableRow>
 
       {/* Transaction Details Row (expanded) */}
       {isExpanded && (
-        <TableRow className="border-border bg-background">
-          <TableCell colSpan={6} className="p-4">
+        <TableRow className="border-border bg-background hover:bg-background">
+          <TableCell colSpan={8} className="p-4">
             <div className="ml-16 space-y-2">
               <div className="text-xs font-medium text-muted-foreground mb-2">
                 Transaction Details

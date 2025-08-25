@@ -89,6 +89,9 @@ export function PositionTable({
             <TableHead className="text-muted-foreground font-semibold">
               Symbol
             </TableHead>
+            <TableHead className="text-muted-foreground font-semibold w-20">
+              Quantity
+            </TableHead>
             <TableHead className="text-muted-foreground font-semibold w-32">
               Total P/L
             </TableHead>
@@ -98,8 +101,11 @@ export function PositionTable({
             <TableHead className="text-muted-foreground font-semibold w-32">
               Realized P/L
             </TableHead>
-            <TableHead className="text-muted-foreground font-semibold w-20">
-              Actions
+            <TableHead className="text-muted-foreground font-semibold w-32">
+              Cost Basis
+            </TableHead>
+            <TableHead className="text-muted-foreground font-semibold w-24">
+              Fees
             </TableHead>
           </TableRow>
         </TableHeader>
