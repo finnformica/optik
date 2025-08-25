@@ -27,6 +27,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { href: paths.dashboard, icon: LayoutDashboard, title: "Dashboard" },
   { href: paths.transactions, icon: Receipt, title: "Transactions" },
+  { href: paths.positions, icon: Receipt, title: "Positions" },
   { href: paths.analysis, icon: BarChart3, title: "Analysis" },
   { href: paths.settings, icon: Settings, title: "Settings", bottom: true },
   { href: paths.help, icon: HelpCircle, title: "Help", bottom: true },

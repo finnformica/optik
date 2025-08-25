@@ -7,6 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export const endpoints = {
   transactions: "/api/transactions",
+  positions: "/api/positions",
   schwab: {
     data: "/api/schwab/data"
   },
@@ -14,6 +15,7 @@ export const endpoints = {
 
 export const paths = {
   transactions: "/transactions",
+  positions: "/positions",
   dashboard: "/dashboard",
   analysis: "/analysis",
   settings: "/settings",

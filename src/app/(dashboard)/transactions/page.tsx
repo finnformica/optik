@@ -15,6 +15,7 @@ import { useMemo, useState } from "react";
 import { syncTransactions, useTransactions } from "@/api/transactions";
 import { ITransactionAction } from "@/lib/db/schema";
 
+import { Loading } from "@/components/global/loading";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -224,12 +225,7 @@ export default function TransactionsPage() {
   if (loading) {
     return (
       <div className="container mx-auto p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
-            <p>Loading transactions...</p>
-          </div>
-        </div>
+        <Loading message="Loading transactions..." className="h-64" />
       </div>
     );
   }
