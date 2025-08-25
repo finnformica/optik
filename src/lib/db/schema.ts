@@ -329,21 +329,35 @@ export const portfolioSummary = pgView('portfolio_summary', {
   LEFT JOIN weekly_pnl wp ON pt.user_id = wp.user_id
 `);
 
-// 3. Weekly Performance View - For WeeklyReturnsChart component
-export const weeklyPerformance = pgView('weekly_performance').as((qb) =>
-  qb
-    .select({
-      userId: transactions.userId,
-      weekStart: sql<string>`DATE_TRUNC('week', ${transactions.date})::date`.as('week_start'),
-      // Weekly P/L from normalized amounts minus fees
-      weeklyPnl: sql<string>`SUM(${transactions.amount}::numeric) - SUM(${transactions.fees}::numeric)`.as('weekly_pnl'),
-      transactionCount: sql<string>`COUNT(*)`.as('transaction_count'),
-    })
-    .from(transactions)
-    .where(sql`${transactions.action} NOT IN ('transfer', 'other') AND ${transactions.date} <= CURRENT_DATE`)
-    .groupBy(transactions.userId, sql`DATE_TRUNC('week', ${transactions.date})`)
-    .orderBy(transactions.userId, sql`week_start DESC`)
-);
+export const weeklyPerformance = pgView('weekly_performance', {
+  userId: integer('user_id'),
+  weekStart: text('week_start'),
+  weeklyPnl: text('weekly_pnl'),
+  weeklyPnlPercent: text('weekly_pnl_percent'),
+}).as(sql`
+  WITH weekly_with_previous AS (
+    SELECT 
+      user_id,
+      week_start,
+      cumulative_transfers::numeric as current_transfers,
+      cumulative_portfolio_value::numeric as current_portfolio,
+      LAG(cumulative_transfers::numeric) OVER (PARTITION BY user_id ORDER BY week_start) as prev_transfers,
+      LAG(cumulative_portfolio_value::numeric) OVER (PARTITION BY user_id ORDER BY week_start) as prev_portfolio
+    FROM account_value_over_time
+  )
+  SELECT 
+    user_id,
+    week_start,
+    (current_portfolio - prev_portfolio) - (current_transfers - prev_transfers) as weekly_pnl,
+    CASE 
+      WHEN prev_portfolio > 0
+      THEN ((current_portfolio - prev_portfolio) - (current_transfers - prev_transfers)) * 100.0 / prev_portfolio
+      ELSE 0
+    END as weekly_pnl_percent
+  FROM weekly_with_previous
+  WHERE prev_portfolio IS NOT NULL  -- Exclude first week
+  ORDER BY user_id, week_start DESC
+`);
 
 // 5. Account Value Over Time View - For AccountValueChart component
 export const accountValueOverTime = pgView('account_value_over_time', {

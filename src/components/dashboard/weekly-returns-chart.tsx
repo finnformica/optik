@@ -25,24 +25,10 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
       new Date(b.weekStart || "").getTime()
   );
 
-  // Calculate cumulative portfolio value to determine percentage returns
-  let cumulativeValue = 0;
-
-  // Format data for chart, calculating running portfolio value
+  // Format data for chart
   const chartData = sortedData.map((item, index) => {
     const absoluteReturns = parseFloat(item.weeklyPnl || "0");
-
-    // For the first week, assume a base portfolio value or use the absolute returns as base
-    if (index === 0 && cumulativeValue === 0) {
-      cumulativeValue =
-        Math.abs(absoluteReturns) > 1000
-          ? Math.abs(absoluteReturns) * 10
-          : 10000;
-    }
-
-    const percentReturns =
-      cumulativeValue > 0 ? (absoluteReturns / cumulativeValue) * 100 : 0;
-    cumulativeValue += absoluteReturns; // Update running total for next week
+    const percentReturns = parseFloat(item.weeklyPnlPercent || "0");
 
     return {
       week: new Date(item.weekStart || "").toLocaleDateString("en-GB", {
@@ -54,6 +40,7 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
       date: item.weekStart,
     };
   });
+
   return (
     <Card className="bg-[#1a2236] border-gray-800 py-0">
       <CardHeader className="border-b border-gray-800 p-4">
