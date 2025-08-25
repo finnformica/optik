@@ -6,17 +6,42 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 interface PortfolioDistributionProps {
   distribution: PortfolioDistributionType[];
+  cashBalance: number;
 }
 
-const COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
+const COLORS = [
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#f59e0b",
+  "#10b981",
+  "#ef4444",
+];
+
+// Function to get a distinct color for each index
+const getColor = (index: number) => {
+  if (index < COLORS.length) {
+    return COLORS[index];
+  }
+  // For additional colors, use a different hue rotation
+  const hue = (index * 137.5) % 360; // Golden angle approximation
+  return `hsl(${hue}, 70%, 60%)`;
+};
 
 const PortfolioDistribution = ({
   distribution,
+  cashBalance,
 }: PortfolioDistributionProps) => {
   const totalValue = distribution.reduce(
     (sum, item) => sum + parseFloat(item.positionValue || "0"),
-    0
+    cashBalance
   );
+
+  const data = [
+    ...distribution,
+    { ticker: "Cash", positionValue: cashBalance.toString() },
+  ];
 
   // Calculate positions for labels extending from the pie chart
   const renderCustomizedLabel = ({
@@ -34,9 +59,9 @@ const PortfolioDistribution = ({
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
     // Calculate the percentage for this segment
-    const value = parseFloat(distribution[index]?.positionValue || "0");
+    const value = parseFloat(data[index]?.positionValue || "0");
     const percentage =
-      totalValue > 0 ? ((value / totalValue) * 100).toFixed(0) : "0";
+      totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : "0";
 
     return (
       <g>
@@ -58,7 +83,7 @@ const PortfolioDistribution = ({
           dominantBaseline="central"
           className="text-xs font-medium"
         >
-          {distribution[index]?.ticker} ({percentage}%)
+          {data[index]?.ticker} ({percentage}%)
         </text>
       </g>
     );
@@ -83,10 +108,10 @@ const PortfolioDistribution = ({
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={distribution.map((item, index) => ({
+                    data={data.map((item, index) => ({
                       name: item.ticker,
                       value: parseFloat(item.positionValue || "0"),
-                      fill: COLORS[index % COLORS.length],
+                      fill: getColor(index),
                     }))}
                     cx="50%"
                     cy="50%"
@@ -98,11 +123,8 @@ const PortfolioDistribution = ({
                     label={renderCustomizedLabel}
                     labelLine={false}
                   >
-                    {distribution.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
+                    {data.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={getColor(index)} />
                     ))}
                   </Pie>
                   <Tooltip

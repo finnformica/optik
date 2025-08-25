@@ -76,6 +76,8 @@ export default async function DashboardPage() {
     lastTransactionDate: null,
   };
 
+  const cashBalance = parseFloat(summary.cashBalance || "0");
+
   return (
     <div className="space-y-6">
       <SummaryStats summary={summary} />
@@ -87,7 +89,10 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <CurrentPositions positions={positionsData} />
-        <PortfolioDistribution distribution={distributionData} />
+        <PortfolioDistribution
+          distribution={distributionData}
+          cashBalance={cashBalance}
+        />
       </div>
     </div>
   );
