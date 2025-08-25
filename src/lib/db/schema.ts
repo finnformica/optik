@@ -404,7 +404,14 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
             ELSE ABS(${transactions.amount}::numeric / ${transactions.quantity}::numeric)
           END,
           'creditDebitType', CASE WHEN ${transactions.amount}::numeric > 0 THEN 'CR' ELSE 'DB' END,
-          'transactionPnl', ${transactions.amount}::numeric - ${transactions.fees}::numeric,
+          'realizedPnl', CASE 
+            WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.amount}::numeric - ${transactions.fees}::numeric
+            ELSE 0
+          END,
+          'unrealizedPnl', CASE 
+            WHEN ${transactions.optionType} IS NOT NULL THEN 0
+            ELSE ${transactions.amount}::numeric - ${transactions.fees}::numeric
+          END,
           'optionType', ${transactions.optionType},
           'costBasis', CASE 
             WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric * 100 * ${transactions.quantity}::numeric
@@ -442,7 +449,7 @@ export const positionCalculations = pgView('position_calculations').as((qb) =>
       END))`.as('cost_basis'),
       // Realized P&L from closed portions
       realizedPnl: sql<string>`SUM(CASE 
-        WHEN ${transactions.action} IN ('sell_to_close', 'buy_to_close', 'expire', 'assign') THEN ${transactions.amount}::numeric - ${transactions.fees}::numeric
+        WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.amount}::numeric - ${transactions.fees}::numeric
         ELSE 0
       END)`.as('realized_pnl'),
       // Total P&L (realized + unrealized)
@@ -459,6 +466,11 @@ export const positionCalculations = pgView('position_calculations').as((qb) =>
       END`.as('days_held'),
       // Status flags
       isExpiringSoon: sql<string>`false`.as('is_expiring_soon'), // Simplified without expiry date
+      // Unrealized P&L (total - realized)
+      unrealizedPnl: sql<string>`SUM(CASE 
+        WHEN ${transactions.optionType} IS NOT NULL THEN 0
+        ELSE ${transactions.amount}::numeric - ${transactions.fees}::numeric
+      END)`.as('unrealized_pnl'),
     })
     .from(transactions)
     .where(sql`${transactions.action} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
@@ -479,6 +491,7 @@ export const positions = pgView('positions', {
   positionKey: varchar('position_key', { length: 200 }),
   netQuantity: decimal('net_quantity', { precision: 18, scale: 8 }),
   costBasis: decimal('cost_basis', { precision: 18, scale: 8 }),
+  unrealizedPnl: decimal('unrealized_pnl', { precision: 18, scale: 8 }),
   realizedPnl: decimal('realized_pnl', { precision: 18, scale: 8 }),
   totalPnl: decimal('total_pnl', { precision: 18, scale: 8 }),
   totalFees: decimal('total_fees', { precision: 18, scale: 8 }),
@@ -498,10 +511,8 @@ export const positions = pgView('positions', {
     p.position_key,
     p.net_quantity,
     p.cost_basis,
-    CASE 
-      WHEN p.net_quantity::numeric = 0 THEN p.total_pnl -- All P&L is realized for closed positions
-      ELSE p.realized_pnl
-    END as realized_pnl,
+    p.realized_pnl,
+    p.unrealized_pnl,
     p.total_pnl,
     p.total_fees,
     p.opened_at,
@@ -550,6 +561,8 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
   positionType: varchar('position_type', { length: 10 }), // 'OPEN' or 'CLOSED'
   totalPositions: text('total_positions'),
   totalPnl: text('total_pnl'),
+  unrealizedPnl: text('unrealized_pnl'),
+  realizedPnl: text('realized_pnl'),
   totalFees: text('total_fees'),
   expiringSoonCount: text('expiring_soon_count'),
   positionsData: text('positions_data'), // JSON array of positions
@@ -560,6 +573,8 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
     CASE WHEN is_open = 'true' THEN 'OPEN' ELSE 'CLOSED' END as position_type,
     COUNT(*)::text as total_positions,
     SUM(total_pnl::numeric)::text as total_pnl,
+    SUM(realized_pnl::numeric)::text as realized_pnl,
+    SUM(unrealized_pnl::numeric)::text as unrealized_pnl,
     SUM(total_fees::numeric)::text as total_fees,
     SUM(CASE WHEN is_expiring_soon::boolean = true THEN 1 ELSE 0 END)::text as expiring_soon_count,
     JSON_AGG(
@@ -571,6 +586,7 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
         'netQuantity', net_quantity,
         'totalPnl', total_pnl,
         'realizedPnl', realized_pnl,
+        'unrealizedPnl', unrealized_pnl,
         'costBasis', cost_basis,
         'totalFees', total_fees,
         'openedAt', opened_at,

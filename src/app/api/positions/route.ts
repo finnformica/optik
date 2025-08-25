@@ -51,6 +51,8 @@ export async function GET(request: NextRequest) {
             ticker: row.ticker!,
             totalPositions: parseInt(row.totalPositions || '0'),
             totalPnl: parseFloat(row.totalPnl || '0'),
+            realizedPnl: parseFloat(row.realizedPnl || '0'),
+            unrealizedPnl: parseFloat(row.unrealizedPnl || '0'),
             totalFees: parseFloat(row.totalFees || '0'),
             expiringSoonCount: parseInt(row.expiringSoonCount || '0'),
             positions

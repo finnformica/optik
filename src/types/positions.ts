@@ -6,29 +6,30 @@ export interface PositionTransaction {
   id: number;
   date: string;
   action: ITransactionAction;
-  quantity: string;
-  amount: string;
-  fees: string;
+  quantity: number;
+  amount: number;
+  fees: number;
   description?: string;
   unitPrice: number;
   creditDebitType: 'CR' | 'DB';
-  transactionPnl: string;
   optionType: string | null;
-  costBasis: string;
+  costBasis: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
 }
 
 export interface Position {
   positionKey: string;
   ticker: string;
   optionType?: string;
-  strikePrice?: string;
+  strikePrice?: number;
   expiryDate?: string;
-  strategy: string;
-  netQuantity: string;
-  totalPnl: string;
-  realizedPnl: string;
-  costBasis: string;
-  totalFees: string;
+  netQuantity: number;
+  totalPnl: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  costBasis: number;
+  totalFees: number;
   openedAt: string;
   closedAt?: string;
   lastTransactionAt: string;
@@ -42,6 +43,8 @@ export interface SymbolGroup {
   ticker: string;
   totalPositions: number;
   totalPnl: number;
+  unrealizedPnl: number;
+  realizedPnl: number;
   totalFees: number;
   expiringSoonCount: number;
   positions: Position[];

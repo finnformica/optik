@@ -93,7 +93,13 @@ export function PositionTable({
               Quantity
             </TableHead>
             <TableHead className="text-muted-foreground font-semibold w-32">
-              Profit / Loss
+              Total P/L
+            </TableHead>
+            <TableHead className="text-muted-foreground font-semibold w-32">
+              Unrealised P/L
+            </TableHead>
+            <TableHead className="text-muted-foreground font-semibold w-32">
+              Realised P/L
             </TableHead>
             <TableHead className="text-muted-foreground font-semibold w-32">
               Cost Basis

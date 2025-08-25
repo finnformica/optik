@@ -108,7 +108,6 @@ export class SchwabAPISync {
           } catch (error) {
             if (error instanceof Error && error.message.includes('duplicate key')) {
               duplicateCount++;
-              console.log(`Transaction with transactionId ${transaction.transactionId} already exists, skipping`);
             } else {
               throw error; // Re-throw other errors
             }
@@ -123,7 +122,6 @@ export class SchwabAPISync {
         }
       }
 
-      console.log(`Successfully synced ${result.processed} transactions`);
       return result;
 
     } catch (error) {
@@ -148,7 +146,7 @@ export class SchwabAPISync {
         return this.processWireOutActivity(userId, activity);
       case 'SMA_ADJUSTMENT':
       default:
-        console.log(`Unsupported activity type: ${activity.type}`);
+        console.warn(`WARNING: Unsupported activity type: ${activity.type}`);
         return null;
     }
   }

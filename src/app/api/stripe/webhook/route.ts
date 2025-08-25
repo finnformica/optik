@@ -1,6 +1,6 @@
-import Stripe from 'stripe';
 import { handleSubscriptionChange, stripe } from '@/lib/payments/stripe';
 import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       await handleSubscriptionChange(subscription);
       break;
     default:
-      console.log(`Unhandled event type ${event.type}`);
+      console.warn(`WARNING: Unhandled event type ${event.type}`);
   }
 
   return NextResponse.json({ received: true });

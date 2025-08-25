@@ -126,6 +126,12 @@ export function PositionRow({ position, index }: PositionRowProps) {
         <TableCell className="w-32 p-2 text-muted-foreground text-sm">
           —
         </TableCell>
+        <TableCell className="w-32 p-2 text-muted-foreground text-sm">
+          —
+        </TableCell>
+        <TableCell className="w-32 p-2 text-muted-foreground text-sm">
+          —
+        </TableCell>
         <TableCell className="w-24 p-2 text-muted-foreground text-sm">
           —
         </TableCell>
@@ -170,13 +176,19 @@ export function PositionRow({ position, index }: PositionRowProps) {
                 <TableCell className="w-32 p-2">
                   <span
                     className={`text-sm font-medium ${
-                      parseFloat(pos.totalPnl) >= 0
+                      pos.totalPnl >= 0
                         ? "text-green-600 dark:text-green-400"
                         : "text-red-600 dark:text-red-400"
                     }`}
                   >
                     {formatCurrency(pos.totalPnl)}
                   </span>
+                </TableCell>
+                <TableCell className="w-32 p-2 text-muted-foreground text-sm">
+                  {formatCurrency(pos.unrealizedPnl)}
+                </TableCell>
+                <TableCell className="w-32 p-2 text-muted-foreground text-sm">
+                  {formatCurrency(pos.realizedPnl)}
                 </TableCell>
                 <TableCell className="w-32 p-2 text-muted-foreground text-sm">
                   {formatCurrency(pos.costBasis)}

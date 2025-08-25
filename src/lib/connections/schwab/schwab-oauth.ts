@@ -112,7 +112,6 @@ export class SchwabAuth {
     }
 
     try {
-      console.log('Refreshing access token...')
       const newTokens = await this.refreshAccessToken(tokens.refresh_token)
       await this.storeTokens(userId, newTokens)
       return newTokens.access_token
@@ -140,12 +139,6 @@ export class SchwabAuth {
 
   // Generate OAuth authorization URL
   getAuthorizationUrl(redirectUri: string): string {
-    console.log('Schwab OAuth Configuration:', {
-      appKey: this.appKey.substring(0, 10) + '...',
-      redirectUri,
-      baseUrl: this.baseUrl
-    })
-
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.appKey,
@@ -153,19 +146,12 @@ export class SchwabAuth {
     })
 
     const authUrl = `${this.baseUrl}/v1/oauth/authorize?${params.toString()}`
-    console.log('Generated OAuth URL:', authUrl)
     return authUrl
   }
 
   // Exchange authorization code for access tokens
   async exchangeCodeForTokens(authorizationCode: string, redirectUri: string): Promise<SchwabTokens> {
     const credentials = btoa(`${this.appKey}:${this.appSecret}`)
-
-    console.log('Token Exchange Request:', {
-      authorizationCode: authorizationCode.substring(0, 10) + '...', // Only log first 10 chars
-      redirectUri,
-      appKey: this.appKey.substring(0, 10) + '...'
-    })
 
     const response = await fetch(`${this.baseUrl}/v1/oauth/token`, {
       method: 'POST',
@@ -179,13 +165,7 @@ export class SchwabAuth {
         redirect_uri: redirectUri,
       }),
     })
-
-    console.log('Token Exchange Response:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries())
-    })
-
+    
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Token exchange error details:', errorText)
