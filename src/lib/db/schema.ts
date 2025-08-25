@@ -399,23 +399,17 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
           'amount', ${transactions.amount},
           'fees', ${transactions.fees},
           'description', ${transactions.description},
-          'unitPrice', ABS(${transactions.amount}::numeric / ${transactions.quantity}::numeric),
+          'unitPrice', CASE 
+            WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric
+            ELSE ABS(${transactions.amount}::numeric / ${transactions.quantity}::numeric)
+          END,
           'creditDebitType', CASE WHEN ${transactions.amount}::numeric > 0 THEN 'CR' ELSE 'DB' END,
-          'displayAction', CASE 
-            WHEN ${transactions.action} IN ('buy', 'buy_to_open', 'buy_to_close') THEN 'BUY'
-            ELSE 'SELL'
-          END,
-          'positionEffect', CASE 
-            WHEN ${transactions.action} IN ('buy_to_open', 'sell_to_open') THEN 'OPENING'
-            WHEN ${transactions.action} IN ('sell_to_close', 'buy_to_close', 'expire', 'assign') THEN 'CLOSING'
-            ELSE 'OTHER'
-          END,
-          'priceDisplay', CONCAT(
-            ABS(${transactions.amount}::numeric / ${transactions.quantity}::numeric)::text, 
-            ' ', 
-            CASE WHEN ${transactions.amount}::numeric > 0 THEN 'CR' ELSE 'DB' END
-          ),
-          'transactionPnl', ${transactions.amount}::numeric - ${transactions.fees}::numeric
+          'transactionPnl', ${transactions.amount}::numeric - ${transactions.fees}::numeric,
+          'optionType', ${transactions.optionType},
+          'costBasis', CASE 
+            WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric * 100 * ${transactions.quantity}::numeric
+            ELSE ${transactions.amount}::numeric
+          END
         ) ORDER BY ${transactions.date}
       )`.as('transaction_details'),
     })

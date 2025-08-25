@@ -113,6 +113,27 @@
       "when": 1756141664999,
       "tag": "0015_early_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1756142683451,
+      "tag": "0016_daily_red_skull",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1756143084705,
+      "tag": "0017_lyrical_mordo",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1756143394297,
+      "tag": "0018_rainy_rocket_racer",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 
 import { TransactionRow } from "@/components/positions/transaction-row";
 import { Badge } from "@/components/ui/badge";
@@ -124,12 +124,6 @@ export function PositionRow({ position, index }: PositionRowProps) {
           </span>
         </TableCell>
         <TableCell className="w-32 p-2 text-muted-foreground text-sm">
-          {formatCurrency(position.totalPnl)}
-        </TableCell>
-        <TableCell className="w-32 p-2 text-muted-foreground text-sm">
-          {formatCurrency(0)} {/* Will calculate when we have realized P/L */}
-        </TableCell>
-        <TableCell className="w-32 p-2 text-muted-foreground text-sm">
           —
         </TableCell>
         <TableCell className="w-24 p-2 text-muted-foreground text-sm">
@@ -141,7 +135,7 @@ export function PositionRow({ position, index }: PositionRowProps) {
       {isExpanded && (
         <>
           {position.positions.map((pos) => (
-            <>
+            <React.Fragment key={pos.positionKey}>
               {/* Position Summary Row */}
               <TableRow
                 key={pos.positionKey}
@@ -185,12 +179,6 @@ export function PositionRow({ position, index }: PositionRowProps) {
                   </span>
                 </TableCell>
                 <TableCell className="w-32 p-2 text-muted-foreground text-sm">
-                  {formatCurrency(pos.totalPnl)}
-                </TableCell>
-                <TableCell className="w-32 p-2 text-muted-foreground text-sm">
-                  {formatCurrency(pos.realizedPnl)}
-                </TableCell>
-                <TableCell className="w-32 p-2 text-muted-foreground text-sm">
                   {formatCurrency(pos.costBasis)}
                 </TableCell>
                 <TableCell className="w-24 p-2 text-muted-foreground text-sm">
@@ -206,7 +194,7 @@ export function PositionRow({ position, index }: PositionRowProps) {
                     transaction={transaction}
                   />
                 ))}
-            </>
+            </React.Fragment>
           ))}
         </>
       )}

@@ -6,16 +6,15 @@ export interface PositionTransaction {
   id: number;
   date: string;
   action: ITransactionAction;
-  displayAction: string;
-  positionEffect: string;
   quantity: string;
   amount: string;
   fees: string;
   description?: string;
   unitPrice: number;
   creditDebitType: 'CR' | 'DB';
-  priceDisplay: string;
   transactionPnl: string;
+  optionType: string | null;
+  costBasis: string;
 }
 
 export interface Position {
