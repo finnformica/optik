@@ -1,10 +1,33 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CurrentPosition } from "@/lib/db/schema";
+import { Position } from "@/lib/db/schema";
+import { Badge } from "../ui/badge";
 interface CurrentPositionsProps {
-  positions: CurrentPosition[];
+  positions: Position[];
 }
 
 const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
+  const renderBadge = (percentDrawdown: number) => {
+    let content;
+    let className;
+    if (percentDrawdown >= 9.999) {
+      content = "ITM";
+      className = "bg-red-500/10 text-red-400 border-red-500/20 text-xs";
+    } else if (percentDrawdown >= 0.001) {
+      content = "ITM";
+      className =
+        "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-xs";
+    } else {
+      content = "OTM";
+      className = "bg-green-500/10 text-green-400 border-green-500/20 text-xs";
+    }
+
+    return (
+      <Badge variant="outline" className={className}>
+        {content} {percentDrawdown.toFixed(1)}%
+      </Badge>
+    );
+  };
+
   return (
     <Card className="bg-[#1a2236] border-gray-800 py-0">
       <CardHeader className="border-b border-gray-800 p-4">
@@ -31,7 +54,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                   Quantity
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Status
+                  ITM %
                 </th>
               </tr>
             </thead>
@@ -70,9 +93,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                         {parseFloat(position.netQuantity || "0")}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm">
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-900/30 text-blue-400">
-                          {position.positionType}
-                        </span>
+                        {renderBadge(2.5)}
                       </td>
                     </tr>
                   );

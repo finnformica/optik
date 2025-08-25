@@ -7,12 +7,12 @@ import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import {
   accountValueOverTime,
-  currentPositions,
   portfolioDistribution,
   portfolioSummary,
+  positions,
   weeklyPerformance,
 } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
@@ -39,8 +39,8 @@ export default async function DashboardPage() {
       .limit(1),
     db
       .select()
-      .from(currentPositions)
-      .where(eq(currentPositions.userId, userId))
+      .from(positions)
+      .where(and(eq(positions.userId, userId), eq(positions.isOpen, "true")))
       .limit(50),
     db
       .select()
