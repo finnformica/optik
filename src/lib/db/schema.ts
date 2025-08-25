@@ -225,39 +225,7 @@ export enum ActivityType {
 
 // Analytics Views for Dashboard Components
 
-// 1. Current Positions View - For CurrentPositions component
-export const currentPositions = pgView('current_positions').as((qb) =>
-  qb
-    .select({
-      userId: transactions.userId,
-      ticker: transactions.ticker,
-      optionType: transactions.optionType,
-      strikePrice: transactions.strikePrice,
-      // Net quantity: sum of normalized quantities (positive = LONG, negative = SHORT)
-      netQuantity: sql<string>`SUM(${transactions.quantity}::numeric)`.as('net_quantity'),
-      // Cost basis: strike*100*quantity for options, amount for stocks
-      costBasis: sql<string>`SUM(CASE 
-        WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric * 100 * ${transactions.quantity}::numeric
-        ELSE ${transactions.amount}::numeric
-      END)`.as('cost_basis'),
-      lastTransactionDate: sql<string>`MAX(${transactions.date})`.as('last_transaction_date'),
-      positionType: sql<string>`CASE 
-        WHEN ${transactions.optionType} IS NOT NULL THEN 'OPTION'
-        ELSE 'EQUITY'
-      END`.as('position_type'),
-    })
-    .from(transactions)
-    .where(sql`${transactions.action} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
-    .groupBy(
-      transactions.userId,
-      transactions.ticker,
-      transactions.optionType,
-      transactions.strikePrice
-    )
-    .having(sql`SUM(${transactions.quantity}::numeric) != 0`)
-);
-
-// 2. Portfolio Summary View - For SummaryStats component
+// 1. Portfolio Summary View - For SummaryStats component
 export const portfolioSummary = pgView('portfolio_summary', {
   userId: integer('user_id'),
   portfolioValue: text('portfolio_value'),
@@ -360,31 +328,7 @@ export const portfolioSummary = pgView('portfolio_summary', {
   LEFT JOIN weekly_pnl wp ON pt.user_id = wp.user_id
 `);
 
-// 3. Portfolio Distribution View - For PortfolioDistribution component
-export const portfolioDistribution = pgView('portfolio_distribution').as((qb) =>
-  qb
-    .select({
-      userId: currentPositions.userId,
-      ticker: currentPositions.ticker,
-      positionType: currentPositions.positionType,
-      // For options, use contract size (quantity * 100 * strike) or premium paid, for stocks use cost basis
-      positionValue: sql<string>`CASE 
-        WHEN ${currentPositions.positionType} = 'OPTION' AND ${currentPositions.strikePrice} IS NOT NULL 
-        THEN ABS(${currentPositions.netQuantity}::numeric * 100 * ${currentPositions.strikePrice}::numeric)
-        ELSE ABS(${currentPositions.costBasis})
-      END`.as('position_value'),
-      netQuantity: currentPositions.netQuantity,
-      daysHeld: sql<string>`(CURRENT_DATE - ${currentPositions.lastTransactionDate})`.as('days_held'),
-    })
-    .from(currentPositions)
-    .orderBy(sql`CASE 
-      WHEN ${currentPositions.positionType} = 'OPTION' AND ${currentPositions.strikePrice} IS NOT NULL 
-      THEN ABS(${currentPositions.netQuantity}::numeric * 100 * ${currentPositions.strikePrice}::numeric)
-      ELSE ABS(${currentPositions.costBasis})
-    END DESC`)
-);
-
-// 4. Weekly Performance View - For WeeklyReturnsChart component
+// 3. Weekly Performance View - For WeeklyReturnsChart component
 export const weeklyPerformance = pgView('weekly_performance').as((qb) =>
   qb
     .select({
@@ -432,49 +376,19 @@ export const accountValueOverTime = pgView('account_value_over_time', {
   ORDER BY user_id, week_start
 `);
 
-// 6. Open Positions View - Symbol-grouped positions with transaction details
-export const openPositions = pgView('open_positions').as((qb) =>
+// Reusable Building Blocks
+
+// Transaction Details View - Reusable transaction formatting for positions
+export const transactionDetails = pgView('transaction_details').as((qb) =>
   qb
     .select({
       userId: transactions.userId,
       ticker: transactions.ticker,
       optionType: transactions.optionType,
       strikePrice: transactions.strikePrice,
-      // Position key for grouping (without expiry date)
+      // Position grouping key
       positionKey: sql<string>`CONCAT(${transactions.ticker}, '-', COALESCE(${transactions.optionType}, 'STOCK'), '-', COALESCE(${transactions.strikePrice}::text, '0'))`.as('position_key'),
-      // Net quantity calculation
-      netQuantity: sql<string>`SUM(${transactions.quantity}::numeric)`.as('net_quantity'),
-      // Strategy detection based on option type and net quantity
-      strategy: sql<string>`CASE 
-        WHEN ${transactions.optionType} = 'PUT' AND SUM(${transactions.quantity}::numeric) < 0 THEN 'Short Put'
-        WHEN ${transactions.optionType} = 'PUT' AND SUM(${transactions.quantity}::numeric) > 0 THEN 'Long Put'
-        WHEN ${transactions.optionType} = 'CALL' AND SUM(${transactions.quantity}::numeric) < 0 THEN 'Short Call'
-        WHEN ${transactions.optionType} = 'CALL' AND SUM(${transactions.quantity}::numeric) > 0 THEN 'Long Call'
-        WHEN ${transactions.optionType} IS NULL AND SUM(${transactions.quantity}::numeric) > 0 THEN 'Long Stock'
-        WHEN ${transactions.optionType} IS NULL AND SUM(${transactions.quantity}::numeric) < 0 THEN 'Short Stock'
-        ELSE 'Unknown'
-      END`.as('strategy'),
-      // Cost basis (absolute value of money tied up)
-      costBasis: sql<string>`ABS(SUM(CASE 
-        WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric * 100 * ${transactions.quantity}::numeric
-        ELSE ${transactions.amount}::numeric
-      END))`.as('cost_basis'),
-      // Realized P&L from closed portions
-      realizedPnl: sql<string>`SUM(CASE 
-        WHEN ${transactions.action} IN ('sell_to_close', 'buy_to_close', 'expire', 'assign') THEN ${transactions.amount}::numeric - ${transactions.fees}::numeric
-        ELSE 0
-      END)`.as('realized_pnl'),
-      // Total P&L (realized + unrealized, but we don't have current prices yet)
-      totalPnl: sql<string>`SUM(${transactions.amount}::numeric - ${transactions.fees}::numeric)`.as('total_pnl'),
-      // Total fees
-      totalFees: sql<string>`SUM(${transactions.fees}::numeric)`.as('total_fees'),
-      // Timing information
-      openedAt: sql<string>`MIN(${transactions.date})`.as('opened_at'),
-      lastTransactionAt: sql<string>`MAX(${transactions.date})`.as('last_transaction_at'),
-      daysHeld: sql<string>`CURRENT_DATE - MIN(${transactions.date})`.as('days_held'),
-      // Status flags (simplified without expiry date)
-      isExpiringSoon: sql<string>`false`.as('is_expiring_soon'),
-      // Transaction details as JSON array
+      // Formatted transaction details as JSON array
       transactionDetails: sql<string>`JSON_AGG(
         JSON_BUILD_OBJECT(
           'id', ${transactions.id},
@@ -512,26 +426,28 @@ export const openPositions = pgView('open_positions').as((qb) =>
       transactions.optionType,
       transactions.strikePrice
     )
-    .having(sql`SUM(${transactions.quantity}::numeric) != 0`)
 );
 
-// 7. Closed Positions View - Completed positions with final P&L
-export const closedPositions = pgView('closed_positions').as((qb) =>
+// Position Calculations View - Shared position-level calculations
+export const positionCalculations = pgView('position_calculations').as((qb) =>
   qb
     .select({
       userId: transactions.userId,
       ticker: transactions.ticker,
       optionType: transactions.optionType,
       strikePrice: transactions.strikePrice,
-      // Position key for grouping (without expiry date)
+      // Position key for grouping
       positionKey: sql<string>`CONCAT(${transactions.ticker}, '-', COALESCE(${transactions.optionType}, 'STOCK'), '-', COALESCE(${transactions.strikePrice}::text, '0'))`.as('position_key'),
-      // Net quantity (always 0 for closed positions)
-      netQuantity: sql<string>`0`.as('net_quantity'),
-      // Strategy detection based on option type and transaction pattern
+      // Net quantity calculation
+      netQuantity: sql<string>`SUM(${transactions.quantity}::numeric)`.as('net_quantity'),
+      // Strategy detection based on option type and net quantity
       strategy: sql<string>`CASE 
-        WHEN ${transactions.optionType} = 'PUT' THEN 'Put Trade'
-        WHEN ${transactions.optionType} = 'CALL' THEN 'Call Trade'
-        WHEN ${transactions.optionType} IS NULL THEN 'Stock Trade'
+        WHEN ${transactions.optionType} = 'PUT' AND SUM(${transactions.quantity}::numeric) < 0 THEN 'Short Put'
+        WHEN ${transactions.optionType} = 'PUT' AND SUM(${transactions.quantity}::numeric) > 0 THEN 'Long Put'
+        WHEN ${transactions.optionType} = 'CALL' AND SUM(${transactions.quantity}::numeric) < 0 THEN 'Short Call'
+        WHEN ${transactions.optionType} = 'CALL' AND SUM(${transactions.quantity}::numeric) > 0 THEN 'Long Call'
+        WHEN ${transactions.optionType} IS NULL AND SUM(${transactions.quantity}::numeric) > 0 THEN 'Long Stock'
+        WHEN ${transactions.optionType} IS NULL AND SUM(${transactions.quantity}::numeric) < 0 THEN 'Short Stock'
         ELSE 'Unknown'
       END`.as('strategy'),
       // Cost basis (absolute value of money tied up)
@@ -539,48 +455,30 @@ export const closedPositions = pgView('closed_positions').as((qb) =>
         WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric * 100 * ${transactions.quantity}::numeric
         ELSE ${transactions.amount}::numeric
       END))`.as('cost_basis'),
-      // Realized P&L (total P&L for closed positions)
-      realizedPnl: sql<string>`SUM(${transactions.amount}::numeric - ${transactions.fees}::numeric)`.as('realized_pnl'),
-      // Total P&L (same as realized for closed positions)
+      // Realized P&L from closed portions
+      realizedPnl: sql<string>`SUM(CASE 
+        WHEN ${transactions.action} IN ('sell_to_close', 'buy_to_close', 'expire', 'assign') THEN ${transactions.amount}::numeric - ${transactions.fees}::numeric
+        ELSE 0
+      END)`.as('realized_pnl'),
+      // Total P&L (realized + unrealized)
       totalPnl: sql<string>`SUM(${transactions.amount}::numeric - ${transactions.fees}::numeric)`.as('total_pnl'),
       // Total fees
       totalFees: sql<string>`SUM(${transactions.fees}::numeric)`.as('total_fees'),
       // Timing information
       openedAt: sql<string>`MIN(${transactions.date})`.as('opened_at'),
-      closedAt: sql<string>`MAX(${transactions.date})`.as('closed_at'),
+      closedAt: sql<string>`MAX(CASE WHEN ${transactions.action} IN ('sell_to_close', 'buy_to_close', 'expire', 'assign') THEN ${transactions.date} END)`.as('closed_at'),
       lastTransactionAt: sql<string>`MAX(${transactions.date})`.as('last_transaction_at'),
-      daysHeld: sql<string>`MAX(${transactions.date}) - MIN(${transactions.date})`.as('days_held'),
-      // Status flags (always false for closed positions)
-      isExpiringSoon: sql<string>`false`.as('is_expiring_soon'),
-      // Transaction details as JSON array
-      transactionDetails: sql<string>`JSON_AGG(
-        JSON_BUILD_OBJECT(
-          'id', ${transactions.id},
-          'date', ${transactions.date},
-          'action', ${transactions.action},
-          'quantity', ${transactions.quantity},
-          'amount', ${transactions.amount},
-          'fees', ${transactions.fees},
-          'description', ${transactions.description},
-          'unitPrice', ABS(${transactions.amount}::numeric / ${transactions.quantity}::numeric),
-          'creditDebitType', CASE WHEN ${transactions.amount}::numeric > 0 THEN 'CR' ELSE 'DB' END,
-          'displayAction', CASE 
-            WHEN ${transactions.action} IN ('buy', 'buy_to_open', 'buy_to_close') THEN 'BUY'
-            ELSE 'SELL'
-          END,
-          'positionEffect', CASE 
-            WHEN ${transactions.action} IN ('buy_to_open', 'sell_to_open') THEN 'OPENING'
-            WHEN ${transactions.action} IN ('sell_to_close', 'buy_to_close', 'expire', 'assign') THEN 'CLOSING'
-            ELSE 'OTHER'
-          END,
-          'priceDisplay', CONCAT(
-            ABS(${transactions.amount}::numeric / ${transactions.quantity}::numeric)::text, 
-            ' ', 
-            CASE WHEN ${transactions.amount}::numeric > 0 THEN 'CR' ELSE 'DB' END
-          ),
-          'transactionPnl', ${transactions.amount}::numeric - ${transactions.fees}::numeric
-        ) ORDER BY ${transactions.date}
-      )`.as('transaction_details'),
+      daysHeld: sql<string>`CASE 
+        WHEN SUM(${transactions.quantity}::numeric) = 0 THEN MAX(${transactions.date}) - MIN(${transactions.date})
+        ELSE CURRENT_DATE - MIN(${transactions.date})
+      END`.as('days_held'),
+      // Status flags
+      isExpiringSoon: sql<string>`false`.as('is_expiring_soon'), // Simplified without expiry date
+      // Position type for current positions compatibility
+      positionType: sql<string>`CASE 
+        WHEN ${transactions.optionType} IS NOT NULL THEN 'OPTION'
+        ELSE 'EQUITY'
+      END`.as('position_type'),
     })
     .from(transactions)
     .where(sql`${transactions.action} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
@@ -588,9 +486,147 @@ export const closedPositions = pgView('closed_positions').as((qb) =>
       transactions.userId,
       transactions.ticker,
       transactions.optionType,
-      transactions.strikePrice,
+      transactions.strikePrice
     )
-    .having(sql`SUM(${transactions.quantity}::numeric) = 0`)
+);
+
+// 6. Open Positions View - Uses building blocks to eliminate duplication
+export const openPositions = pgView('open_positions', {
+  userId: integer('user_id'),
+  ticker: varchar('ticker', { length: 50 }),
+  optionType: varchar('option_type', { length: 50 }),
+  strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
+  positionKey: varchar('position_key', { length: 200 }),
+  netQuantity: decimal('net_quantity', { precision: 18, scale: 8 }),
+  strategy: varchar('strategy', { length: 50 }),
+  costBasis: decimal('cost_basis', { precision: 18, scale: 8 }),
+  realizedPnl: decimal('realized_pnl', { precision: 18, scale: 8 }),
+  totalPnl: decimal('total_pnl', { precision: 18, scale: 8 }),
+  totalFees: decimal('total_fees', { precision: 18, scale: 8 }),
+  openedAt: date('opened_at'),
+  lastTransactionAt: date('last_transaction_at'),
+  daysHeld: integer('days_held'),
+  isExpiringSoon: text('is_expiring_soon'),
+  transactionDetails: text('transaction_details'),
+}).as(sql`
+  SELECT 
+    p.user_id,
+    p.ticker,
+    p.option_type,
+    p.strike_price,
+    p.position_key,
+    p.net_quantity,
+    p.strategy,
+    p.cost_basis,
+    p.realized_pnl,
+    p.total_pnl,
+    p.total_fees,
+    p.opened_at,
+    p.last_transaction_at,
+    p.days_held,
+    p.is_expiring_soon,
+    t.transaction_details
+  FROM position_calculations p
+  INNER JOIN transaction_details t ON 
+    p.user_id = t.user_id AND
+    p.ticker = t.ticker AND
+    COALESCE(p.option_type, '') = COALESCE(t.option_type, '') AND
+    COALESCE(p.strike_price, 0) = COALESCE(t.strike_price, 0)
+  WHERE p.net_quantity::numeric != 0
+`);
+
+// 7. Closed Positions View - Uses building blocks to eliminate duplication
+export const closedPositions = pgView('closed_positions', {
+  userId: integer('user_id'),
+  ticker: varchar('ticker', { length: 50 }),
+  optionType: varchar('option_type', { length: 50 }),
+  strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
+  positionKey: varchar('position_key', { length: 200 }),
+  netQuantity: decimal('net_quantity', { precision: 18, scale: 8 }),
+  strategy: varchar('strategy', { length: 50 }),
+  costBasis: decimal('cost_basis', { precision: 18, scale: 8 }),
+  realizedPnl: decimal('realized_pnl', { precision: 18, scale: 8 }),
+  totalPnl: decimal('total_pnl', { precision: 18, scale: 8 }),
+  totalFees: decimal('total_fees', { precision: 18, scale: 8 }),
+  openedAt: date('opened_at'),
+  closedAt: date('closed_at'),
+  lastTransactionAt: date('last_transaction_at'),
+  daysHeld: integer('days_held'),
+  isExpiringSoon: text('is_expiring_soon'),
+  transactionDetails: text('transaction_details'),
+}).as(sql`
+  SELECT 
+    p.user_id,
+    p.ticker,
+    p.option_type,
+    p.strike_price,
+    p.position_key,
+    0 as net_quantity, -- Always 0 for closed positions
+    CASE 
+      WHEN p.option_type = 'PUT' THEN 'Put Trade'
+      WHEN p.option_type = 'CALL' THEN 'Call Trade' 
+      WHEN p.option_type IS NULL THEN 'Stock Trade'
+      ELSE 'Unknown'
+    END as strategy,
+    p.cost_basis,
+    p.total_pnl as realized_pnl, -- All P&L is realized for closed positions
+    p.total_pnl,
+    p.total_fees,
+    p.opened_at,
+    p.closed_at,
+    p.last_transaction_at,
+    p.days_held,
+    'false' as is_expiring_soon,
+    t.transaction_details
+  FROM position_calculations p
+  INNER JOIN transaction_details t ON 
+    p.user_id = t.user_id AND
+    p.ticker = t.ticker AND
+    COALESCE(p.option_type, '') = COALESCE(t.option_type, '') AND
+    COALESCE(p.strike_price, 0) = COALESCE(t.strike_price, 0)
+  WHERE p.net_quantity::numeric = 0
+`);
+
+// Current Positions View - Uses positionCalculations (maintains compatibility)
+export const currentPositions = pgView('current_positions').as((qb) =>
+  qb
+    .select({
+      userId: positionCalculations.userId,
+      ticker: positionCalculations.ticker,
+      optionType: positionCalculations.optionType,
+      strikePrice: positionCalculations.strikePrice,
+      netQuantity: positionCalculations.netQuantity,
+      costBasis: positionCalculations.costBasis,
+      lastTransactionDate: positionCalculations.lastTransactionAt, // Map to compatible field name
+      positionType: positionCalculations.positionType,
+    })
+    .from(positionCalculations)
+    .where(sql`${positionCalculations.netQuantity}::numeric != 0`)
+);
+
+// Portfolio Distribution View - Uses positionCalculations directly
+export const portfolioDistribution = pgView('portfolio_distribution').as((qb) =>
+  qb
+    .select({
+      userId: positionCalculations.userId,
+      ticker: positionCalculations.ticker,
+      positionType: positionCalculations.positionType,
+      // For options, use contract size (quantity * 100 * strike) or premium paid, for stocks use cost basis
+      positionValue: sql<string>`CASE 
+        WHEN ${positionCalculations.positionType} = 'OPTION' AND ${positionCalculations.strikePrice} IS NOT NULL 
+        THEN ABS(${positionCalculations.netQuantity}::numeric * 100 * ${positionCalculations.strikePrice}::numeric)
+        ELSE ABS(${positionCalculations.costBasis})
+      END`.as('position_value'),
+      netQuantity: positionCalculations.netQuantity,
+      daysHeld: sql<string>`(CURRENT_DATE - ${positionCalculations.lastTransactionAt})`.as('days_held'),
+    })
+    .from(positionCalculations)
+    .where(sql`${positionCalculations.netQuantity}::numeric != 0`) // Only open positions
+    .orderBy(sql`CASE 
+      WHEN ${positionCalculations.positionType} = 'OPTION' AND ${positionCalculations.strikePrice} IS NOT NULL 
+      THEN ABS(${positionCalculations.netQuantity}::numeric * 100 * ${positionCalculations.strikePrice}::numeric)
+      ELSE ABS(${positionCalculations.costBasis})
+    END DESC`)
 );
 
 // 8. Positions By Symbol View - Hierarchical grouping for symbol-first display
@@ -684,6 +720,8 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
 `);
 
 // Type exports for the views
+export type TransactionDetail = typeof transactionDetails.$inferSelect;
+export type PositionCalculation = typeof positionCalculations.$inferSelect;
 export type CurrentPosition = typeof currentPositions.$inferSelect;
 export type PortfolioSummary = typeof portfolioSummary.$inferSelect;
 export type PortfolioDistribution = typeof portfolioDistribution.$inferSelect;

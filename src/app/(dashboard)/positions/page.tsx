@@ -2,14 +2,14 @@
 
 import { debounce } from "lodash";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { Suspense, useCallback } from "react";
 
 import { PositionFilters } from "@/components/positions/position-filters";
 import { PositionStats } from "@/components/positions/position-stats";
 import { PositionTable } from "@/components/positions/position-table";
 import { usePositions } from "@/utils/api/positions";
 
-export default function PositionsPage() {
+function PositionsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -100,5 +100,13 @@ export default function PositionsPage() {
         error={error}
       />
     </>
+  );
+}
+
+export default function PositionsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PositionsPageContent />
+    </Suspense>
   );
 }

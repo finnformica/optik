@@ -63,7 +63,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                           : "-"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
-                        {position.expiryDisplay || "-"}
+                        {"-"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
                         {parseFloat(position.netQuantity || "0") > 0 ? "+" : ""}

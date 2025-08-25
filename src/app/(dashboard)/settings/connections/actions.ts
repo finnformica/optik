@@ -20,7 +20,7 @@ export async function disconnectSchwab() {
       .delete(userAccessTokens)
       .where(and(
         eq(userAccessTokens.userId, userId),
-        eq(userAccessTokens.provider, 'schwab')
+        eq(userAccessTokens.broker, 'schwab')
       ));
     
     redirect('/settings/connections');

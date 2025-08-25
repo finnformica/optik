@@ -35,23 +35,27 @@ export async function GET(request: NextRequest) {
       ))
       .orderBy(positionsBySymbol.totalPnl);
 
-    // Transform the data to include parsed JSON positions
+    // Transform the data with client-side filtering (keeping locale flexibility)
     const transformPositionsData = (data: PositionsBySymbol[]) => {
       return data
         .filter(row => row.ticker) // Filter out null tickers
-        .map(row => ({
-          ticker: row.ticker!,
-          totalPositions: parseInt(row.totalPositions || '0'),
-          totalPnl: parseFloat(row.totalPnl || '0'),
-          totalFees: parseFloat(row.totalFees || '0'),
-          expiringSoonCount: parseInt(row.expiringSoonCount || '0'),
-          positions: JSON.parse(row.positionsData || '[]').filter((position: any) => {
+        .map(row => {
+          const positions = JSON.parse(row.positionsData || '[]').filter((position: any) => {
             // Apply filters
             const matchesStrategy = !strategy || 
               position.strategy.toLowerCase().includes(strategy.toLowerCase());
             return matchesStrategy;
-          })
-        })).filter(group => {
+          });
+
+          return {
+            ticker: row.ticker!,
+            totalPositions: parseInt(row.totalPositions || '0'),
+            totalPnl: parseFloat(row.totalPnl || '0'),
+            totalFees: parseFloat(row.totalFees || '0'),
+            expiringSoonCount: parseInt(row.expiringSoonCount || '0'),
+            positions
+          };
+        }).filter(group => {
           // Apply ticker filter and ensure group has positions
           const matchesTicker = !ticker || group.ticker.toLowerCase().includes(ticker.toLowerCase());
           return matchesTicker && group.positions.length > 0;

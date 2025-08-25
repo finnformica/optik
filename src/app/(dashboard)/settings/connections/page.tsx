@@ -17,7 +17,7 @@ async function getSchwabConnectionStatus(userId: number) {
       .where(
         and(
           eq(userAccessTokens.userId, userId),
-          eq(userAccessTokens.provider, "schwab")
+          eq(userAccessTokens.broker, "schwab")
         )
       )
       .limit(1);
@@ -42,9 +42,14 @@ async function getSchwabConnectionStatus(userId: number) {
 export default async function ConnectionsPage({
   searchParams,
 }: {
-  searchParams: { error?: string; success?: string; provider?: string };
+  searchParams: Promise<{
+    error?: string;
+    success?: string;
+    provider?: string;
+  }>;
 }) {
   const session = await getSession();
+  const params = await searchParams;
 
   if (!session?.user?.id) {
     redirect("/login");
@@ -87,24 +92,23 @@ export default async function ConnectionsPage({
       <h1 className="text-2xl font-bold text-white mb-6">Connections</h1>
 
       {/* Success Messages */}
-      {searchParams.success && (
+      {params.success && (
         <div className="mb-6 p-4 bg-green-900/20 border border-green-700 rounded-lg">
           <p className="text-green-400">
-            {`${getProviderDisplayName(searchParams.provider)} ${
-              successMessages[
-                searchParams.success as keyof typeof successMessages
-              ] || "Operation completed successfully"
+            {`${getProviderDisplayName(params.provider)} ${
+              successMessages[params.success as keyof typeof successMessages] ||
+              "Operation completed successfully"
             }`}
           </p>
         </div>
       )}
 
       {/* Error Messages */}
-      {searchParams.error && (
+      {params.error && (
         <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg">
           <p className="text-red-400">
-            {`${getProviderDisplayName(searchParams.provider)}: ${
-              errorMessages[searchParams.error as keyof typeof errorMessages] ||
+            {`${getProviderDisplayName(params.provider)}: ${
+              errorMessages[params.error as keyof typeof errorMessages] ||
               "An error occurred"
             }`}
           </p>
