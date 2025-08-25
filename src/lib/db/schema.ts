@@ -13,6 +13,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { createSelectSchema } from 'drizzle-zod';
+import { createPerformanceViewSQL } from './utils';
 
 
 export const transactionAction = pgEnum("transaction_action", [
@@ -223,143 +224,103 @@ export enum ActivityType {
   ACCEPT_INVITATION = 'ACCEPT_INVITATION',
 }
 
-// Analytics Views for Dashboard Components
+// Create periodic the views using dynamic SQL query string
+export const weeklyPerformance = pgView('weekly_performance', {
+  userId: integer(),
+  periodStart: text(),
+  periodPnl: text(),
+  periodPnlPercent: text(),
+  portfolioValue: text(),
+  periodTransfers: text(),
+}).as(sql.raw(createPerformanceViewSQL('week')));
 
-// 1. Portfolio Summary View - For SummaryStats component
+export const monthlyPerformance = pgView('monthly_performance', {
+  userId: integer(),
+  periodStart: text(),
+  periodPnl: text(),
+  periodPnlPercent: text(),
+  portfolioValue: text(),
+  periodTransfers: text(),
+}).as(sql.raw(createPerformanceViewSQL('month')));
+
+export const yearlyPerformance = pgView('yearly_performance', {
+  userId: integer(),
+  periodStart: text(),
+  periodPnl: text(),
+  periodPnlPercent: text(),
+  portfolioValue: text(),
+  periodTransfers: text(),
+}).as(sql.raw(createPerformanceViewSQL('year')));
+
+
+// Portfolio Summary View - For SummaryStats component
 export const portfolioSummary = pgView('portfolio_summary', {
   userId: integer('user_id'),
   portfolioValue: text('portfolio_value'),
   cashBalance: text('cash_balance'),
+  weeklyPnl: text('weekly_pnl'),
   monthlyPnl: text('monthly_pnl'),
   yearlyPnl: text('yearly_pnl'),
-  weeklyPnlAmount: text('weekly_pnl_amount'),
+  weeklyPnlPercent: text('weekly_pnl_percent'),
   monthlyPnlPercent: text('monthly_pnl_percent'),
   yearlyPnlPercent: text('yearly_pnl_percent'),
-  totalIncome: text('total_income'),
-  totalFees: text('total_fees'),
-  uniqueTickers: text('unique_tickers'),
-  totalTransactions: text('total_transactions'),
-  firstTransactionDate: text('first_transaction_date'),
-  lastTransactionDate: text('last_transaction_date'),
 }).as(sql`
-  WITH portfolio_totals AS (
-    SELECT 
-      user_id,
-      -- Portfolio Value = Sum of all normalized amounts minus fees
-      SUM(amount::numeric) - SUM(fees::numeric) as portfolio_value,
-      -- Total transfers (money deposited/withdrawn)
-      SUM(CASE WHEN action = 'transfer' THEN amount::numeric ELSE 0 END) as total_transfers,
-      SUM(CASE WHEN action IN ('dividend', 'interest') THEN amount::numeric ELSE 0 END) as total_income,
-      SUM(fees::numeric) as total_fees,
-      COUNT(DISTINCT ticker) as unique_tickers,
-      COUNT(*) as total_transactions,
-      MIN(date) as first_transaction_date,
-      MAX(date) as last_transaction_date
-    FROM transactions
-    WHERE action != 'other'
-    GROUP BY user_id
+  WITH latest_portfolio AS (
+    SELECT DISTINCT ON (user_id) 
+      user_id, 
+      cumulative_portfolio_value
+    FROM account_value_over_time 
+    ORDER BY user_id, week_start DESC
   ),
-  monthly_pnl AS (
-    SELECT 
-      user_id,
-      SUM(amount::numeric) - SUM(fees::numeric) as monthly_pnl
-    FROM transactions
-    WHERE action NOT IN ('transfer', 'other') 
-      AND date >= DATE_TRUNC('month', CURRENT_DATE)
-    GROUP BY user_id
+  latest_weekly AS (
+    SELECT DISTINCT ON (user_id) 
+      user_id, 
+      period_pnl as weekly_pnl, 
+      period_pnl_percent as weekly_pnl_percent
+    FROM weekly_performance 
+    ORDER BY user_id, period_start DESC
   ),
-  yearly_pnl AS (
-    SELECT 
-      user_id,
-      SUM(amount::numeric) - SUM(fees::numeric) as yearly_pnl
-    FROM transactions
-    WHERE action NOT IN ('transfer', 'other')
-      AND date >= DATE_TRUNC('year', CURRENT_DATE)
-    GROUP BY user_id
+  latest_monthly AS (
+    SELECT DISTINCT ON (user_id) 
+      user_id, 
+      period_pnl as monthly_pnl, 
+      period_pnl_percent as monthly_pnl_percent
+    FROM monthly_performance 
+    ORDER BY user_id, period_start DESC
   ),
-  position_values AS (
+  latest_yearly AS (
+    SELECT DISTINCT ON (user_id) 
+      user_id, 
+      period_pnl as yearly_pnl, 
+      period_pnl_percent as yearly_pnl_percent
+    FROM yearly_performance 
+    ORDER BY user_id, period_start DESC
+  ),
+  position_costs AS (
     SELECT 
       user_id,
-      -- Sum of cost basis for all current open positions (actual money tied up in positions)
       COALESCE(SUM(cost_basis::numeric), 0) as total_position_cost
     FROM positions
-    WHERE is_open = 'true'
-    GROUP BY user_id
-  ),
-  weekly_pnl AS (
-    SELECT 
-      user_id,
-      SUM(amount::numeric) - SUM(fees::numeric) as weekly_pnl
-    FROM transactions
-    WHERE action NOT IN ('transfer', 'other') 
-      AND date >= DATE_TRUNC('week', CURRENT_DATE)
     GROUP BY user_id
   )
   SELECT 
-    pt.user_id,
-    pt.portfolio_value::text,
-    -- Cash Balance = Portfolio Value - Position Cost Basis (available cash)
-    (pt.portfolio_value - COALESCE(pv.total_position_cost, 0))::text as cash_balance,
-    COALESCE(mp.monthly_pnl, 0)::text as monthly_pnl,
-    COALESCE(yp.yearly_pnl, 0)::text as yearly_pnl,
-    -- Weekly P&L amount (absolute dollar change this week)
-    COALESCE(wp.weekly_pnl, 0)::text as weekly_pnl_amount,
-    -- Monthly P&L as percentage of portfolio
-    CASE 
-      WHEN pt.portfolio_value > 0 AND mp.monthly_pnl IS NOT NULL
-      THEN ((mp.monthly_pnl / pt.portfolio_value) * 100)::text
-      ELSE '0'
-    END as monthly_pnl_percent,
-    -- Yearly P&L as percentage of portfolio
-    CASE 
-      WHEN pt.portfolio_value > 0 AND yp.yearly_pnl IS NOT NULL
-      THEN ((yp.yearly_pnl / pt.portfolio_value) * 100)::text
-      ELSE '0'
-    END as yearly_pnl_percent,
-    pt.total_income::text,
-    pt.total_fees::text,
-    pt.unique_tickers::text,
-    pt.total_transactions::text,
-    pt.first_transaction_date::text,
-    pt.last_transaction_date::text
-  FROM portfolio_totals pt
-  LEFT JOIN monthly_pnl mp ON pt.user_id = mp.user_id
-  LEFT JOIN yearly_pnl yp ON pt.user_id = yp.user_id
-  LEFT JOIN position_values pv ON pt.user_id = pv.user_id
-  LEFT JOIN weekly_pnl wp ON pt.user_id = wp.user_id
+    lp.user_id,
+    lp.cumulative_portfolio_value as portfolio_value,
+    (lp.cumulative_portfolio_value::numeric - COALESCE(pc.total_position_cost, 0))::text as cash_balance,
+    COALESCE(lw.weekly_pnl, '0') as weekly_pnl,
+    COALESCE(lm.monthly_pnl, '0') as monthly_pnl,
+    COALESCE(ly.yearly_pnl, '0') as yearly_pnl,
+    COALESCE(lw.weekly_pnl_percent, '0') as weekly_pnl_percent,
+    COALESCE(lm.monthly_pnl_percent, '0') as monthly_pnl_percent,
+    COALESCE(ly.yearly_pnl_percent, '0') as yearly_pnl_percent
+  FROM latest_portfolio lp
+  LEFT JOIN position_costs pc ON lp.user_id = pc.user_id
+  LEFT JOIN latest_weekly lw ON lp.user_id = lw.user_id
+  LEFT JOIN latest_monthly lm ON lp.user_id = lm.user_id
+  LEFT JOIN latest_yearly ly ON lp.user_id = ly.user_id
 `);
 
-export const weeklyPerformance = pgView('weekly_performance', {
-  userId: integer('user_id'),
-  weekStart: text('week_start'),
-  weeklyPnl: text('weekly_pnl'),
-  weeklyPnlPercent: text('weekly_pnl_percent'),
-}).as(sql`
-  WITH weekly_with_previous AS (
-    SELECT 
-      user_id,
-      week_start,
-      cumulative_transfers::numeric as current_transfers,
-      cumulative_portfolio_value::numeric as current_portfolio,
-      LAG(cumulative_transfers::numeric) OVER (PARTITION BY user_id ORDER BY week_start) as prev_transfers,
-      LAG(cumulative_portfolio_value::numeric) OVER (PARTITION BY user_id ORDER BY week_start) as prev_portfolio
-    FROM account_value_over_time
-  )
-  SELECT 
-    user_id,
-    week_start,
-    (current_portfolio - prev_portfolio) - (current_transfers - prev_transfers) as weekly_pnl,
-    CASE 
-      WHEN prev_portfolio > 0
-      THEN ((current_portfolio - prev_portfolio) - (current_transfers - prev_transfers)) * 100.0 / prev_portfolio
-      ELSE 0
-    END as weekly_pnl_percent
-  FROM weekly_with_previous
-  WHERE prev_portfolio IS NOT NULL  -- Exclude first week
-  ORDER BY user_id, week_start DESC
-`);
-
-// 5. Account Value Over Time View - For AccountValueChart component
+// Account Value Over Time View - For AccountValueChart component
 export const accountValueOverTime = pgView('account_value_over_time', {
   userId: integer('user_id'),
   weekStart: text('week_start'),
@@ -390,8 +351,6 @@ export const accountValueOverTime = pgView('account_value_over_time', {
   FROM weekly_data
   ORDER BY user_id, week_start
 `);
-
-// Reusable Building Blocks
 
 // Transaction Details View - Reusable transaction formatting for positions
 export const transactionDetails = pgView('transaction_details').as((qb) =>
@@ -568,7 +527,7 @@ export const portfolioDistribution = pgView('portfolio_distribution').as((qb) =>
     END DESC`)
 );
 
-// 8. Positions By Symbol View - Hierarchical grouping for symbol-first display
+// Positions By Symbol View - Hierarchical grouping for symbol-first display
 export const positionsBySymbol = pgView('positions_by_symbol', {
   userId: integer('user_id'),
   ticker: varchar('ticker', { length: 50 }),

@@ -21,23 +21,23 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
   // Sort data by date to ensure proper chronological order
   const sortedData = [...weeklyData].sort(
     (a, b) =>
-      new Date(a.weekStart || "").getTime() -
-      new Date(b.weekStart || "").getTime()
+      new Date(a.periodStart || "").getTime() -
+      new Date(b.periodStart || "").getTime()
   );
 
   // Format data for chart
   const chartData = sortedData.map((item, index) => {
-    const absoluteReturns = parseFloat(item.weeklyPnl || "0");
-    const percentReturns = parseFloat(item.weeklyPnlPercent || "0");
+    const absoluteReturns = parseFloat(item.periodPnl || "0");
+    const percentReturns = parseFloat(item.periodPnlPercent || "0");
 
     return {
-      week: new Date(item.weekStart || "").toLocaleDateString("en-GB", {
+      week: new Date(item.periodStart || "").toLocaleDateString("en-GB", {
         month: "short",
         day: "numeric",
       }),
       absoluteReturns,
       percentReturns,
-      date: item.weekStart,
+      date: item.periodStart,
     };
   });
 

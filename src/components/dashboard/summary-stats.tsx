@@ -26,20 +26,6 @@ interface SummaryCard {
 }
 
 const SummaryStats = ({ summary }: SummaryStatsProps) => {
-  // Portfolio value is total account value (transfers + gains/losses + dividends + interest)
-  const portfolioValue = parseFloat(summary.portfolioValue || "0");
-  // Cash balance is now portfolio value minus positions (available cash)
-  const cashBalance = parseFloat(summary.cashBalance || "0");
-  const monthlyPnl = parseFloat(summary.monthlyPnl || "0");
-  const yearlyPnl = parseFloat(summary.yearlyPnl || "0");
-  const weeklyPnlAmount = parseFloat(summary.weeklyPnlAmount || "0");
-  const monthlyPnlPercent = parseFloat(summary.monthlyPnlPercent || "0");
-  const yearlyPnlPercent = parseFloat(summary.yearlyPnlPercent || "0");
-
-  // Calculate weekly percentage based on the amount vs portfolio
-  const weeklyPnlPercent =
-    portfolioValue > 0 ? (weeklyPnlAmount / portfolioValue) * 100 : 0;
-
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -75,7 +61,7 @@ const SummaryStats = ({ summary }: SummaryStatsProps) => {
       value: (summary) =>
         formatCurrency(Math.abs(parseFloat(summary.portfolioValue || "0"))),
       showTrend: true,
-      trendValue: () => weeklyPnlPercent,
+      trendValue: () => parseFloat(summary.weeklyPnlPercent || "0"),
       trendLabel: "this week",
     },
     {
@@ -102,7 +88,7 @@ const SummaryStats = ({ summary }: SummaryStatsProps) => {
       value: (summary) =>
         formatCurrencyWithSign(parseFloat(summary.monthlyPnl || "0")),
       showTrend: true,
-      trendValue: () => monthlyPnlPercent,
+      trendValue: () => parseFloat(summary.monthlyPnlPercent || "0"),
       trendLabel: "this month",
     },
     {
@@ -113,10 +99,11 @@ const SummaryStats = ({ summary }: SummaryStatsProps) => {
       value: (summary) =>
         formatCurrencyWithSign(parseFloat(summary.yearlyPnl || "0")),
       showTrend: true,
-      trendValue: () => yearlyPnlPercent,
+      trendValue: () => parseFloat(summary.yearlyPnlPercent || "0"),
       trendLabel: "this year",
     },
   ];
+
   return (
     <Card className="bg-[#1a2236] border-gray-800 p-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
