@@ -6,11 +6,9 @@ import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import {
-  accountValueOverTime,
-  portfolioDistribution,
-  portfolioSummary,
-  positions,
-  weeklyPerformance,
+  viewAccountValueOverTime,
+  viewPortfolioDistribution,
+  viewPositions,
 } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -25,65 +23,37 @@ export default async function DashboardPage() {
   const userId = session.user.id;
 
   // Fetch all analytics data in parallel
-  const [
-    summaryData,
-    positionsData,
-    distributionData,
-    weeklyData,
-    accountValueData,
-  ] = await Promise.all([
-    db
-      .select()
-      .from(portfolioSummary)
-      .where(eq(portfolioSummary.userId, userId))
-      .limit(1),
-    db
-      .select()
-      .from(positions)
-      .where(and(eq(positions.userId, userId), eq(positions.isOpen, "true")))
-      .limit(50),
-    db
-      .select()
-      .from(portfolioDistribution)
-      .where(eq(portfolioDistribution.userId, userId))
-      .limit(20),
-    db
-      .select()
-      .from(weeklyPerformance)
-      .where(eq(weeklyPerformance.userId, userId))
-      .limit(12),
-    db
-      .select()
-      .from(accountValueOverTime)
-      .where(eq(accountValueOverTime.userId, userId))
-      .limit(52),
-  ]);
-
-  // Provide default values if no data exists
-  const summary = summaryData[0] || {
-    portfolioValue: "0",
-    cashBalance: "0",
-    monthlyPnl: "0",
-    yearlyPnl: "0",
-    weeklyPnlAmount: "0",
-    monthlyPnlPercent: "0",
-    yearlyPnlPercent: "0",
-    totalIncome: "0",
-    totalFees: "0",
-    uniqueTickers: "0",
-    totalTransactions: "0",
-    firstTransactionDate: null,
-    lastTransactionDate: null,
-  };
-
-  const cashBalance = parseFloat(summary.cashBalance || "0");
+  const [positionsData, distributionData, accountValueData] = await Promise.all(
+    [
+      db
+        .select()
+        .from(viewPositions)
+        .where(
+          and(
+            eq(viewPositions.userId, userId),
+            eq(viewPositions.positionStatus, "OPEN")
+          )
+        )
+        .limit(50),
+      db
+        .select()
+        .from(viewPortfolioDistribution)
+        .where(eq(viewPortfolioDistribution.userId, userId))
+        .limit(20),
+      db
+        .select()
+        .from(viewAccountValueOverTime)
+        .where(eq(viewAccountValueOverTime.userId, userId))
+        .limit(52),
+    ]
+  );
 
   return (
     <div className="space-y-6">
-      <SummaryStats summary={summary} />
+      <SummaryStats />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <WeeklyReturnsChart weeklyData={weeklyData} />
+        <WeeklyReturnsChart weeklyData={accountValueData} />
         <AccountValueChart accountValueData={accountValueData} />
       </div>
 
@@ -91,7 +61,7 @@ export default async function DashboardPage() {
         <CurrentPositions positions={positionsData} />
         <PortfolioDistribution
           distribution={distributionData}
-          cashBalance={cashBalance}
+          cashBalance={300}
         />
       </div>
     </div>

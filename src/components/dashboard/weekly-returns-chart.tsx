@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { WeeklyPerformance } from "@/lib/db/schema";
+import { ViewAccountValueOverTime } from "@/lib/db/schema";
 import {
   Bar,
   CartesianGrid,
@@ -14,30 +14,30 @@ import {
 } from "recharts";
 
 interface WeeklyReturnsChartProps {
-  weeklyData: WeeklyPerformance[];
+  weeklyData: ViewAccountValueOverTime[];
 }
 
 const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
   // Sort data by date to ensure proper chronological order
   const sortedData = [...weeklyData].sort(
     (a, b) =>
-      new Date(a.periodStart || "").getTime() -
-      new Date(b.periodStart || "").getTime()
+      new Date(a.weekStart || "").getTime() -
+      new Date(b.weekStart || "").getTime()
   );
 
   // Format data for chart
   const chartData = sortedData.map((item, index) => {
-    const absoluteReturns = parseFloat(item.periodPnl || "0");
-    const percentReturns = parseFloat(item.periodPnlPercent || "0");
+    const absoluteReturns = parseFloat(item.cumulativeTransfers || "0");
+    const percentReturns = parseFloat(item.cumulativePortfolioValue || "0");
 
     return {
-      week: new Date(item.periodStart || "").toLocaleDateString("en-GB", {
+      week: new Date(item.weekStart || "").toLocaleDateString("en-GB", {
         month: "short",
         day: "numeric",
       }),
       absoluteReturns,
       percentReturns,
-      date: item.periodStart,
+      date: item.weekStart,
     };
   });
 

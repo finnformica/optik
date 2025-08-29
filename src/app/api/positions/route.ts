@@ -1,13 +1,13 @@
+import { getUserId } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
-import { getUser } from "@/lib/db/queries";
-import { positionsBySymbol, PositionsBySymbol } from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
+import { viewPositions } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUser();
-    if (!user) {
+    const userId = await getUserId();
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -15,57 +15,90 @@ export async function GET(request: NextRequest) {
     const ticker = searchParams.get("ticker");
     const strategy = searchParams.get("strategy");
 
-    // Query open positions
-    const openPositionsData = await db
+    // Query all positions using the unified view
+    const allPositionsData = await db
       .select()
-      .from(positionsBySymbol)
-      .where(and(
-        eq(positionsBySymbol.userId, user.id),
-        eq(positionsBySymbol.positionType, 'OPEN')
-      ))
-      .orderBy(positionsBySymbol.totalPnl);
+      .from(viewPositions)
+      .where(eq(viewPositions.userId, userId));
 
-    // Query closed positions
-    const closedPositionsData = await db
-      .select()
-      .from(positionsBySymbol)
-      .where(and(
-        eq(positionsBySymbol.userId, user.id),
-        eq(positionsBySymbol.positionType, 'CLOSED')
-      ))
-      .orderBy(positionsBySymbol.totalPnl);
-
-    // Transform the data with client-side filtering (keeping locale flexibility)
-    const transformPositionsData = (data: PositionsBySymbol[]) => {
-      return data
-        .filter(row => row.ticker) // Filter out null tickers
-        .map(row => {
-          const positions = JSON.parse(row.positionsData || '[]').filter((position: any) => {
-            // Apply filters
-            const matchesStrategy = !strategy || 
-              position.strategy.toLowerCase().includes(strategy.toLowerCase());
-            return matchesStrategy;
-          });
-
-          return {
-            ticker: row.ticker!,
-            totalPositions: parseInt(row.totalPositions || '0'),
-            totalPnl: parseFloat(row.totalPnl || '0'),
-            realizedPnl: parseFloat(row.realizedPnl || '0'),
-            unrealizedPnl: parseFloat(row.unrealizedPnl || '0'),
-            totalFees: parseFloat(row.totalFees || '0'),
-            expiringSoonCount: parseInt(row.expiringSoonCount || '0'),
-            positions
+    // Transform and group positions by company
+    const transformPositionsData = (status: 'OPEN' | 'CLOSED') => {
+      const filteredPositions = allPositionsData.filter(row => row.positionStatus === status);
+      
+      // Group by company (underlying symbol)
+      const groupedByCompany = filteredPositions.reduce((acc, position) => {
+        const tickerSymbol = position.underlyingSymbol!;
+        
+        if (!acc[tickerSymbol]) {
+          acc[tickerSymbol] = {
+            ticker: tickerSymbol,
+            totalPositions: 0,
+            totalPnl: 0,
+            realizedPnl: 0,
+            unrealizedPnl: 0,
+            totalFees: 0,
+            expiringSoonCount: 0,
+            positions: []
           };
-        }).filter(group => {
-          // Apply ticker filter and ensure group has positions
-          const matchesTicker = !ticker || group.ticker.toLowerCase().includes(ticker.toLowerCase());
-          return matchesTicker && group.positions.length > 0;
-        });
+        }
+
+        // Determine strategy for filtering
+        const positionStrategy = position.securityType === 'STOCK' ? 'LONG_STOCK' :
+                               position.optionType === 'PUT' && parseFloat(position.quantityHeld || '0') < 0 ? 'CASH_SECURED_PUTS' :
+                               position.optionType === 'CALL' && parseFloat(position.quantityHeld || '0') < 0 ? 'COVERED_CALLS' :
+                               'OTHER';
+
+        // Apply filters
+        const matchesStrategy = !strategy || positionStrategy.toLowerCase().includes(strategy.toLowerCase());
+        const matchesTicker = !ticker || tickerSymbol.toLowerCase().includes(ticker.toLowerCase());
+        
+        if (matchesStrategy && matchesTicker) {
+          acc[tickerSymbol].totalPositions += 1;
+          acc[tickerSymbol].realizedPnl += parseFloat(position.realisedPnl || '0');
+          acc[tickerSymbol].totalFees += parseFloat(position.totalFees || '0');
+          
+          // For open positions, add cost basis to total P/L (unrealised)
+          if (status === 'OPEN') {
+            acc[tickerSymbol].unrealizedPnl += parseFloat(position.costBasis || '0');
+          }
+          
+          // Count expiring soon (within 30 days)
+          if (position.daysToExpiry !== null && position.daysToExpiry <= 30) {
+            acc[tickerSymbol].expiringSoonCount += 1;
+          }
+
+          acc[tickerSymbol].positions.push({
+            symbol: position.symbol,
+            securityType: position.securityType,
+            optionType: position.optionType,
+            strikePrice: position.strikePrice ? parseFloat(position.strikePrice) : null,
+            expiryDate: position.expiryDate,
+            quantityHeld: parseFloat(position.quantityHeld || '0'),
+            costBasis: parseFloat(position.costBasis || '0'),
+            averagePrice: parseFloat(position.averagePrice || '0'),
+            realisedPnl: parseFloat(position.realisedPnl || '0'),
+            totalFees: parseFloat(position.totalFees || '0'),
+            daysToExpiry: position.daysToExpiry,
+            direction: position.direction,
+            strategy: positionStrategy,
+            firstTransactionDate: position.firstTransactionDate,
+            lastTransactionDate: position.lastTransactionDate,
+            transactionCount: position.transactionCount
+          });
+        }
+
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Convert to array and calculate final totals
+      return Object.values(groupedByCompany).map((group: any) => {
+        group.totalPnl = group.realizedPnl + (status === 'OPEN' ? 0 : 0); // Adjust based on your P/L calculation needs
+        return group;
+      }).filter((group: any) => group.positions.length > 0);
     };
 
-    const openPositions = transformPositionsData(openPositionsData);
-    const closedPositions = transformPositionsData(closedPositionsData);
+    const openPositions = transformPositionsData('OPEN');
+    const closedPositions = transformPositionsData('CLOSED');
 
     // Calculate summary stats
     const openStats = {
