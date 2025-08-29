@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         netAmount: factTransactions.netAmount,
         brokerTransactionId: factTransactions.brokerTransactionId,
         orderId: factTransactions.orderId,
+        description: factTransactions.description,
         
         // Date information
         date: dimDate.fullDate,

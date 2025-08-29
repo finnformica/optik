@@ -12,7 +12,6 @@ import {
 import { useMemo, useState } from "react";
 
 import { syncTransactions, useTransactions } from "@/api/transactions";
-import { ITransactionAction } from "@/lib/db/schema";
 
 import { Loading } from "@/components/global/loading";
 import ActionBadge from "@/components/global/trade-action-badge";
@@ -23,22 +22,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Typography } from "@/components/ui/typography";
+import { ITransactionAction } from "@/lib/db/schema";
 
 interface Transaction {
-  id: number;
-  userId: number;
-  transactionId: number;
-  broker: string;
-  date: string;
-  action: ITransactionAction;
-  ticker: string;
-  description: string | null;
+  // Transaction facts
   quantity: string;
+  pricePerUnit: string | null;
+  grossAmount: string;
   fees: string;
-  amount: string;
+  netAmount: string;
+  brokerTransactionId: string | null;
+  orderId: string | null;
+  description: string | null;
+
+  // Date information
+  date: string;
+
+  // Security information
+  symbol: string;
+  securityType: string;
+  underlyingSymbol: string;
+  optionType: string | null;
   strikePrice: string | null;
   expiryDate: string | null;
-  optionType: string | null;
+
+  // Transaction type
+  actionCode: ITransactionAction;
+  actionDescription: string | null;
+  actionCategory: string | null;
+
+  // Broker information
+  brokerName: string;
+
+  // Timestamps
   createdAt: string;
   updatedAt: string;
 }
@@ -95,14 +111,14 @@ export default function TransactionsPage() {
   // Get unique actions and brokers for filters
   const uniqueActions = useMemo(() => {
     const actions = [
-      ...new Set(transactions.map((t: Transaction) => t.action)),
+      ...new Set(transactions.map((t: Transaction) => t.actionCode)),
     ] as string[];
     return actions.sort();
   }, [transactions]);
 
   const uniqueBrokers = useMemo(() => {
     const brokers = [
-      ...new Set(transactions.map((t: Transaction) => t.broker)),
+      ...new Set(transactions.map((t: Transaction) => t.brokerName)),
     ] as string[];
     return brokers.sort();
   }, [transactions]);
@@ -111,16 +127,16 @@ export default function TransactionsPage() {
   const filteredAndSortedTransactions = useMemo(() => {
     let filtered = transactions.filter((transaction: Transaction) => {
       const matchesSearch =
-        transaction.ticker?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (transaction.description &&
-          transaction.description
+        transaction.symbol?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (transaction.actionDescription &&
+          transaction.actionDescription
             .toLowerCase()
             .includes(searchTerm.toLowerCase()));
 
       const matchesAction =
-        selectedAction === "all" || transaction.action === selectedAction;
+        selectedAction === "all" || transaction.actionCode === selectedAction;
       const matchesBroker =
-        selectedBroker === "all" || transaction.broker === selectedBroker;
+        selectedBroker === "all" || transaction.brokerName === selectedBroker;
 
       return matchesSearch && matchesAction && matchesBroker;
     });
@@ -302,20 +318,20 @@ export default function TransactionsPage() {
                   <tr className="border-b border-gray-700">
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
-                        onClick={() => handleSort("ticker")}
+                        onClick={() => handleSort("symbol")}
                         className="flex items-center gap-1 hover:text-white transition-colors min-w-52"
                       >
-                        Ticker
-                        <SortIcon field="ticker" />
+                        Symbol
+                        <SortIcon field="symbol" />
                       </button>
                     </th>
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
-                        onClick={() => handleSort("action")}
+                        onClick={() => handleSort("actionCode")}
                         className="flex items-center gap-1 hover:text-white transition-colors min-w-32"
                       >
                         Action
-                        <SortIcon field="action" />
+                        <SortIcon field="actionCode" />
                       </button>
                     </th>
                     <th className="text-left p-3 text-gray-300 font-medium">
@@ -329,11 +345,11 @@ export default function TransactionsPage() {
                     </th>
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
-                        onClick={() => handleSort("amount")}
+                        onClick={() => handleSort("netAmount")}
                         className="flex items-center gap-1 hover:text-white transition-colors"
                       >
                         Amount
-                        <SortIcon field="amount" />
+                        <SortIcon field="netAmount" />
                       </button>
                     </th>
                     <th className="text-left p-3 text-gray-300 font-medium">
@@ -356,28 +372,28 @@ export default function TransactionsPage() {
                     </th>
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
-                        onClick={() => handleSort("broker")}
+                        onClick={() => handleSort("brokerName")}
                         className="flex items-center gap-1 hover:text-white transition-colors"
                       >
                         Broker
-                        <SortIcon field="broker" />
+                        <SortIcon field="brokerName" />
                       </button>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAndSortedTransactions.map(
-                    (transaction: Transaction) => (
+                    (transaction: Transaction, index: number) => (
                       <tr
-                        key={transaction.id}
+                        key={`${transaction.brokerTransactionId}-${index}`}
                         className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
                       >
                         <td className="p-3">
                           <div>
                             <div className="font-medium text-white">
-                              {transaction.ticker}
+                              {transaction.symbol}
                             </div>
-                            {transaction.description && (
+                            {transaction.actionDescription && (
                               <div className="text-sm text-gray-400 line-clamp-2 break-words">
                                 {transaction.description}
                               </div>
@@ -386,7 +402,9 @@ export default function TransactionsPage() {
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <ActionBadge action={transaction.action} />
+                            <ActionBadge
+                              action={transaction.actionCode as any}
+                            />
                           </div>
                         </td>
                         <td className="p-3 text-white">
@@ -395,14 +413,14 @@ export default function TransactionsPage() {
                         <td className="p-3">
                           <span
                             className={`font-medium ${
-                              parseFloat(transaction.amount) > 0
+                              parseFloat(transaction.netAmount) > 0
                                 ? "text-green-400"
-                                : parseFloat(transaction.amount) < 0
+                                : parseFloat(transaction.netAmount) < 0
                                 ? "text-red-400"
                                 : ""
                             }`}
                           >
-                            {formatCurrency(transaction.amount)}
+                            {formatCurrency(transaction.netAmount)}
                           </span>
                         </td>
                         <td className="p-3 text-gray-300">
@@ -413,7 +431,7 @@ export default function TransactionsPage() {
                         </td>
                         <td className="p-3">
                           <span className="text-gray-300 capitalize">
-                            {transaction.broker}
+                            {transaction.brokerName}
                           </span>
                         </td>
                       </tr>

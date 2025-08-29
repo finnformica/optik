@@ -4,9 +4,6 @@ import { insertRawTransactions, processRawTransactions, SchwabActivity } from '@
 import mockTransactions from '@/lib/mock/transactions.json' with { type: 'json' };
 import { NextRequest, NextResponse } from 'next/server';
 
-// Completed route.ts file and schemas 
-// Next step is fix the front-end errors from the missing drizzle schemas
-// Ensure the transactions can be loaded from the fact_transactions table
 
 export async function POST(request: NextRequest) {
   try {

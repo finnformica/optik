@@ -10,12 +10,11 @@ import {
   json,
   pgTable,
   pgView,
-  primaryKey,
   serial,
   text,
   timestamp,
   unique,
-  varchar,
+  varchar
 } from 'drizzle-orm/pg-core';
 
 
@@ -318,14 +317,15 @@ export const factTransactions = pgTable('fact_transactions', {
   // Dimension Foreign Keys
   dateKey: integer('date_key').notNull().references(() => dimDate.dateKey),
   accountKey: integer('account_key').notNull().references(() => dimAccount.accountKey),
-  securityKey: integer('security_key').notNull().references(() => dimSecurity.securityKey),
+  securityKey: integer('security_key').references(() => dimSecurity.securityKey),
   transactionTypeKey: integer('transaction_type_key').notNull().references(() => dimTransactionType.transactionTypeKey),
   brokerKey: integer('broker_key').notNull().references(() => dimBroker.brokerKey),
   
   // Degenerate dimensions (stay in fact table)
-  brokerTransactionId: varchar('broker_transaction_id', { length: 50 }),
+  brokerTransactionId: varchar('broker_transaction_id', { length: 50 }).primaryKey(),
   orderId: varchar('order_id', { length: 50 }),
   originalTransactionId: integer('original_transaction_id'), // Reference to legacy transactions.id
+  description: text('description'),
   
   // Facts (measurements)
   quantity: decimal('quantity', { precision: 18, scale: 8 }).notNull(),
@@ -356,9 +356,11 @@ export const factTransactions = pgTable('fact_transactions', {
 
 // Current Positions Fact Table - Maintained by triggers, no background jobs
 export const factCurrentPositions = pgTable('fact_current_positions', {
+  positionKey: serial('position_key').primaryKey(),
+
   // Dimension Foreign Keys
   accountKey: integer('account_key').notNull().references(() => dimAccount.accountKey),
-  securityKey: integer('security_key').notNull().references(() => dimSecurity.securityKey),
+  securityKey: integer('security_key').references(() => dimSecurity.securityKey),
   
   // Facts (semi-additive - don't sum across time!)
   quantityHeld: decimal('quantity_held', { precision: 18, scale: 8 }).notNull(),
@@ -372,12 +374,7 @@ export const factCurrentPositions = pgTable('fact_current_positions', {
   // Standard audit timestamps
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
-}, (table) => [
-  // Primary key
-  primaryKey({ 
-    columns: [table.accountKey, table.securityKey] 
-  }),
-  
+}, (table) => [  
   // Foreign key to security dimension
   foreignKey({
     columns: [table.securityKey],

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db/config";
 import { dimAccount, dimDate, dimTransactionType, factCurrentPositions, factTransactions, RawTransaction, rawTransactions, users } from "@/lib/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { processSchwabTransaction } from "./schwab";
 
@@ -73,7 +73,9 @@ export async function insertRawTransactions(data: SchwabActivity[], userId: numb
       status: 'PENDING'
     }));
 
-    await database.insert(rawTransactions).values(formattedData);
+    await database.insert(rawTransactions).values(formattedData).onConflictDoNothing({
+      target: [rawTransactions.brokerTransactionId, rawTransactions.brokerCode]
+    });
 
     return formattedData.length;
 }
@@ -91,7 +93,8 @@ export async function processRawTransactions(userId: number, tx?: any) {
       .where(
         and(
           eq(rawTransactions.userId, userId),
-          eq(rawTransactions.status, 'PENDING')
+        //   eq(rawTransactions.status, 'PENDING'),
+        inArray(rawTransactions.status, ['PENDING', 'ERROR'])
         )
       );
   
@@ -115,7 +118,8 @@ export async function processRawTransactions(userId: number, tx?: any) {
         
         results.processed++;
         
-             } catch (error: unknown) {
+        } catch (error: unknown) {
+            console.log(error)
            const errorMessage = error instanceof Error ? 
              `Transaction ${rawTx.brokerTransactionId}: ${error.message}` : 
              `Transaction ${rawTx.brokerTransactionId}: Unknown error`;
@@ -147,7 +151,7 @@ async function processSingleTransaction(rawTx: RawTransaction, database: any) {
     
     // Route to broker-specific processor
     switch (rawTx.brokerCode) {
-      case 'SCHWAB':
+      case 'schwab':
         return await processSchwabTransaction(rawTx, data, database);
       default:
         throw new Error(`Unsupported broker: ${rawTx.brokerCode}`);
@@ -163,62 +167,17 @@ export async function updateCurrentPosition(
     tradeDate: Date,
     database: any
   ) {
-    // Get existing position
-    const existingPosition = await database.select()
-      .from(factCurrentPositions)
-      .where(
-        and(
-          eq(factCurrentPositions.accountKey, accountKey),
-          eq(factCurrentPositions.securityKey, securityKey)
-        )
-      )
-      .limit(1);
     
-    const tradeDateString = tradeDate.toISOString().slice(0, 10);
-    
-    if (existingPosition.length === 0) {
-      // Create new position
-      await database.insert(factCurrentPositions).values({
-        accountKey,
-        securityKey,
-        quantityHeld: quantity.toString(),
-        costBasis: cost.toString(),
-        averagePrice: quantity !== 0 ? (cost / Math.abs(quantity)).toString() : '0',
-        firstTransactionDate: tradeDateString,
-        lastTransactionDate: tradeDateString
-      }).onConflictDoUpdate({
-        target: [
-          factCurrentPositions.accountKey,
-          factCurrentPositions.securityKey
-        ],
-        set: {
-          quantityHeld: sql`${factCurrentPositions.quantityHeld} + ${quantity}`,
-          costBasis: sql`${factCurrentPositions.costBasis} + ${cost}`,
-          lastTransactionDate: tradeDateString,
-          updatedAt: new Date()
-        }
-      });
-    } else {
-      // Update existing position
-      const newQuantity = parseFloat(existingPosition[0].quantityHeld) + quantity;
-      const newCostBasis = parseFloat(existingPosition[0].costBasis) + cost;
-      const newAveragePrice = newQuantity !== 0 ? newCostBasis / Math.abs(newQuantity) : 0;
-      
-      await database.update(factCurrentPositions)
-        .set({
-          quantityHeld: newQuantity.toString(),
-          costBasis: newCostBasis.toString(),
-          averagePrice: newAveragePrice.toString(),
-          lastTransactionDate: tradeDateString,
-          updatedAt: new Date()
-        })
-        .where(
-          and(
-            eq(factCurrentPositions.accountKey, accountKey),
-            eq(factCurrentPositions.securityKey, securityKey)
-          )
-        );
-    }
+    // Use upsert pattern - always try to insert, handle conflict if exists
+    await database.insert(factCurrentPositions).values({
+      accountKey,
+      securityKey,
+      quantityHeld: quantity.toString(),
+      costBasis: cost.toString(),
+      averagePrice: quantity !== 0 ? (cost / Math.abs(quantity)).toString() : '0',
+      firstTransactionDate: tradeDate,
+      lastTransactionDate: tradeDate
+    }).onConflictDoNothing();
   }
 
 

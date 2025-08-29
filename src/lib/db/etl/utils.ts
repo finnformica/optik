@@ -2,17 +2,17 @@ import { dimAccount, dimBroker, dimDate, dimSecurity } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function getAccountKey(userId: number, database: any) {
-    const accountKey = await database.select(dimAccount.accountKey)
+    const accountResult = await database.select({ accountKey: dimAccount.accountKey })
       .from(dimAccount)
       .where(eq(dimAccount.userId, userId))
       .limit(1);
     
-    if (accountKey.length === 0) {
+    if (accountResult.length === 0) {
       throw new Error(`Account not found for user ${userId}`);
     }
     
-    return accountKey[0];
-  }
+    return accountResult[0].accountKey;
+}
   
   export async function getDate(date: string, database: any) {
     const isoDate = new Date(date).toISOString().split('T')[0]
@@ -39,8 +39,18 @@ export async function getAccountKey(userId: number, database: any) {
     const underlyingSymbol = instrument.underlyingSymbol || symbol;
     const securityName = instrument.description;
     
-    // Insert with onConflictDoNothing for simplicity - only creates if doesn't exist
-    const securityKey = await database.insert(dimSecurity).values({
+    // First try to find existing security
+    const existingSecurity = await database.select({ securityKey: dimSecurity.securityKey })
+      .from(dimSecurity)
+      .where(eq(dimSecurity.symbol, symbol))
+      .limit(1);
+    
+    if (existingSecurity.length > 0) {
+      return existingSecurity[0].securityKey;
+    }
+    
+    // If not found, create new security
+    const result = await database.insert(dimSecurity).values({
       symbol,
       securityType,
       optionType,
@@ -48,20 +58,20 @@ export async function getAccountKey(userId: number, database: any) {
       expiryDate,
       securityName,
       underlyingSymbol
-    }).onConflictDoNothing().returning({ securityKey: dimSecurity.securityKey });
+    }).returning({ securityKey: dimSecurity.securityKey });
     
-    return securityKey[0];
+    return result[0].securityKey;
   }
 
   export async function getBrokerKey(brokerCode: string, database: any) {
-    const brokerKey = await database.select(dimBroker.brokerKey)
+    const brokerResult = await database.select({ brokerKey: dimBroker.brokerKey })
       .from(dimBroker)
       .where(eq(dimBroker.brokerCode, brokerCode))
       .limit(1);
     
-    if (brokerKey.length === 0) {
+    if (brokerResult.length === 0) {
       throw new Error(`Broker ${brokerCode} not found`);
     }
     
-    return brokerKey[0];
+    return brokerResult[0].brokerKey;
   }
