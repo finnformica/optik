@@ -6,7 +6,7 @@ import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import { getPortfolioSummary } from "@/lib/db/etl/queries";
-import { viewAccountValueOverTime, viewPositions } from "@/lib/db/schema";
+import { viewAccountReturns, viewPositions } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
@@ -46,8 +46,8 @@ export default async function DashboardPage() {
         ),
       db
         .select()
-        .from(viewAccountValueOverTime)
-        .where(eq(viewAccountValueOverTime.userId, userId)),
+        .from(viewAccountReturns)
+        .where(eq(viewAccountReturns.userId, userId)),
       getPortfolioSummary(userId),
     ]);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ViewAccountValueOverTime } from "@/lib/db/schema";
+import { ViewAccountReturns } from "@/lib/db/schema";
 import {
   Bar,
   CartesianGrid,
@@ -14,21 +14,14 @@ import {
 } from "recharts";
 
 interface WeeklyReturnsChartProps {
-  weeklyData: ViewAccountValueOverTime[];
+  weeklyData: ViewAccountReturns[];
 }
 
 const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
-  // Sort data by date to ensure proper chronological order
-  const sortedData = [...weeklyData].sort(
-    (a, b) =>
-      new Date(a.weekStart || "").getTime() -
-      new Date(b.weekStart || "").getTime()
-  );
-
   // Format data for chart
-  const chartData = sortedData.map((item, index) => {
-    const absoluteReturns = parseFloat(item.cumulativeTransfers || "0");
-    const percentReturns = parseFloat(item.cumulativePortfolioValue || "0");
+  const chartData = weeklyData.map((item, index) => {
+    const absoluteReturns = parseFloat(item.absoluteReturn || "0");
+    const percentReturns = parseFloat(item.percentReturn || "0");
 
     return {
       week: new Date(item.weekStart || "").toLocaleDateString("en-GB", {
