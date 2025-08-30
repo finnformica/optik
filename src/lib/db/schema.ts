@@ -396,12 +396,12 @@ export const positionCalculations = pgView('position_calculations').as((qb) =>
   qb
     .select({
       userId: dimAccount.userId,
-      symbol: dimSecurity.symbol, // Use symbol from security dimension
+      underlyingSymbol: dimSecurity.underlyingSymbol,
       optionType: dimSecurity.optionType,
       strikePrice: dimSecurity.strikePrice,
       
       // Position key for grouping (same logic as before)
-      positionKey: sql<string>`CONCAT(${dimSecurity.symbol}, '-', COALESCE(${dimSecurity.optionType}, 'STOCK'), '-', COALESCE(${dimSecurity.strikePrice}::text, '0'))`.as('position_key'),
+      positionKey: sql<string>`CONCAT(${dimSecurity.underlyingSymbol}, '-', COALESCE(${dimSecurity.optionType}, 'STOCK'), '-', COALESCE(${dimSecurity.strikePrice}::text, '0'))`.as('position_key'),
       
       // Net quantity calculation using direction from transaction type
       netQuantity: sql<string>`SUM(
@@ -447,13 +447,14 @@ export const positionCalculations = pgView('position_calculations').as((qb) =>
         ELSE CURRENT_DATE - MIN(${dimDate.fullDate})
       END`.as('days_held'),
       
-      // Status flags - check if expiring soon using security dimension
+      // Status flags - check if expiring soon using latest expiry date
       isExpiringSoon: sql<string>`CASE 
-        WHEN ${dimSecurity.expiryDate} IS NOT NULL AND ${dimSecurity.expiryDate} <= CURRENT_DATE + INTERVAL '7 days' 
+        WHEN MAX(${dimSecurity.expiryDate}) IS NOT NULL 
+        AND MAX(${dimSecurity.expiryDate}) <= CURRENT_DATE + INTERVAL '7 days'
         THEN true 
         ELSE false 
       END`.as('is_expiring_soon'),
-      
+
       // Unrealized P&L (total - realized)
       unrealizedPnl: sql<string>`SUM(CASE 
         WHEN ${dimSecurity.optionType} IS NOT NULL THEN 0
@@ -468,10 +469,9 @@ export const positionCalculations = pgView('position_calculations').as((qb) =>
     .where(sql`${dimTransactionType.actionCode} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
     .groupBy(
       dimAccount.userId,
-      dimSecurity.symbol,
+      dimSecurity.underlyingSymbol,
       dimSecurity.optionType,
-      dimSecurity.strikePrice,
-      dimSecurity.expiryDate
+      dimSecurity.strikePrice
     )
 );
 
@@ -480,7 +480,7 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
   qb
     .select({
       userId: dimAccount.userId,
-      symbol: dimSecurity.symbol,
+      underlyingSymbol: dimSecurity.underlyingSymbol,
       optionType: dimSecurity.optionType,
       strikePrice: dimSecurity.strikePrice,
       transactionDetails: sql<string>`JSON_AGG(
@@ -491,7 +491,8 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
           'pricePerUnit', ${factTransactions.pricePerUnit},
           'amount', ${factTransactions.netAmount},
           'fees', ${factTransactions.fees},
-          'brokerTransactionId', ${factTransactions.brokerTransactionId}
+          'brokerTransactionId', ${factTransactions.brokerTransactionId},
+          'underlyingSymbol', ${dimSecurity.underlyingSymbol}
         ) ORDER BY ${dimDate.fullDate} DESC
       )`.as('transaction_details')
     })
@@ -503,7 +504,7 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
     .where(sql`${dimTransactionType.actionCode} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
     .groupBy(
       dimAccount.userId,
-      dimSecurity.symbol,
+      dimSecurity.underlyingSymbol,
       dimSecurity.optionType,
       dimSecurity.strikePrice
     )
@@ -513,6 +514,7 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
 export const viewPositions = pgView('view_positions', {
   userId: integer('user_id'),
   symbol: varchar('symbol', { length: 50 }),
+  underlyingSymbol: varchar('underlying_symbol', { length: 50 }),
   optionType: varchar('option_type', { length: 50 }),
   strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
   positionKey: varchar('position_key', { length: 200 }),
@@ -532,7 +534,7 @@ export const viewPositions = pgView('view_positions', {
 }).as(sql`
   SELECT 
     p.user_id,
-    p.symbol,
+    p.underlying_symbol,
     p.option_type,
     p.strike_price,
     p.position_key,
@@ -552,12 +554,12 @@ export const viewPositions = pgView('view_positions', {
   FROM position_calculations p
   INNER JOIN transaction_details t ON 
     p.user_id = t.user_id AND
-    p.symbol = t.symbol AND
+    p.underlying_symbol = t.underlying_symbol AND
     COALESCE(p.option_type, '') = COALESCE(t.option_type, '') AND
     COALESCE(p.strike_price, 0) = COALESCE(t.strike_price, 0)
 `);
 
-// Positions By Symbol View - Exact same structure as your working example
+// Positions By Symbol View
 export const positionsBySymbol = pgView('positions_by_symbol', {
   userId: integer('user_id'),
   symbol: varchar('symbol', { length: 50 }),
@@ -572,7 +574,7 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
 }).as(sql`
   SELECT 
     user_id,
-    symbol,
+    underlying_symbol as symbol,
     CASE WHEN is_open = 'true' THEN 'OPEN' ELSE 'CLOSED' END as position_type,
     COUNT(*)::text as total_positions,
     SUM(total_pnl::numeric)::text as total_pnl,
@@ -583,7 +585,7 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
     JSON_AGG(
       JSON_BUILD_OBJECT(
         'positionKey', position_key,
-        'symbol', symbol,
+        'symbol', underlying_symbol,
         'optionType', option_type,
         'strikePrice', strike_price,
         'netQuantity', net_quantity,
@@ -604,6 +606,7 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
   GROUP BY user_id, symbol, CASE WHEN is_open = 'true' THEN 'OPEN' ELSE 'CLOSED' END
   ORDER BY user_id, SUM(total_pnl::numeric) DESC, symbol
 `);
+
 // Portfolio Distribution
 export const viewPortfolioDistribution = pgView('view_portfolio_distribution', {
   userId: integer('user_id'),
