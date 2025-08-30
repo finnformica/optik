@@ -8,7 +8,7 @@ interface PortfolioDistributionProps {
     symbol: string | null;
     positionValue: string | null;
   }[];
-  cashBalance: number;
+  cashBalance: string;
 }
 
 const COLORS = [
@@ -35,7 +35,7 @@ const PortfolioDistribution = ({
 }: PortfolioDistributionProps) => {
   const totalValue = distribution.reduce(
     (sum, item) => sum + parseFloat(item.positionValue || "0"),
-    cashBalance
+    parseFloat(cashBalance)
   );
 
   const data = [

@@ -1,6 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { getUserId } from "@/lib/auth/session";
-import { getPortfolioSummary, PortfolioSummary } from "@/lib/db/etl/queries";
+import { PortfolioSummary } from "@/lib/db/etl/queries";
 import {
   Calendar,
   DollarSign,
@@ -22,13 +21,7 @@ interface SummaryCard {
   trendLabel?: string;
 }
 
-const SummaryStats = async () => {
-  const userId = await getUserId();
-
-  if (!userId) return null;
-
-  const summary = await getPortfolioSummary(userId);
-
+const SummaryStats = async ({ summary }: { summary: PortfolioSummary }) => {
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {

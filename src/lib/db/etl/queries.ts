@@ -1,58 +1,58 @@
 import { db } from "@/lib/db/config";
-import { dimAccount, dimDate, dimTransactionType, factCurrentPositions, factTransactions, RawTransaction, rawTransactions, users } from "@/lib/db/schema";
+import { dimAccount, dimDate, dimTransactionType, factCurrentPositions, factTransactions, RawTransaction, rawTransactions, users, viewPositions } from "@/lib/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { processSchwabTransaction } from "./schwab";
 
 export interface SchwabActivity {
-    activityId: number; // Unique identifier for each transaction/activity (maps to transactionId in DB)
-    time: string;
-    accountNumber: string;
-    type: string;
-    status: string;
-    subAccount: string;
-    tradeDate: string;
-    description?: string; // Optional description field for various activity types
-    positionId?: number;
-    orderId?: number; // May be shared across multiple transactions from the same order
-    netAmount: number;
-    transferItems: TransferItem[];
-  }
+  activityId: number; // Unique identifier for each transaction/activity (maps to transactionId in DB)
+  time: string;
+  accountNumber: string;
+  type: string;
+  status: string;
+  subAccount: string;
+  tradeDate: string;
+  description?: string; // Optional description field for various activity types
+  positionId?: number;
+  orderId?: number; // May be shared across multiple transactions from the same order
+  netAmount: number;
+  transferItems: TransferItem[];
+}
   
-  export interface TransferItem {
-    instrument: Instrument;
-    amount: number;
-    cost: number;
-    price?: number;
-    positionEffect?: 'OPENING' | 'CLOSING';
-    feeType?: string;
-  }
+export interface TransferItem {
+  instrument: Instrument;
+  amount: number;
+  cost: number;
+  price?: number;
+  positionEffect?: 'OPENING' | 'CLOSING';
+  feeType?: string;
+}
+
+export interface Instrument {
+  assetType: 'CURRENCY' | 'OPTION' | 'EQUITY' | 'COLLECTIVE_INVESTMENT';
+  status: string;
+  symbol: string;
+  description: string;
+  instrumentId: number;
+  closingPrice: number;
+  // Option-specific fields
+  expirationDate?: string;
+  optionDeliverables?: OptionDeliverable[];
+  optionPremiumMultiplier?: number;
+  putCall?: 'PUT' | 'CALL';
+  strikePrice?: number;
+  type?: string;
+  underlyingSymbol?: string;
+  underlyingCusip?: string;
+}
   
-  export interface Instrument {
-    assetType: 'CURRENCY' | 'OPTION' | 'EQUITY' | 'COLLECTIVE_INVESTMENT';
-    status: string;
-    symbol: string;
-    description: string;
-    instrumentId: number;
-    closingPrice: number;
-    // Option-specific fields
-    expirationDate?: string;
-    optionDeliverables?: OptionDeliverable[];
-    optionPremiumMultiplier?: number;
-    putCall?: 'PUT' | 'CALL';
-    strikePrice?: number;
-    type?: string;
-    underlyingSymbol?: string;
-    underlyingCusip?: string;
-  }
-  
-  export interface OptionDeliverable {
-    rootSymbol: string;
-    strikePercent: number;
-    deliverableNumber: number;
-    deliverableUnits: number;
-    deliverable?: any;
-  }
+export interface OptionDeliverable {
+  rootSymbol: string;
+  strikePercent: number;
+  deliverableNumber: number;
+  deliverableUnits: number;
+  deliverable?: any;
+}
 
   
 
@@ -182,14 +182,14 @@ export async function updateCurrentPosition(
 
 
 export interface PortfolioSummary {
-    portfolioValue: string;
-    cashBalance: string;
-    monthlyPnl: string;
-    yearlyPnl: string;
-    monthlyPnlPercent: string;
-    yearlyPnlPercent: string;
-    weeklyPnlPercent: string;
-  }
+  portfolioValue: string;
+  cashBalance: string;
+  monthlyPnl: string;
+  yearlyPnl: string;
+  monthlyPnlPercent: string;
+  yearlyPnlPercent: string;
+  weeklyPnlPercent: string;
+}
 
 
 export async function getPortfolioSummary(userId: number): Promise<PortfolioSummary> {
@@ -199,7 +199,7 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
           -- Calculate total portfolio value from all transaction flows
           SELECT 
             a.user_id,
-            SUM(ft.net_amount * tt.direction) as total_portfolio_value
+            SUM(ft.net_amount) as total_portfolio_value
           FROM ${factTransactions} ft
           JOIN ${dimAccount} a ON ft.account_key = a.account_key
           JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
@@ -212,9 +212,9 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
           SELECT 
             a.user_id,
             SUM(ABS(p.cost_basis)) as total_position_value
-          FROM ${factCurrentPositions} p
+          FROM ${viewPositions} p
           JOIN ${dimAccount} a ON p.account_key = a.account_key
-          WHERE p.quantity_held != 0 AND a.user_id = ${userId}
+          WHERE p.net_quantity != 0 AND a.user_id = ${userId}
           GROUP BY a.user_id
         ),
   
@@ -222,7 +222,7 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
           -- Realised P/L for current month
           SELECT 
             a.user_id,
-            SUM(ft.net_amount * tt.direction) as monthly_realised_pnl
+            SUM(ft.net_amount) as monthly_realised_pnl
           FROM ${factTransactions} ft
           JOIN ${dimDate} d ON ft.date_key = d.date_key
           JOIN ${dimAccount} a ON ft.account_key = a.account_key
@@ -239,13 +239,13 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
           -- Realised P/L for current year
           SELECT 
             a.user_id,
-            SUM(ft.net_amount * tt.direction) as yearly_realised_pnl
+            SUM(ft.net_amount) as yearly_realised_pnl
           FROM ${factTransactions} ft
           JOIN ${dimDate} d ON ft.date_key = d.date_key
           JOIN ${dimAccount} a ON ft.account_key = a.account_key
           JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
           WHERE 
-            tt.action_category IN ('TRADE', 'INCOME')
+            tt.affects_position = true
             AND d.year = EXTRACT(YEAR FROM CURRENT_DATE)
             AND a.user_id = ${userId}
           GROUP BY a.user_id
@@ -255,7 +255,7 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
           -- Realised P/L for current week
           SELECT 
             a.user_id,
-            SUM(ft.net_amount * tt.direction) as weekly_realised_pnl
+            SUM(ft.net_amount) as weekly_realised_pnl
           FROM ${factTransactions} ft
           JOIN ${dimDate} d ON ft.date_key = d.date_key
           JOIN ${dimAccount} a ON ft.account_key = a.account_key

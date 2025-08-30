@@ -396,6 +396,7 @@ export const positionCalculations = pgView('position_calculations').as((qb) =>
   qb
     .select({
       userId: dimAccount.userId,
+      accountKey: dimAccount.accountKey,
       underlyingSymbol: dimSecurity.underlyingSymbol,
       optionType: dimSecurity.optionType,
       strikePrice: dimSecurity.strikePrice,
@@ -469,6 +470,7 @@ export const positionCalculations = pgView('position_calculations').as((qb) =>
     .where(sql`${dimTransactionType.actionCode} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
     .groupBy(
       dimAccount.userId,
+      dimAccount.accountKey,
       dimSecurity.underlyingSymbol,
       dimSecurity.optionType,
       dimSecurity.strikePrice
@@ -480,6 +482,7 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
   qb
     .select({
       userId: dimAccount.userId,
+      accountKey: dimAccount.accountKey,
       underlyingSymbol: dimSecurity.underlyingSymbol,
       optionType: dimSecurity.optionType,
       strikePrice: dimSecurity.strikePrice,
@@ -504,6 +507,7 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
     .where(sql`${dimTransactionType.actionCode} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
     .groupBy(
       dimAccount.userId,
+      dimAccount.accountKey,
       dimSecurity.underlyingSymbol,
       dimSecurity.optionType,
       dimSecurity.strikePrice
@@ -513,6 +517,7 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
 // Unified Positions View - Same structure as your working example
 export const viewPositions = pgView('view_positions', {
   userId: integer('user_id'),
+  accountKey: integer('account_key'),
   underlyingSymbol: varchar('underlying_symbol', { length: 50 }),
   optionType: varchar('option_type', { length: 50 }),
   strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
@@ -533,6 +538,7 @@ export const viewPositions = pgView('view_positions', {
 }).as(sql`
   SELECT 
     p.user_id,
+    p.account_key,
     p.underlying_symbol,
     p.option_type,
     p.strike_price,
@@ -553,6 +559,7 @@ export const viewPositions = pgView('view_positions', {
   FROM position_calculations p
   INNER JOIN transaction_details t ON 
     p.user_id = t.user_id AND
+    p.account_key = t.account_key AND
     p.underlying_symbol = t.underlying_symbol AND
     COALESCE(p.option_type, '') = COALESCE(t.option_type, '') AND
     COALESCE(p.strike_price, 0) = COALESCE(t.strike_price, 0)
@@ -573,6 +580,7 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
 }).as(sql`
   SELECT 
     user_id,
+    account_key,
     underlying_symbol as symbol,
     CASE WHEN is_open = 'true' THEN 'OPEN' ELSE 'CLOSED' END as position_type,
     COUNT(*)::text as total_positions,
@@ -602,13 +610,14 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
       ) ORDER BY COALESCE(closed_at, last_transaction_at) DESC
     )::text as positions_data
   FROM view_positions
-  GROUP BY user_id, symbol, CASE WHEN is_open = 'true' THEN 'OPEN' ELSE 'CLOSED' END
-  ORDER BY user_id, SUM(total_pnl::numeric) DESC, symbol
+  GROUP BY user_id, account_key, symbol, CASE WHEN is_open = 'true' THEN 'OPEN' ELSE 'CLOSED' END
+  ORDER BY SUM(total_pnl::numeric) DESC, symbol
 `);
 
 // Account Value Over Time
 export const viewAccountValueOverTime = pgView('view_account_value_over_time', {
   userId: integer('user_id'),
+  accountKey: integer('account_key'),
   weekStart: date('week_start'),
   cumulativeTransfers: decimal('cumulative_transfers', { precision: 18, scale: 8 }),
   cumulativePortfolioValue: decimal('cumulative_portfolio_value', { precision: 18, scale: 8 })
@@ -616,12 +625,13 @@ export const viewAccountValueOverTime = pgView('view_account_value_over_time', {
   WITH weekly_data AS (
     SELECT 
       a.user_id,
+      a.account_key,
       d.week_ending_date as week_start,
       -- Weekly transfers (money wire in/out)
-      SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount * tt.direction ELSE 0 END) as weekly_transfers,
+      SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
       -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
       SUM(CASE 
-        WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount * tt.direction
+        WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount
         ELSE 0
       END) as weekly_gains
     FROM fact_transactions ft
@@ -629,16 +639,17 @@ export const viewAccountValueOverTime = pgView('view_account_value_over_time', {
     JOIN dim_account a ON ft.account_key = a.account_key
     JOIN dim_transaction_type tt ON ft.transaction_type_key = tt.transaction_type_key
     WHERE d.full_date <= CURRENT_DATE
-    GROUP BY a.user_id, d.week_ending_date
+    GROUP BY a.user_id, a.account_key, d.week_ending_date
   )
   SELECT 
     user_id,
+    account_key,
     week_start,
-    SUM(weekly_transfers) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_transfers,
-    SUM(weekly_transfers) OVER (PARTITION BY user_id ORDER BY week_start) + 
-    SUM(weekly_gains) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_portfolio_value
+    SUM(weekly_transfers) OVER (PARTITION BY account_key ORDER BY week_start) as cumulative_transfers,
+    SUM(weekly_transfers) OVER (PARTITION BY account_key ORDER BY week_start) + 
+    SUM(weekly_gains) OVER (PARTITION BY account_key ORDER BY week_start) as cumulative_portfolio_value
   FROM weekly_data
-  ORDER BY user_id, week_start
+  ORDER BY week_start
 `);
 
 // =============================================
@@ -651,7 +662,6 @@ export const rawTransactionsRelations = relations(rawTransactions, ({ one }) => 
     references: [users.id]
   })
 }));
-
 
 export const dimAccountRelations = relations(dimAccount, ({ one, many }) => ({
   user: one(users, {

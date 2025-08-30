@@ -5,6 +5,7 @@ import SummaryStats from "@/components/dashboard/summary-stats";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
+import { getPortfolioSummary } from "@/lib/db/etl/queries";
 import { viewAccountValueOverTime, viewPositions } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -19,8 +20,8 @@ export default async function DashboardPage() {
   const userId = session.user.id;
 
   // Fetch all analytics data in parallel
-  const [positionsData, distributionData, accountValueData] = await Promise.all(
-    [
+  const [positionsData, distributionData, accountValueData, portfolioSummary] =
+    await Promise.all([
       db
         .select()
         .from(viewPositions)
@@ -47,12 +48,12 @@ export default async function DashboardPage() {
         .select()
         .from(viewAccountValueOverTime)
         .where(eq(viewAccountValueOverTime.userId, userId)),
-    ]
-  );
+      getPortfolioSummary(userId),
+    ]);
 
   return (
     <div className="space-y-6">
-      <SummaryStats />
+      <SummaryStats summary={portfolioSummary} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <WeeklyReturnsChart weeklyData={accountValueData} />
@@ -63,7 +64,7 @@ export default async function DashboardPage() {
         <CurrentPositions positions={positionsData} />
         <PortfolioDistribution
           distribution={distributionData}
-          cashBalance={300}
+          cashBalance={portfolioSummary.cashBalance}
         />
       </div>
     </div>
