@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
     const results = await db.transaction(async (tx) => {
       // 1. Insert raw broker data
       const inserted = await insertRawTransactions(mockData, userId, tx);
-      console.log(`Inserted ${inserted} transactions`);
 
       // 2. Process pending transactions
       return await processRawTransactions(userId, tx);

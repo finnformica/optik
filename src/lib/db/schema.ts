@@ -403,18 +403,18 @@ export const positionCalculations = pgView('position_calculations').as((qb) =>
       // Position key for grouping (same logic as before)
       positionKey: sql<string>`CONCAT(${dimSecurity.underlyingSymbol}, '-', COALESCE(${dimSecurity.optionType}, 'STOCK'), '-', COALESCE(${dimSecurity.strikePrice}::text, '0'))`.as('position_key'),
       
-      // Net quantity calculation using direction from transaction type
+      // Net quantity calculation
       netQuantity: sql<string>`SUM(
-        CASE WHEN ${dimTransactionType.actionCategory} = 'TRADE'
-        THEN ${factTransactions.quantity} * ${dimTransactionType.direction}
+        CASE WHEN ${dimTransactionType.affectsPosition} = true
+        THEN ${factTransactions.quantity}
         ELSE 0 END
       )`.as('net_quantity'),
       
       // Cost basis (absolute value of money tied up) - adapted for star schema
       costBasis: sql<string>`ABS(SUM(CASE 
         WHEN ${dimSecurity.optionType} IS NOT NULL THEN ${dimSecurity.strikePrice}::numeric * 100 * (
-          CASE WHEN ${dimTransactionType.actionCategory} = 'TRADE'
-          THEN ${factTransactions.quantity} * ${dimTransactionType.direction}
+          CASE WHEN ${dimTransactionType.affectsPosition} = true
+          THEN ${factTransactions.quantity}
           ELSE 0 END
         )
         ELSE ${factTransactions.netAmount}::numeric
@@ -440,8 +440,8 @@ export const positionCalculations = pgView('position_calculations').as((qb) =>
       // Days held calculation
       daysHeld: sql<string>`CASE 
         WHEN SUM(
-          CASE WHEN ${dimTransactionType.actionCategory} = 'TRADE'
-          THEN ${factTransactions.quantity} * ${dimTransactionType.direction}
+          CASE WHEN ${dimTransactionType.affectsPosition} = true
+          THEN ${factTransactions.quantity}
           ELSE 0 END
         ) = 0 THEN MAX(${dimDate.fullDate}) - MIN(${dimDate.fullDate})
         ELSE CURRENT_DATE - MIN(${dimDate.fullDate})
@@ -513,7 +513,6 @@ export const transactionDetails = pgView('transaction_details').as((qb) =>
 // Unified Positions View - Same structure as your working example
 export const viewPositions = pgView('view_positions', {
   userId: integer('user_id'),
-  symbol: varchar('symbol', { length: 50 }),
   underlyingSymbol: varchar('underlying_symbol', { length: 50 }),
   optionType: varchar('option_type', { length: 50 }),
   strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),

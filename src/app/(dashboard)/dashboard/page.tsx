@@ -5,11 +5,7 @@ import SummaryStats from "@/components/dashboard/summary-stats";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
-import {
-  viewAccountValueOverTime,
-  viewPortfolioDistribution,
-  viewPositions,
-} from "@/lib/db/schema";
+import { viewAccountValueOverTime, viewPositions } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
@@ -31,20 +27,26 @@ export default async function DashboardPage() {
         .where(
           and(
             eq(viewPositions.userId, userId),
-            eq(viewPositions.positionStatus, "OPEN")
+            eq(viewPositions.isOpen, "true")
           )
-        )
-        .limit(50),
+        ),
       db
-        .select()
-        .from(viewPortfolioDistribution)
-        .where(eq(viewPortfolioDistribution.userId, userId))
-        .limit(20),
+        .select({
+          symbol: viewPositions.underlyingSymbol,
+          positionValue: viewPositions.costBasis,
+          instrumentCount: viewPositions.netQuantity,
+        })
+        .from(viewPositions)
+        .where(
+          and(
+            eq(viewPositions.userId, userId),
+            eq(viewPositions.isOpen, "true")
+          )
+        ),
       db
         .select()
         .from(viewAccountValueOverTime)
-        .where(eq(viewAccountValueOverTime.userId, userId))
-        .limit(52),
+        .where(eq(viewAccountValueOverTime.userId, userId)),
     ]
   );
 

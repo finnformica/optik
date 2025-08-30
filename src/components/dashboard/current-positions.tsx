@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Position } from "@/lib/db/schema";
+import { ViewPosition } from "@/lib/db/schema";
 import { Badge } from "../ui/badge";
 interface CurrentPositionsProps {
-  positions: Position[];
+  positions: ViewPosition[];
 }
 
 const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
@@ -72,10 +72,10 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                 positions.map((position, index) => {
                   return (
                     <tr
-                      key={`${position.ticker}-${position.optionType}-${position.strikePrice}-${index}`}
+                      key={`${position.underlyingSymbol}-${position.optionType}-${position.strikePrice}-${index}`}
                     >
                       <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-white">
-                        {position.ticker}
+                        {position.underlyingSymbol}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
                         {position.optionType || "Stock"}
