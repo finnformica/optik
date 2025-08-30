@@ -20,7 +20,7 @@ export interface PositionTransaction {
 
 export interface Position {
   positionKey: string;
-  ticker: string;
+  symbol: string;
   optionType?: string;
   strikePrice?: number;
   expiryDate?: string;
@@ -40,7 +40,7 @@ export interface Position {
 }
 
 export interface SymbolGroup {
-  ticker: string;
+  symbol: string;
   totalPositions: number;
   totalPnl: number;
   unrealizedPnl: number;
@@ -57,7 +57,7 @@ export interface PositionsStats {
 }
 
 export interface PositionFilters {
-  ticker: string;
+  symbol: string;
   strategy: string;
   tags?: string;
   notes?: string;

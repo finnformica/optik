@@ -112,7 +112,7 @@ export function PositionTable({
         <TableBody>
           {positions.map((position, index) => (
             <PositionRow
-              key={position.ticker}
+              key={position.symbol}
               position={position}
               index={index}
             />

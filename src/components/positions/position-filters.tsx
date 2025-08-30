@@ -7,10 +7,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PositionFiltersProps {
   activeTab: string;
-  tickerFilter: string;
+  symbolFilter: string;
   strategyFilter: string;
   onTabChange: (value: string) => void;
-  onTickerChange: (value: string) => void;
+  onSymbolChange: (value: string) => void;
   onStrategyChange: (value: string) => void;
   openCount: number;
   closedCount: number;
@@ -18,10 +18,10 @@ interface PositionFiltersProps {
 
 export function PositionFilters({
   activeTab,
-  tickerFilter,
+  symbolFilter,
   strategyFilter,
   onTabChange,
-  onTickerChange,
+  onSymbolChange,
   onStrategyChange,
   openCount,
   closedCount,
@@ -43,10 +43,10 @@ export function PositionFilters({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            placeholder="Filter by ticker (e.g., AAPL, TSLA)..."
-            onChange={(e) => onTickerChange(e.target.value)}
+            placeholder="Filter by symbol (e.g., AAPL, TSLA)..."
+            onChange={(e) => onSymbolChange(e.target.value)}
             className="pl-10"
-            defaultValue={tickerFilter}
+            defaultValue={symbolFilter}
           />
         </div>
 

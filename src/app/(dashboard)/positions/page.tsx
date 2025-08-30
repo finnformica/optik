@@ -16,7 +16,7 @@ function PositionsPageContent() {
 
   // Get current values from URL search params
   const activeTab = searchParams.get("tab") ?? "open";
-  const tickerFilter = searchParams.get("ticker") ?? "";
+  const symbolFilter = searchParams.get("symbol") ?? "";
   const strategyFilter = searchParams.get("strategy") ?? "";
 
   const updateSearchParams = useCallback(
@@ -33,9 +33,9 @@ function PositionsPageContent() {
   );
 
   // Search handlers with Lodash debouncing
-  const handleTickerChange = useCallback(
+  const handleSymbolChange = useCallback(
     debounce((value: string) => {
-      updateSearchParams({ ticker: value || undefined });
+      updateSearchParams({ symbol: value || undefined });
     }, 250),
     [updateSearchParams]
   );
@@ -64,7 +64,7 @@ function PositionsPageContent() {
     isLoading,
     error,
   } = usePositions({
-    ticker: tickerFilter,
+    symbol: symbolFilter,
     strategy: strategyFilter,
   });
 
@@ -83,10 +83,10 @@ function PositionsPageContent() {
       {/* Filters Component */}
       <PositionFilters
         activeTab={activeTab}
-        tickerFilter={tickerFilter}
+        symbolFilter={symbolFilter}
         strategyFilter={strategyFilter}
         onTabChange={handleTabChange}
-        onTickerChange={handleTickerChange}
+        onSymbolChange={handleSymbolChange}
         onStrategyChange={handleStrategyChange}
         openCount={openStats.totalPositions}
         closedCount={closedStats.totalPositions}

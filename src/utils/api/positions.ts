@@ -6,7 +6,7 @@ import { PositionsStats, SymbolGroup } from "@/types/positions";
 import useSWR from "swr";
 
 interface UsePositionsParams {
-  ticker?: string;
+  symbol?: string;
   strategy?: string;
 }
 
@@ -20,10 +20,10 @@ interface UsePositionsReturn {
   mutate: () => void;
 }
 
-export function usePositions({ ticker, strategy }: UsePositionsParams): UsePositionsReturn {
+export function usePositions({ symbol, strategy }: UsePositionsParams): UsePositionsReturn {
   // Build the URL with query parameters
   const params = new URLSearchParams();
-  if (ticker) params.append("ticker", ticker);
+  if (symbol) params.append("symbol", symbol);
   if (strategy) params.append("strategy", strategy);
   
   const url = `${endpoints.positions}?${params.toString()}`;

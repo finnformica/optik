@@ -1,6 +1,5 @@
 import { dimTransactionType, factTransactions, RawTransaction } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { updateCurrentPosition } from "./queries";
 import { getAccountKey, getBrokerKey, getDate, getOrCreateSecurity } from "./utils";
 
 
@@ -149,14 +148,14 @@ export async function processSchwabTransaction(rawTx: RawTransaction, data: any,
     });
     
     // Update current positions if this affects positions
-    if (securityKey && transactionType.affectsPosition) {
-      await updateCurrentPosition(
-        accountKey,
-        securityKey,
-        quantity,
-        grossAmount,
-        date.fullDate,
-        database
-      );
-    }
+    // if (securityKey && transactionType.affectsPosition) {
+    //   await updateCurrentPosition(
+    //     accountKey,
+    //     securityKey,
+    //     quantity,
+    //     grossAmount,
+    //     date.fullDate,
+    //     database
+    //   );
+    // }
   }

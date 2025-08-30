@@ -85,7 +85,7 @@ export function PositionRow({ position, index }: PositionRowProps) {
         </TableCell>
         <TableCell className="p-2">
           <div className="flex items-center gap-2">
-            <p className="text-md font-semibold">{position.ticker}</p>
+            <p className="text-md font-semibold">{position.symbol}</p>
             <Badge
               variant="outline"
               className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-xs"
@@ -166,7 +166,7 @@ export function PositionRow({ position, index }: PositionRowProps) {
                 <TableCell className="p-2 pl-8">
                   <div className="text-sm text-foreground">
                     {pos.optionType && (
-                      <span>{`${pos.ticker} $${pos.strikePrice} ${pos.optionType} - ${pos.daysHeld} days in trade`}</span>
+                      <span>{`${pos.symbol} $${pos.strikePrice} ${pos.optionType} - ${pos.daysHeld} days in trade`}</span>
                     )}
                   </div>
                 </TableCell>

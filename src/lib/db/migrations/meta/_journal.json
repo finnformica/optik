@@ -29,6 +29,41 @@
       "when": 1756499256913,
       "tag": "0003_daily_arclight",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1756537599474,
+      "tag": "0004_dizzy_miek",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1756537988160,
+      "tag": "0005_happy_metal_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1756538313081,
+      "tag": "0006_sparkling_grim_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1756538709898,
+      "tag": "0007_heavy_marrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1756540723157,
+      "tag": "0008_lyrical_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }
