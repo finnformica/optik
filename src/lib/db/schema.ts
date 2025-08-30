@@ -606,29 +606,6 @@ export const positionsBySymbol = pgView('positions_by_symbol', {
   ORDER BY user_id, SUM(total_pnl::numeric) DESC, symbol
 `);
 
-// Portfolio Distribution
-export const viewPortfolioDistribution = pgView('view_portfolio_distribution', {
-  userId: integer('user_id'),
-  company: varchar('company', { length: 50 }),
-  positionValue: decimal('position_value', { precision: 18, scale: 8 }),
-  instrumentCount: integer('instrument_count'),
-  portfolioPercentage: decimal('portfolio_percentage', { precision: 10, scale: 4 })
-}).as(sql`
-  SELECT 
-    a.user_id,
-    s.underlying_symbol as company,
-    SUM(ABS(p.cost_basis)) as position_value,
-    COUNT(*)::integer as instrument_count,
-    (SUM(ABS(p.cost_basis)) / SUM(SUM(ABS(p.cost_basis))) OVER (PARTITION BY a.user_id)) * 100 as portfolio_percentage
-    
-  FROM fact_current_positions p
-  JOIN dim_security s ON p.security_key = s.security_key
-  JOIN dim_account a ON p.account_key = a.account_key
-  WHERE p.quantity_held != 0
-  GROUP BY a.user_id, s.underlying_symbol
-  ORDER BY position_value DESC
-`);
-
 // Account Value Over Time
 export const viewAccountValueOverTime = pgView('view_account_value_over_time', {
   userId: integer('user_id'),
@@ -734,7 +711,6 @@ export type FactCurrentPosition = typeof factCurrentPositions.$inferSelect;
 
 export type ViewPosition = typeof viewPositions.$inferSelect;
 export type PositionsBySymbol = typeof positionsBySymbol.$inferSelect;
-export type ViewPortfolioDistribution = typeof viewPortfolioDistribution.$inferSelect;
 export type ViewAccountValueOverTime = typeof viewAccountValueOverTime.$inferSelect;
 
 // Insert types
