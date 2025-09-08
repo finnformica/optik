@@ -1,5 +1,5 @@
 import { db } from "@/lib/db/config";
-import { dimAccount, dimDate, dimTransactionType, factCurrentPositions, factTransactions, RawTransaction, rawTransactions, users } from "@/lib/db/schema";
+import { dimAccount, dimDate, dimTransactionType, factTransactions, RawTransaction, rawTransactions, users, viewPositions } from "@/lib/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { processSchwabTransaction } from "./schwab";
@@ -159,26 +159,6 @@ async function processSingleTransaction(rawTx: RawTransaction, database: any) {
   }
   
 
-export async function updateCurrentPosition(
-    accountKey: number,
-    securityKey: number,
-    quantity: number,
-    cost: number,
-    tradeDate: Date,
-    database: any
-  ) {
-    
-    // Use upsert pattern - always try to insert, handle conflict if exists
-    await database.insert(factCurrentPositions).values({
-      accountKey,
-      securityKey,
-      quantityHeld: quantity.toString(),
-      costBasis: cost.toString(),
-      averagePrice: quantity !== 0 ? (cost / Math.abs(quantity)).toString() : '0',
-      firstTransactionDate: tradeDate,
-      lastTransactionDate: tradeDate
-    }).onConflictDoNothing();
-  }
 
 
 export interface PortfolioSummary {
@@ -199,7 +179,7 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
           -- Calculate total portfolio value from all transaction flows
           SELECT 
             a.user_id,
-            SUM(ft.net_amount * tt.direction) as total_portfolio_value
+            SUM(ft.net_amount) as total_portfolio_value
           FROM ${factTransactions} ft
           JOIN ${dimAccount} a ON ft.account_key = a.account_key
           JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
@@ -210,19 +190,18 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
         position_values_calc AS (
           -- Current invested amount (cost basis of held positions)
           SELECT 
-            a.user_id,
-            SUM(ABS(p.cost_basis)) as total_position_value
-          FROM ${factCurrentPositions} p
-          JOIN ${dimAccount} a ON p.account_key = a.account_key
-          WHERE p.quantity_held != 0 AND a.user_id = ${userId}
-          GROUP BY a.user_id
+            user_id,
+            SUM(ABS(cost_basis)) as total_position_value
+          FROM ${viewPositions}
+          WHERE position_status = 'OPEN' AND user_id = ${userId}
+          GROUP BY user_id
         ),
   
         realised_monthly_pnl AS (
           -- Realised P/L for current month
           SELECT 
             a.user_id,
-            SUM(ft.net_amount * tt.direction) as monthly_realised_pnl
+            SUM(ft.net_amount) as monthly_realised_pnl
           FROM ${factTransactions} ft
           JOIN ${dimDate} d ON ft.date_key = d.date_key
           JOIN ${dimAccount} a ON ft.account_key = a.account_key
@@ -239,7 +218,7 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
           -- Realised P/L for current year
           SELECT 
             a.user_id,
-            SUM(ft.net_amount * tt.direction) as yearly_realised_pnl
+            SUM(ft.net_amount) as yearly_realised_pnl
           FROM ${factTransactions} ft
           JOIN ${dimDate} d ON ft.date_key = d.date_key
           JOIN ${dimAccount} a ON ft.account_key = a.account_key
@@ -255,7 +234,7 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
           -- Realised P/L for current week
           SELECT 
             a.user_id,
-            SUM(ft.net_amount * tt.direction) as weekly_realised_pnl
+            SUM(ft.net_amount) as weekly_realised_pnl
           FROM ${factTransactions} ft
           JOIN ${dimDate} d ON ft.date_key = d.date_key
           JOIN ${dimAccount} a ON ft.account_key = a.account_key

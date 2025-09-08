@@ -29,6 +29,27 @@
       "when": 1756499256913,
       "tag": "0003_daily_arclight",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1757364626257,
+      "tag": "0004_chubby_unicorn",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1757364808401,
+      "tag": "0005_great_frightful_four",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1757365727127,
+      "tag": "0006_wonderful_komodo",
+      "breakpoints": true
     }
   ]
 }

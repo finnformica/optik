@@ -7,7 +7,6 @@ export function cn(...inputs: ClassValue[]) {
 
 export const endpoints = {
   transactions: "/api/transactions",
-  positions: "/api/positions",
   schwab: {
     data: "/api/schwab/data"
   },
