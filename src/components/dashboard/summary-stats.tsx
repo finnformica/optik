@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
-import { PortfolioSummary } from "@/lib/db/schema";
+import { getUserId } from "@/lib/auth/session";
+import { getPortfolioSummary, PortfolioSummary } from "@/lib/db/etl/queries";
 import {
   Calendar,
   DollarSign,
@@ -7,10 +8,6 @@ import {
   Percent,
   TrendingUp,
 } from "lucide-react";
-
-interface SummaryStatsProps {
-  summary: PortfolioSummary;
-}
 
 interface SummaryCard {
   id: string;
@@ -25,7 +22,13 @@ interface SummaryCard {
   trendLabel?: string;
 }
 
-const SummaryStats = ({ summary }: SummaryStatsProps) => {
+const SummaryStats = async () => {
+  const userId = await getUserId();
+
+  if (!userId) return null;
+
+  const summary = await getPortfolioSummary(userId);
+
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {

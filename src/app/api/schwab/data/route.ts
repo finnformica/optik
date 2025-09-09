@@ -1,7 +1,9 @@
 import { getUserId } from '@/lib/auth/session';
-import { SchwabAPISync, type SchwabActivity } from '@/lib/connections/schwab/data-sync';
+import { db } from '@/lib/db/config';
+import { insertRawTransactions, processRawTransactions, SchwabActivity } from '@/lib/db/etl/queries';
 import mockTransactions from '@/lib/mock/transactions.json' with { type: 'json' };
 import { NextRequest, NextResponse } from 'next/server';
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,21 +17,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Use mock data and process it with SchwabAPISync
-    const mockData = mockTransactions as SchwabActivity[]; // Limit to first 10 for testing
+    const mockData = mockTransactions as unknown as SchwabActivity[];
 
-    // Process the data using SchwabAPISync
-    const syncResult = await SchwabAPISync.syncAPIData(userId, mockData);
+    const results = await db.transaction(async (tx) => {
+      // 1. Insert raw broker data
+      const inserted = await insertRawTransactions(mockData, userId, tx);
+      console.log(`Inserted ${inserted} transactions`);
+
+      // 2. Process pending transactions
+      return await processRawTransactions(userId, tx);
+    });
 
     return NextResponse.json({
-      success: syncResult.success,
-      processed: syncResult.processed,
-      errors: syncResult.errors,
-      message: `Successfully processed ${syncResult.processed} transactions`,
-      timestamp: new Date().toISOString()
+      success: results.processed > 0,
+      processed: results.processed,
+      failed: results.failed,
+      errors: results.errors,
+      message: `Successfully processed ${results.processed} transactions${results.failed > 0 ? `, ${results.failed} failed` : ''}`,
     });
 
   } catch (error) {
-    console.error('Mock Schwab API sync error:', error);
+    console.error('Schwab data ingestion error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

@@ -1,48 +1,26 @@
-import { eq, relations, sql } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
-  bigint,
+  boolean,
+  check,
   date,
   decimal,
+  foreignKey,
+  index,
   integer,
-  pgEnum,
+  json,
   pgTable,
   pgView,
   serial,
   text,
   timestamp,
-  varchar,
+  unique,
+  varchar
 } from 'drizzle-orm/pg-core';
-import { createSelectSchema } from 'drizzle-zod';
-import { createPerformanceViewSQL } from './utils';
 
 
-export const transactionAction = pgEnum("transaction_action", [
-  "buy", 
-  "sell", 
-  "buy_to_open", 
-  "sell_to_close", 
-  "sell_to_open", 
-  "buy_to_close",
-  "expire",
-  "assign",
-  "dividend", 
-  "interest",
-  "transfer",
-  "other",
-]);
-export const transactionActionSchema = createSelectSchema(transactionAction);
-export type ITransactionAction = typeof transactionAction.enumValues[number];
-
-export const broker = pgEnum("broker", [
-  "schwab",
-  "robinhood",
-  "etrade",
-  "fidelity",
-  "tda",
-  "vanguard",
-]);
-export const brokerSchema = createSelectSchema(broker);
-export type IBroker = typeof broker.enumValues[number];
+// ------------------------------------------------------------
+// Users, Teams, Team Members, Activity Logs, Invitations, User Access Tokens
+// ------------------------------------------------------------
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -111,32 +89,17 @@ export const userAccessTokens = pgTable('user_access_tokens', {
   expiresAt: timestamp('expires_at').notNull(),
   tokenType: varchar('token_type', { length: 50 }).notNull(),
   scope: varchar('scope', { length: 255 }).notNull(),
-  broker: broker('broker').notNull(),
+  broker: varchar('broker', { length: 50 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export const transactions = pgTable('transactions', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id),
-  transactionId: bigint('transaction_id', { mode: 'number' }).unique(), // Unique identifier from broker API
-  broker: broker('broker').notNull(), // schwab, robinhood, etc
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  // Core transaction fields
-  date: date('date').notNull(), // date of the transaction
-  action: transactionAction('action').notNull(), // buy, sell, buy_to_open, sell_to_close, interest, dividend, etc
-  ticker: varchar('ticker', { length: 50 }), // AAPL, MSFT, etc, null for transfers
-  description: text('description'),
-  quantity: decimal('quantity', { precision: 18, scale: 8 }).notNull(), // number of shares, number of contracts, etc
-  fees: decimal('fees', { precision: 18, scale: 8 }).notNull().default("0"), // fees paid for the transaction
-  amount: decimal('amount', { precision: 18, scale: 8 }).notNull(), // total amount paid or received for the transaction
-  currency: varchar('currency', { length: 3 }).notNull().default('USD'), // USD, EUR, etc
-  // Options fields
-  strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
-  expiryDate: date('expiry_date'),
-  optionType: varchar('option_type', { length: 50 }),
-});
+
+export const usersRelations = relations(users, ({ many }) => ({
+  teamMembers: many(teamMembers),
+  invitationsSent: many(invitations),
+  accessTokens: many(userAccessTokens),
+}));
 
 export const teamsRelations = relations(teams, ({ many }) => ({
   teamMembers: many(teamMembers),
@@ -144,12 +107,6 @@ export const teamsRelations = relations(teams, ({ many }) => ({
   invitations: many(invitations),
 }));
 
-export const usersRelations = relations(users, ({ many }) => ({
-  teamMembers: many(teamMembers),
-  invitationsSent: many(invitations),
-  accessTokens: many(userAccessTokens),
-  transactions: many(transactions),
-}));
 
 export const invitationsRelations = relations(invitations, ({ one }) => ({
   team: one(teams, {
@@ -201,8 +158,6 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type NewActivityLog = typeof activityLogs.$inferInsert;
 export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
-export type Transaction = typeof transactions.$inferSelect;
-export type NewTransaction = typeof transactions.$inferInsert;
 export type UserAccessToken = typeof userAccessTokens.$inferSelect;
 export type NewUserAccessToken = typeof userAccessTokens.$inferInsert;
 export type TeamDataWithMembers = Team & {
@@ -224,385 +179,437 @@ export enum ActivityType {
   ACCEPT_INVITATION = 'ACCEPT_INVITATION',
 }
 
-// Create periodic the views using dynamic SQL query string
-export const weeklyPerformance = pgView('weekly_performance', {
-  userId: integer(),
-  periodStart: text(),
-  periodPnl: text(),
-  periodPnlPercent: text(),
-  portfolioValue: text(),
-  periodTransfers: text(),
-}).as(sql.raw(createPerformanceViewSQL('week')));
+// ------------------------------------------------------------
+// Data Model
+// ------------------------------------------------------------
 
-export const monthlyPerformance = pgView('monthly_performance', {
-  userId: integer(),
-  periodStart: text(),
-  periodPnl: text(),
-  periodPnlPercent: text(),
-  portfolioValue: text(),
-  periodTransfers: text(),
-}).as(sql.raw(createPerformanceViewSQL('month')));
+// =============================================
+// RAW TRANSACTIONS STAGING TABLE
+// =============================================
 
-export const yearlyPerformance = pgView('yearly_performance', {
-  userId: integer(),
-  periodStart: text(),
-  periodPnl: text(),
-  periodPnlPercent: text(),
-  portfolioValue: text(),
-  periodTransfers: text(),
-}).as(sql.raw(createPerformanceViewSQL('year')));
+export const rawTransactions = pgTable('raw_transactions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  brokerCode: varchar('broker_code', { length: 20 }).notNull(),
+  brokerTransactionId: varchar('broker_transaction_id', { length: 50 }).notNull(),
+  
+  // Raw broker data
+  rawData: json('raw_data').notNull(),
+  
+  // Processing status
+  status: varchar('status', { length: 20 }).notNull().default('PENDING'),
+  errorMessage: text('error_message'),
+  
+  // Timestamps
+  brokerTimestamp: timestamp('broker_timestamp').notNull(), // When transaction actually occurred per broker
+  processedAt: timestamp('processed_at'), // When we processed it into dimensional model
+  createdAt: timestamp('created_at').notNull().defaultNow(), // When record was inserted
+  updatedAt: timestamp('updated_at').notNull().defaultNow() // When record was last modified
+}, (table) => [
+  unique('unique_broker_transaction').on(table.brokerTransactionId, table.brokerCode),
+  index('idx_raw_transactions_user_status').on(table.userId, table.status),
+  index('idx_raw_transactions_broker_id').on(table.brokerTransactionId)
+]);
 
 
-// Portfolio Summary View - For SummaryStats component
-export const portfolioSummary = pgView('portfolio_summary', {
+
+// =============================================
+// DIMENSIONAL TABLES
+// =============================================
+
+// Date Dimension - Essential for time-based analytics
+export const dimDate = pgTable('dim_date', {
+  dateKey: integer('date_key').primaryKey(), // YYYYMMDD format
+  fullDate: date('full_date').notNull().unique(),
+  dayOfWeek: varchar('day_of_week', { length: 10 }),
+  dayOfMonth: integer('day_of_month'),
+  weekOfYear: integer('week_of_year'),
+  monthName: varchar('month_name', { length: 10 }),
+  monthNumber: integer('month_number'),
+  quarter: integer('quarter'),
+  year: integer('year'),
+  isWeekend: boolean('is_weekend'),
+  isTradingDay: boolean('is_trading_day'),
+  weekEndingDate: date('week_ending_date'),
+  monthEndingDate: date('month_ending_date'),
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => [
+  index('idx_dim_date_full_date').on(table.fullDate),
+  index('idx_dim_date_year_month').on(table.year, table.monthNumber)
+]);
+
+// Security Dimension - Handles stocks and options with company grouping
+export const dimSecurity = pgTable('dim_security', {
+  securityKey: serial('security_key').primaryKey(),
+
+  symbol: varchar('symbol', { length: 50 }).notNull(),
+  securityType: varchar('security_type', { length: 20 }).notNull(), // 'STOCK', 'OPTION'
+  optionType: varchar('option_type', { length: 10 }), // 'CALL', 'PUT', NULL for stocks
+  strikePrice: decimal('strike_price', { precision: 18, scale: 8 }), // NULL for stocks
+  expiryDate: date('expiry_date'), // NULL for stocks
+  
+  // Essential fields for company-level aggregation
+  securityName: text('security_name'),
+  underlyingSymbol: varchar('underlying_symbol', { length: 50 }).notNull(), // Key for company grouping
+  
+  // Metadata
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => [
+  // Performance indexes
+  index('idx_dim_security_underlying').on(table.underlyingSymbol),
+  index('idx_dim_security_type').on(table.securityType),
+  index('idx_dim_security_symbol').on(table.symbol),
+  // Data integrity constraint
+  check('check_stock_option', sql`
+    (security_type = 'STOCK' AND underlying_symbol = symbol AND option_type IS NULL AND strike_price IS NULL AND expiry_date IS NULL)
+    OR
+    (security_type = 'OPTION' AND underlying_symbol != symbol AND option_type IS NOT NULL AND strike_price IS NOT NULL AND expiry_date IS NOT NULL)
+  `)
+]);
+
+export type ITransactionAction = 'buy' | 'sell' | 'buy_to_open' | 'sell_to_close' | 'sell_to_open' | 'buy_to_close' | 'expire' | 'assign' | 'dividend' | 'interest' | 'transfer' | 'other';
+
+// Transaction Type Dimension
+export const dimTransactionType = pgTable('dim_transaction_type', {
+  transactionTypeKey: serial('transaction_type_key').primaryKey(),
+  actionCode: varchar('action_code', { length: 20 }).notNull().unique(),
+  actionDescription: varchar('action_description', { length: 100 }),
+  actionCategory: varchar('action_category', { length: 50 }), // 'TRADE', 'INCOME', 'TRANSFER', 'CORPORATE'
+  affectsPosition: boolean('affects_position'),
+  direction: integer('direction'), // +1 for inflows, -1 for outflows, 0 for neutral
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
+// Account Dimension
+export const dimAccount = pgTable('dim_account', {
+  accountKey: serial('account_key').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  accountName: varchar('account_name', { length: 100 }).default('Primary Account'),
+  accountType: varchar('account_type', { length: 50 }).default('INDIVIDUAL'),
+  currency: varchar('currency', { length: 3 }).default('USD'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => [
+  unique('unique_user_account').on(table.userId) // One account per user for now
+]);
+
+// Broker Dimension
+export const dimBroker = pgTable('dim_broker', {
+  brokerKey: serial('broker_key').primaryKey(),
+  brokerCode: varchar('broker_code', { length: 20 }).notNull().unique(),
+  brokerName: varchar('broker_name', { length: 100 }),
+  commissionStructure: varchar('commission_structure', { length: 100 }),
+  apiProvider: varchar('api_provider', { length: 50 }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
+// =============================================
+// FACT TABLES
+// =============================================
+
+// Transaction Fact Table - One row per trade
+export const factTransactions = pgTable('fact_transactions', {
+  // Dimension Foreign Keys
+  dateKey: integer('date_key').notNull().references(() => dimDate.dateKey),
+  accountKey: integer('account_key').notNull().references(() => dimAccount.accountKey),
+  securityKey: integer('security_key').references(() => dimSecurity.securityKey),
+  transactionTypeKey: integer('transaction_type_key').notNull().references(() => dimTransactionType.transactionTypeKey),
+  brokerKey: integer('broker_key').notNull().references(() => dimBroker.brokerKey),
+  
+  // Degenerate dimensions (stay in fact table)
+  brokerTransactionId: varchar('broker_transaction_id', { length: 50 }).primaryKey(),
+  orderId: varchar('order_id', { length: 50 }),
+  originalTransactionId: integer('original_transaction_id'), // Reference to legacy transactions.id
+  description: text('description'),
+  
+  // Facts (measurements)
+  quantity: decimal('quantity', { precision: 18, scale: 8 }).notNull(),
+  pricePerUnit: decimal('price_per_unit', { precision: 18, scale: 8 }),
+  grossAmount: decimal('gross_amount', { precision: 18, scale: 8 }).notNull(),
+  fees: decimal('fees', { precision: 18, scale: 8 }).notNull().default('0'),
+  netAmount: decimal('net_amount', { precision: 18, scale: 8 }).notNull(),
+  
+  // Metadata
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => [
+  // Foreign key to security dimension
+  foreignKey({
+    columns: [table.securityKey],
+    foreignColumns: [dimSecurity.securityKey],
+    name: 'fk_fact_transactions_security'
+  }),
+  
+  // Unique constraint for idempotent loading
+  unique('unique_transaction').on(table.brokerTransactionId, table.originalTransactionId),
+  
+  // Performance indexes
+  index('idx_fact_transactions_date').on(table.dateKey),
+  index('idx_fact_transactions_account').on(table.accountKey),
+  index('idx_fact_transactions_security').on(table.securityKey),
+]);
+
+
+// =============================================
+// ANALYTICAL VIEWS
+// =============================================
+
+
+
+// Simplified positions view based purely on transaction aggregation
+export const viewPositions = pgView('view_positions', {
   userId: integer('user_id'),
-  portfolioValue: text('portfolio_value'),
-  cashBalance: text('cash_balance'),
-  weeklyPnl: text('weekly_pnl'),
-  monthlyPnl: text('monthly_pnl'),
-  yearlyPnl: text('yearly_pnl'),
-  weeklyPnlPercent: text('weekly_pnl_percent'),
-  monthlyPnlPercent: text('monthly_pnl_percent'),
-  yearlyPnlPercent: text('yearly_pnl_percent'),
+  symbol: varchar('symbol', { length: 50 }),
+  underlyingSymbol: varchar('underlying_symbol', { length: 50 }),
+  securityType: varchar('security_type', { length: 20 }),
+  optionType: varchar('option_type', { length: 10 }),
+  strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
+  quantityHeld: decimal('quantity_held', { precision: 18, scale: 8 }),
+  positionValue: decimal('position_value', { precision: 18, scale: 8 }),
+  netPositionValue: decimal('net_position_value', { precision: 18, scale: 8 }),
+  averagePrice: decimal('average_price', { precision: 18, scale: 8 }),
+  totalFees: decimal('total_fees', { precision: 18, scale: 8 }),
+  daysToExpiry: integer('days_to_expiry'),
+  positionStatus: varchar('position_status', { length: 10 }),
+  firstTransactionDate: date('first_transaction_date'),
+  lastTransactionDate: date('last_transaction_date'),
+  transactionCount: integer('transaction_count')
 }).as(sql`
-  WITH latest_portfolio AS (
-    SELECT DISTINCT ON (user_id) 
-      user_id, 
-      cumulative_portfolio_value
-    FROM account_value_over_time 
-    ORDER BY user_id, week_start DESC
-  ),
-  latest_weekly AS (
-    SELECT DISTINCT ON (user_id) 
-      user_id, 
-      period_pnl as weekly_pnl, 
-      period_pnl_percent as weekly_pnl_percent
-    FROM weekly_performance 
-    ORDER BY user_id, period_start DESC
-  ),
-  latest_monthly AS (
-    SELECT DISTINCT ON (user_id) 
-      user_id, 
-      period_pnl as monthly_pnl, 
-      period_pnl_percent as monthly_pnl_percent
-    FROM monthly_performance 
-    ORDER BY user_id, period_start DESC
-  ),
-  latest_yearly AS (
-    SELECT DISTINCT ON (user_id) 
-      user_id, 
-      period_pnl as yearly_pnl, 
-      period_pnl_percent as yearly_pnl_percent
-    FROM yearly_performance 
-    ORDER BY user_id, period_start DESC
-  ),
-  position_costs AS (
-    SELECT 
-      user_id,
-      COALESCE(SUM(cost_basis::numeric), 0) as total_position_cost
-    FROM positions
-    GROUP BY user_id
-  )
   SELECT 
-    lp.user_id,
-    lp.cumulative_portfolio_value as portfolio_value,
-    (lp.cumulative_portfolio_value::numeric - COALESCE(pc.total_position_cost, 0))::text as cash_balance,
-    COALESCE(lw.weekly_pnl, '0') as weekly_pnl,
-    COALESCE(lm.monthly_pnl, '0') as monthly_pnl,
-    COALESCE(ly.yearly_pnl, '0') as yearly_pnl,
-    COALESCE(lw.weekly_pnl_percent, '0') as weekly_pnl_percent,
-    COALESCE(lm.monthly_pnl_percent, '0') as monthly_pnl_percent,
-    COALESCE(ly.yearly_pnl_percent, '0') as yearly_pnl_percent
-  FROM latest_portfolio lp
-  LEFT JOIN position_costs pc ON lp.user_id = pc.user_id
-  LEFT JOIN latest_weekly lw ON lp.user_id = lw.user_id
-  LEFT JOIN latest_monthly lm ON lp.user_id = lm.user_id
-  LEFT JOIN latest_yearly ly ON lp.user_id = ly.user_id
+    a.user_id,
+    s.symbol,
+    s.underlying_symbol,
+    MAX(s.security_type) as security_type,
+    MAX(s.option_type) as option_type,
+    s.strike_price,
+    
+    -- Core position metrics from transaction aggregation
+    SUM(ft.quantity) as quantity_held,
+    
+    -- Position value: Market exposure/collateral requirement (no fees)
+    -- TODO: Option position_value calculation needs refinement:
+    -- - Short PUTs: Current logic (strike * 100) is correct for cash-secured puts
+    -- - Short CALLs: Should distinguish between covered calls (share collateral) vs naked calls (margin requirement)
+    -- - Current approach assumes all options use strike price collateral, which overestimates CALL requirements
+    SUM(
+      CASE 
+        WHEN s.security_type = 'STOCK' THEN ABS(ft.gross_amount)
+        WHEN s.security_type = 'OPTION' THEN ABS(ft.quantity) * s.strike_price * 100
+        ELSE ABS(ft.gross_amount)
+      END
+    ) as position_value,
+    
+    -- Net position value: Same logic but includes fees
+    SUM(
+      CASE 
+        WHEN s.security_type = 'STOCK' THEN ft.net_amount
+        WHEN s.security_type = 'OPTION' THEN ABS(ft.quantity) * s.strike_price * 100 - ft.fees
+        ELSE ft.net_amount
+      END
+    ) as net_position_value,
+    SUM(ABS(ft.quantity * ft.price_per_unit)) / NULLIF(SUM(ABS(ft.quantity)), 0) as average_price,
+    SUM(ft.fees) as total_fees,
+    
+    -- Days to expiry calculation
+    CASE 
+      WHEN MAX(s.expiry_date) IS NOT NULL 
+      THEN (MAX(s.expiry_date) - CURRENT_DATE)::integer
+      ELSE NULL
+    END as days_to_expiry,
+    
+    -- Position status
+    CASE 
+      -- Handle expired options
+      WHEN MAX(s.security_type) = 'OPTION' AND MAX(s.expiry_date) < CURRENT_DATE THEN 'CLOSED'
+      -- Different thresholds for different asset types
+      WHEN MAX(s.security_type) = 'OPTION' AND ABS(SUM(ft.quantity)) > 0.001 THEN 'OPEN'
+      WHEN MAX(s.security_type) = 'STOCK' AND ABS(SUM(ft.quantity)) > 0.0001 THEN 'OPEN'
+      ELSE 'CLOSED' 
+    END as position_status,
+    
+    -- Transaction metadata
+    MIN(d.full_date) as first_transaction_date,
+    MAX(d.full_date) as last_transaction_date,
+    COUNT(*)::integer as transaction_count
+
+  FROM ${factTransactions} ft
+  JOIN ${dimSecurity} s ON ft.security_key = s.security_key
+  JOIN ${dimAccount} a ON ft.account_key = a.account_key
+  JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+  JOIN ${dimDate} d ON ft.date_key = d.date_key
+  WHERE tt.action_category IN ('TRADE', 'CORPORATE')
+  GROUP BY a.user_id, s.symbol, s.underlying_symbol, s.strike_price
 `);
 
-// Account Value Over Time View - For AccountValueChart component
-export const accountValueOverTime = pgView('account_value_over_time', {
+
+// Portfolio Distribution (Your dashboard pie chart)
+export const viewPortfolioDistribution = pgView('view_portfolio_distribution', {
   userId: integer('user_id'),
-  weekStart: text('week_start'),
-  cumulativeTransfers: text('cumulative_transfers'),
-  cumulativePortfolioValue: text('cumulative_portfolio_value'),
+  company: varchar('company', { length: 50 }),
+  positionValue: decimal('position_value', { precision: 18, scale: 8 }),
+  instrumentCount: integer('instrument_count'),
+  portfolioPercentage: decimal('portfolio_percentage', { precision: 10, scale: 4 })
 }).as(sql`
-  WITH weekly_data AS (
-    SELECT 
-      user_id,
-      DATE_TRUNC('week', date)::date as week_start,
-      -- Weekly transfers (money wire in/out)
-      SUM(CASE WHEN action = 'transfer' THEN amount::numeric ELSE 0 END) as weekly_transfers,
-      -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
-      SUM(CASE 
-        WHEN action != 'transfer' THEN amount::numeric - fees::numeric
-        ELSE 0
-      END) as weekly_gains
-    FROM transactions
-    WHERE action != 'other' AND date <= CURRENT_DATE
-    GROUP BY user_id, DATE_TRUNC('week', date)
-  )
   SELECT 
     user_id,
-    week_start,
-    SUM(weekly_transfers) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_transfers,
-    SUM(weekly_transfers) OVER (PARTITION BY user_id ORDER BY week_start) + 
-    SUM(weekly_gains) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_portfolio_value
-  FROM weekly_data
+    underlying_symbol as company,
+    SUM(position_value) as position_value,
+    COUNT(*)::integer as instrument_count,
+    (ABS(SUM(position_value)) / SUM(ABS(SUM(position_value))) OVER (PARTITION BY user_id)) * 100 as portfolio_percentage
+    
+  FROM view_positions
+  WHERE position_status = 'OPEN'
+  GROUP BY user_id, underlying_symbol
+  ORDER BY ABS(SUM(position_value)) DESC
+`);
+
+// Weekly Returns Chart
+export const viewWeeklyReturns = pgView('view_weekly_returns', {
+  userId: integer('user_id'),
+  weekStart: date('week_start'),
+  cumulativePortfolioValue: decimal('cumulative_portfolio_value', { precision: 18, scale: 8 }),
+  cumulativeTransfers: decimal('cumulative_transfers', { precision: 18, scale: 8 }),
+  weeklyReturnPercent: decimal('weekly_return_percent', { precision: 10, scale: 4 }),
+  weeklyReturnAbsolute: decimal('weekly_return_absolute', { precision: 18, scale: 8 })
+}).as(sql`
+  WITH weekly_data AS (
+      SELECT 
+          a.user_id,
+          d.week_ending_date as week_start,
+          -- Weekly transfers (money wire in/out)
+          SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
+          -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
+          SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_gains
+      FROM ${factTransactions} ft
+      JOIN ${dimDate} d ON ft.date_key = d.date_key
+      JOIN ${dimAccount} a ON ft.account_key = a.account_key
+      JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+      WHERE d.full_date <= CURRENT_DATE
+      GROUP BY a.user_id, d.week_ending_date
+  ),
+
+  cumulative_data AS (
+      SELECT 
+          user_id,
+          week_start,
+          weekly_transfers,
+          weekly_gains,
+          -- Cumulative calculations
+          SUM(weekly_transfers) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_transfers,
+          SUM(weekly_transfers + weekly_gains) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_portfolio_value
+      FROM weekly_data
+  ),
+
+  lagged_data AS (
+      SELECT 
+          user_id,
+          week_start,
+          weekly_gains,
+          weekly_transfers,
+          cumulative_portfolio_value,
+          cumulative_transfers,
+          -- LAG calculation for previous week's portfolio value
+          LAG(cumulative_portfolio_value, 1) OVER (PARTITION BY user_id ORDER BY week_start) as prev_week_portfolio_value
+      FROM cumulative_data
+  ),
+
+  returns_calculation AS (
+      SELECT 
+          user_id,
+          week_start,
+          weekly_transfers,
+          cumulative_portfolio_value,
+          cumulative_transfers,
+          prev_week_portfolio_value,
+          weekly_gains as weekly_return_absolute,
+          -- Weekly return calculation: subtract transfers to avoid spikes
+          CASE 
+              WHEN prev_week_portfolio_value > 0 
+              THEN ((cumulative_portfolio_value - weekly_transfers - prev_week_portfolio_value) 
+                    / prev_week_portfolio_value) * 100
+              ELSE NULL
+          END as weekly_return_percent
+      FROM lagged_data
+      WHERE prev_week_portfolio_value IS NOT NULL
+  )
+
+  SELECT 
+      user_id,
+      week_start,
+      cumulative_portfolio_value,
+      cumulative_transfers,
+      weekly_return_percent,
+      weekly_return_absolute
+  FROM returns_calculation
   ORDER BY user_id, week_start
 `);
 
-// Transaction Details View - Reusable transaction formatting for positions
-export const transactionDetails = pgView('transaction_details').as((qb) =>
-  qb
-    .select({
-      userId: transactions.userId,
-      ticker: transactions.ticker,
-      optionType: transactions.optionType,
-      strikePrice: transactions.strikePrice,
-      // Position grouping key
-      positionKey: sql<string>`CONCAT(${transactions.ticker}, '-', COALESCE(${transactions.optionType}, 'STOCK'), '-', COALESCE(${transactions.strikePrice}::text, '0'))`.as('position_key'),
-      // Formatted transaction details as JSON array
-      transactionDetails: sql<string>`JSON_AGG(
-        JSON_BUILD_OBJECT(
-          'id', ${transactions.id},
-          'date', ${transactions.date},
-          'action', ${transactions.action},
-          'quantity', ${transactions.quantity},
-          'amount', ${transactions.amount},
-          'fees', ${transactions.fees},
-          'description', ${transactions.description},
-          'unitPrice', CASE 
-            WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric
-            ELSE ABS(${transactions.amount}::numeric / ${transactions.quantity}::numeric)
-          END,
-          'creditDebitType', CASE WHEN ${transactions.amount}::numeric > 0 THEN 'CR' ELSE 'DB' END,
-          'realizedPnl', CASE 
-            WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.amount}::numeric - ${transactions.fees}::numeric
-            ELSE 0
-          END,
-          'unrealizedPnl', CASE 
-            WHEN ${transactions.optionType} IS NOT NULL THEN 0
-            ELSE ${transactions.amount}::numeric - ${transactions.fees}::numeric
-          END,
-          'optionType', ${transactions.optionType},
-          'costBasis', CASE 
-            WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric * 100 * ${transactions.quantity}::numeric
-            ELSE ${transactions.amount}::numeric
-          END
-        ) ORDER BY ${transactions.date}
-      )`.as('transaction_details'),
-    })
-    .from(transactions)
-    .where(sql`${transactions.action} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
-    .groupBy(
-      transactions.userId,
-      transactions.ticker,
-      transactions.optionType,
-      transactions.strikePrice
-    )
-);
+// =============================================
+// RELATIONS (for Drizzle ORM)
+// =============================================
 
-// Position Calculations View - Shared position-level calculations (cleaned up)
-export const positionCalculations = pgView('position_calculations').as((qb) =>
-  qb
-    .select({
-      userId: transactions.userId,
-      ticker: transactions.ticker,
-      optionType: transactions.optionType,
-      strikePrice: transactions.strikePrice,
-      // Position key for grouping
-      positionKey: sql<string>`CONCAT(${transactions.ticker}, '-', COALESCE(${transactions.optionType}, 'STOCK'), '-', COALESCE(${transactions.strikePrice}::text, '0'))`.as('position_key'),
-      // Net quantity calculation
-      netQuantity: sql<string>`SUM(${transactions.quantity}::numeric)`.as('net_quantity'),
-      // Cost basis (absolute value of money tied up)
-      costBasis: sql<string>`ABS(SUM(CASE 
-        WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.strikePrice}::numeric * 100 * ${transactions.quantity}::numeric
-        ELSE ${transactions.amount}::numeric
-      END))`.as('cost_basis'),
-      // Realized P&L from closed portions
-      realizedPnl: sql<string>`SUM(CASE 
-        WHEN ${transactions.optionType} IS NOT NULL THEN ${transactions.amount}::numeric - ${transactions.fees}::numeric
-        ELSE 0
-      END)`.as('realized_pnl'),
-      // Total P&L (realized + unrealized)
-      totalPnl: sql<string>`SUM(${transactions.amount}::numeric - ${transactions.fees}::numeric)`.as('total_pnl'),
-      // Total fees
-      totalFees: sql<string>`SUM(${transactions.fees}::numeric)`.as('total_fees'),
-      // Timing information
-      openedAt: sql<string>`MIN(${transactions.date})`.as('opened_at'),
-      closedAt: sql<string>`MAX(CASE WHEN ${transactions.action} IN ('sell_to_close', 'buy_to_close', 'expire', 'assign') THEN ${transactions.date} END)`.as('closed_at'),
-      lastTransactionAt: sql<string>`MAX(${transactions.date})`.as('last_transaction_at'),
-      daysHeld: sql<string>`CASE 
-        WHEN SUM(${transactions.quantity}::numeric) = 0 THEN MAX(${transactions.date}) - MIN(${transactions.date})
-        ELSE CURRENT_DATE - MIN(${transactions.date})
-      END`.as('days_held'),
-      // Status flags
-      isExpiringSoon: sql<string>`false`.as('is_expiring_soon'), // Simplified without expiry date
-      // Unrealized P&L (total - realized)
-      unrealizedPnl: sql<string>`SUM(CASE 
-        WHEN ${transactions.optionType} IS NOT NULL THEN 0
-        ELSE ${transactions.amount}::numeric - ${transactions.fees}::numeric
-      END)`.as('unrealized_pnl'),
-    })
-    .from(transactions)
-    .where(sql`${transactions.action} NOT IN ('dividend', 'interest', 'transfer', 'other')`)
-    .groupBy(
-      transactions.userId,
-      transactions.ticker,
-      transactions.optionType,
-      transactions.strikePrice
-    )
-);
+export const rawTransactionsRelations = relations(rawTransactions, ({ one }) => ({
+  user: one(users, {
+    fields: [rawTransactions.userId],
+    references: [users.id]
+  })
+}));
 
-// Unified Positions View - Replaces openPositions and closedPositions
-export const positions = pgView('positions', {
-  userId: integer('user_id'),
-  ticker: varchar('ticker', { length: 50 }),
-  optionType: varchar('option_type', { length: 50 }),
-  strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
-  positionKey: varchar('position_key', { length: 200 }),
-  netQuantity: decimal('net_quantity', { precision: 18, scale: 8 }),
-  costBasis: decimal('cost_basis', { precision: 18, scale: 8 }),
-  unrealizedPnl: decimal('unrealized_pnl', { precision: 18, scale: 8 }),
-  realizedPnl: decimal('realized_pnl', { precision: 18, scale: 8 }),
-  totalPnl: decimal('total_pnl', { precision: 18, scale: 8 }),
-  totalFees: decimal('total_fees', { precision: 18, scale: 8 }),
-  openedAt: date('opened_at'),
-  closedAt: date('closed_at'),
-  lastTransactionAt: date('last_transaction_at'),
-  daysHeld: integer('days_held'),
-  isExpiringSoon: text('is_expiring_soon'),
-  isOpen: text('is_open'), // Flag to distinguish open vs closed
-  transactionDetails: text('transaction_details'),
-}).as(sql`
-  SELECT 
-    p.user_id,
-    p.ticker,
-    p.option_type,
-    p.strike_price,
-    p.position_key,
-    p.net_quantity,
-    p.cost_basis,
-    p.realized_pnl,
-    p.unrealized_pnl,
-    p.total_pnl,
-    p.total_fees,
-    p.opened_at,
-    p.closed_at,
-    p.last_transaction_at,
-    p.days_held,
-    p.is_expiring_soon,
-    CASE WHEN p.net_quantity::numeric != 0 THEN 'true' ELSE 'false' END as is_open,
-    t.transaction_details
-  FROM position_calculations p
-  INNER JOIN transaction_details t ON 
-    p.user_id = t.user_id AND
-    p.ticker = t.ticker AND
-    COALESCE(p.option_type, '') = COALESCE(t.option_type, '') AND
-    COALESCE(p.strike_price, 0) = COALESCE(t.strike_price, 0)
-`);
 
-// Portfolio Distribution View - Uses strike price check instead of position_type
-export const portfolioDistribution = pgView('portfolio_distribution').as((qb) =>
-  qb
-    .select({
-      userId: positions.userId,
-      ticker: positions.ticker,
-      // For options, use contract size (quantity * 100 * strike) or premium paid, for stocks use cost basis
-      positionValue: sql<string>`CASE 
-        WHEN ${positions.strikePrice} IS NOT NULL 
-        THEN ABS(${positions.netQuantity}::numeric * 100 * ${positions.strikePrice}::numeric)
-        ELSE ABS(${positions.costBasis})
-      END`.as('position_value'),
-      netQuantity: positions.netQuantity,
-      daysHeld: sql<string>`(CURRENT_DATE - ${positions.lastTransactionAt})`.as('days_held'),
-    })
-    .from(positions)
-    .where(sql`${positions.isOpen} = 'true'`) // Only open positions
-    .orderBy(sql`CASE 
-      WHEN ${positions.strikePrice} IS NOT NULL 
-      THEN ABS(${positions.netQuantity}::numeric * 100 * ${positions.strikePrice}::numeric)
-      ELSE ABS(${positions.costBasis})
-    END DESC`)
-);
+export const dimAccountRelations = relations(dimAccount, ({ one, many }) => ({
+  user: one(users, {
+    fields: [dimAccount.userId],
+    references: [users.id]
+  }),
+  transactions: many(factTransactions)
+}));
 
-// Positions By Symbol View - Hierarchical grouping for symbol-first display
-export const positionsBySymbol = pgView('positions_by_symbol', {
-  userId: integer('user_id'),
-  ticker: varchar('ticker', { length: 50 }),
-  positionType: varchar('position_type', { length: 10 }), // 'OPEN' or 'CLOSED'
-  totalPositions: text('total_positions'),
-  totalPnl: text('total_pnl'),
-  unrealizedPnl: text('unrealized_pnl'),
-  realizedPnl: text('realized_pnl'),
-  totalFees: text('total_fees'),
-  expiringSoonCount: text('expiring_soon_count'),
-  positionsData: text('positions_data'), // JSON array of positions
-}).as(sql`
-  SELECT 
-    user_id,
-    ticker,
-    CASE WHEN is_open = 'true' THEN 'OPEN' ELSE 'CLOSED' END as position_type,
-    COUNT(*)::text as total_positions,
-    SUM(total_pnl::numeric)::text as total_pnl,
-    SUM(realized_pnl::numeric)::text as realized_pnl,
-    SUM(unrealized_pnl::numeric)::text as unrealized_pnl,
-    SUM(total_fees::numeric)::text as total_fees,
-    SUM(CASE WHEN is_expiring_soon::boolean = true THEN 1 ELSE 0 END)::text as expiring_soon_count,
-    JSON_AGG(
-      JSON_BUILD_OBJECT(
-        'positionKey', position_key,
-        'ticker', ticker,
-        'optionType', option_type,
-        'strikePrice', strike_price,
-        'netQuantity', net_quantity,
-        'totalPnl', total_pnl,
-        'realizedPnl', realized_pnl,
-        'unrealizedPnl', unrealized_pnl,
-        'costBasis', cost_basis,
-        'totalFees', total_fees,
-        'openedAt', opened_at,
-        'closedAt', closed_at,
-        'lastTransactionAt', last_transaction_at,
-        'daysHeld', days_held,
-        'isExpiringSoon', is_expiring_soon,
-        'transactions', transaction_details::json
-      ) ORDER BY COALESCE(closed_at, last_transaction_at) DESC
-    )::text as positions_data
-  FROM positions
-  GROUP BY user_id, ticker, CASE WHEN is_open = 'true' THEN 'OPEN' ELSE 'CLOSED' END
-  ORDER BY user_id, SUM(total_pnl::numeric) DESC, ticker
-`);
+export const factTransactionsRelations = relations(factTransactions, ({ one }) => ({
+  date: one(dimDate, {
+    fields: [factTransactions.dateKey],
+    references: [dimDate.dateKey]
+  }),
+  account: one(dimAccount, {
+    fields: [factTransactions.accountKey],
+    references: [dimAccount.accountKey]
+  }),
+  transactionType: one(dimTransactionType, {
+    fields: [factTransactions.transactionTypeKey],
+    references: [dimTransactionType.transactionTypeKey]
+  }),
+  broker: one(dimBroker, {
+    fields: [factTransactions.brokerKey],
+    references: [dimBroker.brokerKey]
+  }),
+  security: one(dimSecurity, {
+    fields: [factTransactions.securityKey],
+    references: [dimSecurity.securityKey]
+  })
+}));
 
-// Type exports for the views
-export type TransactionDetail = typeof transactionDetails.$inferSelect;
-export type PositionCalculation = typeof positionCalculations.$inferSelect;
-export type Position = typeof positions.$inferSelect; // Unified position type
-export type PortfolioSummary = typeof portfolioSummary.$inferSelect;
-export type PortfolioDistribution = typeof portfolioDistribution.$inferSelect;
-export type WeeklyPerformance = typeof weeklyPerformance.$inferSelect;
-export type AccountValueOverTime = typeof accountValueOverTime.$inferSelect;
-export type PositionsBySymbol = typeof positionsBySymbol.$inferSelect;
 
-// For backward compatibility with dashboard components
-export const currentPositions = pgView('current_positions_compat').as((qb) =>
-  qb
-    .select({
-      userId: positions.userId,
-      ticker: positions.ticker,
-      optionType: positions.optionType,
-      strikePrice: positions.strikePrice,
-      netQuantity: positions.netQuantity,
-      costBasis: positions.costBasis,
-      lastTransactionDate: positions.lastTransactionAt, // Map for compatibility
-      positionType: sql<string>`CASE WHEN ${positions.optionType} IS NOT NULL THEN 'OPTION' ELSE 'EQUITY' END`.as('position_type'),
-    })
-    .from(positions)
-    .where(eq(positions.isOpen, 'true'))
-);
+// =============================================
+// TYPE EXPORTS
+// =============================================
 
-// Legacy type aliases for backward compatibility
-export type OpenPosition = Position;
-export type ClosedPosition = Position;
-export type CurrentPosition = typeof currentPositions.$inferSelect;
+export type DimDate = typeof dimDate.$inferSelect;
+export type DimSecurity = typeof dimSecurity.$inferSelect;
+export type DimTransactionType = typeof dimTransactionType.$inferSelect;
+export type DimAccount = typeof dimAccount.$inferSelect;
+export type DimBroker = typeof dimBroker.$inferSelect;
+
+export type FactTransaction = typeof factTransactions.$inferSelect;
+
+export type ViewPosition = typeof viewPositions.$inferSelect;
+export type ViewPortfolioDistribution = typeof viewPortfolioDistribution.$inferSelect;
+export type ViewWeeklyReturns = typeof viewWeeklyReturns.$inferSelect;
+
+// Insert types
+export type NewFactTransaction = typeof factTransactions.$inferInsert;
+export type RawTransaction = typeof rawTransactions.$inferSelect;
+export type NewRawTransaction = typeof rawTransactions.$inferInsert;

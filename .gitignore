@@ -41,3 +41,4 @@ postgres_data/
 .env*.local
 
 transactions.json
+single-transaction.json
