@@ -1,11 +1,11 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PortfolioDistribution as PortfolioDistributionType } from "@/lib/db/schema";
+import { ViewPortfolioDistribution } from "@/lib/db/schema";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 interface PortfolioDistributionProps {
-  distribution: PortfolioDistributionType[];
+  distribution: ViewPortfolioDistribution[];
   cashBalance: number;
 }
 
@@ -38,7 +38,7 @@ const PortfolioDistribution = ({
 
   const data = [
     ...distribution,
-    { ticker: "Cash", positionValue: cashBalance.toString() },
+    { symbol: "Cash", positionValue: cashBalance.toString() },
   ];
 
   // Calculate positions for labels extending from the pie chart
@@ -81,7 +81,7 @@ const PortfolioDistribution = ({
           dominantBaseline="central"
           className="text-xs font-medium"
         >
-          {data[index]?.ticker} ({percentage}%)
+          {data[index].symbol} ({percentage}%)
         </text>
       </g>
     );
@@ -107,7 +107,7 @@ const PortfolioDistribution = ({
                 <PieChart>
                   <Pie
                     data={data.map((item, index) => ({
-                      name: item.ticker,
+                      name: item.symbol,
                       value: parseFloat(item.positionValue || "0"),
                       fill: getColor(index),
                     }))}

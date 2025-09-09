@@ -119,7 +119,6 @@ export async function processRawTransactions(userId: number, tx?: any) {
         results.processed++;
         
         } catch (error: unknown) {
-            console.log(error)
            const errorMessage = error instanceof Error ? 
              `Transaction ${rawTx.brokerTransactionId}: ${error.message}` : 
              `Transaction ${rawTx.brokerTransactionId}: Unknown error`;

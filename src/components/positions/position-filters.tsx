@@ -43,7 +43,7 @@ export function PositionFilters({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            placeholder="Filter by ticker (e.g., AAPL, TSLA)..."
+            placeholder="Filter by symbol (e.g., AAPL, TSLA)..."
             onChange={(e) => onTickerChange(e.target.value)}
             className="pl-10"
             defaultValue={tickerFilter}

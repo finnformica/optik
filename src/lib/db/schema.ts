@@ -450,14 +450,14 @@ export const viewPositions = pgView('view_positions', {
 // Portfolio Distribution (Your dashboard pie chart)
 export const viewPortfolioDistribution = pgView('view_portfolio_distribution', {
   userId: integer('user_id'),
-  company: varchar('company', { length: 50 }),
+  symbol: varchar('symbol', { length: 50 }),
   positionValue: decimal('position_value', { precision: 18, scale: 8 }),
   instrumentCount: integer('instrument_count'),
   portfolioPercentage: decimal('portfolio_percentage', { precision: 10, scale: 4 })
 }).as(sql`
   SELECT 
     user_id,
-    underlying_symbol as company,
+    underlying_symbol as symbol,
     SUM(position_value) as position_value,
     COUNT(*)::integer as instrument_count,
     (ABS(SUM(position_value)) / SUM(ABS(SUM(position_value))) OVER (PARTITION BY user_id)) * 100 as portfolio_percentage

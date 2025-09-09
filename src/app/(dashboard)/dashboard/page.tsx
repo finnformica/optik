@@ -64,10 +64,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <CurrentPositions positions={positionsData} />
         <PortfolioDistribution
-          distribution={distributionData.map((item) => ({
-            ...item,
-            ticker: item.company,
-          }))}
+          distribution={distributionData}
           cashBalance={300}
         />
       </div>

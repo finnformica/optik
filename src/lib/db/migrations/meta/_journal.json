@@ -141,6 +141,13 @@
       "when": 1757418525334,
       "tag": "0019_rare_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1757443768465,
+      "tag": "0020_workable_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

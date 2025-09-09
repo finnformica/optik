@@ -2,10 +2,10 @@ import { getUserId } from '@/lib/auth/session';
 import { db } from '@/lib/db/config';
 import { insertRawTransactions, processRawTransactions, SchwabActivity } from '@/lib/db/etl/queries';
 import mockTransactions from '@/lib/mock/transactions.json' with { type: 'json' };
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const userId = await getUserId();
 
@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
 
     const results = await db.transaction(async (tx) => {
       // 1. Insert raw broker data
-      const inserted = await insertRawTransactions(mockData, userId, tx);
-      console.log(`Inserted ${inserted} transactions`);
+      await insertRawTransactions(mockData, userId, tx);
 
       // 2. Process pending transactions
       return await processRawTransactions(userId, tx);
