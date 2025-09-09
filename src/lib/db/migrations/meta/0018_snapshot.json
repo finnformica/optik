@@ -1,0 +1,1563 @@
+{
+  "id": "7d2e56a5-e581-4e62-a5c8-e4ef12faa26c",
+  "prevId": "5764119b-6e72-4e81-b4bd-373b3eab0b15",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.activity_logs": {
+      "name": "activity_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "varchar(45)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "activity_logs_team_id_teams_id_fk": {
+          "name": "activity_logs_team_id_teams_id_fk",
+          "tableFrom": "activity_logs",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "team_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "activity_logs_user_id_users_id_fk": {
+          "name": "activity_logs_user_id_users_id_fk",
+          "tableFrom": "activity_logs",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.dim_account": {
+      "name": "dim_account",
+      "schema": "",
+      "columns": {
+        "account_key": {
+          "name": "account_key",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_name": {
+          "name": "account_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Primary Account'"
+        },
+        "account_type": {
+          "name": "account_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'INDIVIDUAL'"
+        },
+        "currency": {
+          "name": "currency",
+          "type": "varchar(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'USD'"
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "dim_account_user_id_users_id_fk": {
+          "name": "dim_account_user_id_users_id_fk",
+          "tableFrom": "dim_account",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "unique_user_account": {
+          "name": "unique_user_account",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.dim_broker": {
+      "name": "dim_broker",
+      "schema": "",
+      "columns": {
+        "broker_key": {
+          "name": "broker_key",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "broker_code": {
+          "name": "broker_code",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "broker_name": {
+          "name": "broker_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commission_structure": {
+          "name": "commission_structure",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "api_provider": {
+          "name": "api_provider",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "dim_broker_broker_code_unique": {
+          "name": "dim_broker_broker_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "broker_code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.dim_date": {
+      "name": "dim_date",
+      "schema": "",
+      "columns": {
+        "date_key": {
+          "name": "date_key",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "full_date": {
+          "name": "full_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day_of_week": {
+          "name": "day_of_week",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "day_of_month": {
+          "name": "day_of_month",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "week_of_year": {
+          "name": "week_of_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "month_name": {
+          "name": "month_name",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "month_number": {
+          "name": "month_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quarter": {
+          "name": "quarter",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_weekend": {
+          "name": "is_weekend",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_trading_day": {
+          "name": "is_trading_day",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "week_ending_date": {
+          "name": "week_ending_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "month_ending_date": {
+          "name": "month_ending_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_dim_date_full_date": {
+          "name": "idx_dim_date_full_date",
+          "columns": [
+            {
+              "expression": "full_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_dim_date_year_month": {
+          "name": "idx_dim_date_year_month",
+          "columns": [
+            {
+              "expression": "year",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "month_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "dim_date_full_date_unique": {
+          "name": "dim_date_full_date_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "full_date"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.dim_security": {
+      "name": "dim_security",
+      "schema": "",
+      "columns": {
+        "security_key": {
+          "name": "security_key",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "security_type": {
+          "name": "security_type",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "option_type": {
+          "name": "option_type",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "strike_price": {
+          "name": "strike_price",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expiry_date": {
+          "name": "expiry_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "security_name": {
+          "name": "security_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "underlying_symbol": {
+          "name": "underlying_symbol",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_dim_security_underlying": {
+          "name": "idx_dim_security_underlying",
+          "columns": [
+            {
+              "expression": "underlying_symbol",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_dim_security_type": {
+          "name": "idx_dim_security_type",
+          "columns": [
+            {
+              "expression": "security_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_dim_security_symbol": {
+          "name": "idx_dim_security_symbol",
+          "columns": [
+            {
+              "expression": "symbol",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "check_stock_option": {
+          "name": "check_stock_option",
+          "value": "\n    (security_type = 'STOCK' AND underlying_symbol = symbol AND option_type IS NULL AND strike_price IS NULL AND expiry_date IS NULL)\n    OR\n    (security_type = 'OPTION' AND underlying_symbol != symbol AND option_type IS NOT NULL AND strike_price IS NOT NULL AND expiry_date IS NOT NULL)\n  "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.dim_transaction_type": {
+      "name": "dim_transaction_type",
+      "schema": "",
+      "columns": {
+        "transaction_type_key": {
+          "name": "transaction_type_key",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "action_code": {
+          "name": "action_code",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action_description": {
+          "name": "action_description",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "action_category": {
+          "name": "action_category",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "affects_position": {
+          "name": "affects_position",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direction": {
+          "name": "direction",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "dim_transaction_type_action_code_unique": {
+          "name": "dim_transaction_type_action_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "action_code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.fact_transactions": {
+      "name": "fact_transactions",
+      "schema": "",
+      "columns": {
+        "date_key": {
+          "name": "date_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_key": {
+          "name": "account_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "security_key": {
+          "name": "security_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_type_key": {
+          "name": "transaction_type_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "broker_key": {
+          "name": "broker_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "broker_transaction_id": {
+          "name": "broker_transaction_id",
+          "type": "varchar(50)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "original_transaction_id": {
+          "name": "original_transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_per_unit": {
+          "name": "price_per_unit",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gross_amount": {
+          "name": "gross_amount",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fees": {
+          "name": "fees",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "net_amount": {
+          "name": "net_amount",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_fact_transactions_date": {
+          "name": "idx_fact_transactions_date",
+          "columns": [
+            {
+              "expression": "date_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_fact_transactions_account": {
+          "name": "idx_fact_transactions_account",
+          "columns": [
+            {
+              "expression": "account_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_fact_transactions_security": {
+          "name": "idx_fact_transactions_security",
+          "columns": [
+            {
+              "expression": "security_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fact_transactions_date_key_dim_date_date_key_fk": {
+          "name": "fact_transactions_date_key_dim_date_date_key_fk",
+          "tableFrom": "fact_transactions",
+          "tableTo": "dim_date",
+          "columnsFrom": [
+            "date_key"
+          ],
+          "columnsTo": [
+            "date_key"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fact_transactions_account_key_dim_account_account_key_fk": {
+          "name": "fact_transactions_account_key_dim_account_account_key_fk",
+          "tableFrom": "fact_transactions",
+          "tableTo": "dim_account",
+          "columnsFrom": [
+            "account_key"
+          ],
+          "columnsTo": [
+            "account_key"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fact_transactions_security_key_dim_security_security_key_fk": {
+          "name": "fact_transactions_security_key_dim_security_security_key_fk",
+          "tableFrom": "fact_transactions",
+          "tableTo": "dim_security",
+          "columnsFrom": [
+            "security_key"
+          ],
+          "columnsTo": [
+            "security_key"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fact_transactions_transaction_type_key_dim_transaction_type_transaction_type_key_fk": {
+          "name": "fact_transactions_transaction_type_key_dim_transaction_type_transaction_type_key_fk",
+          "tableFrom": "fact_transactions",
+          "tableTo": "dim_transaction_type",
+          "columnsFrom": [
+            "transaction_type_key"
+          ],
+          "columnsTo": [
+            "transaction_type_key"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fact_transactions_broker_key_dim_broker_broker_key_fk": {
+          "name": "fact_transactions_broker_key_dim_broker_broker_key_fk",
+          "tableFrom": "fact_transactions",
+          "tableTo": "dim_broker",
+          "columnsFrom": [
+            "broker_key"
+          ],
+          "columnsTo": [
+            "broker_key"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fk_fact_transactions_security": {
+          "name": "fk_fact_transactions_security",
+          "tableFrom": "fact_transactions",
+          "tableTo": "dim_security",
+          "columnsFrom": [
+            "security_key"
+          ],
+          "columnsTo": [
+            "security_key"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "unique_transaction": {
+          "name": "unique_transaction",
+          "nullsNotDistinct": false,
+          "columns": [
+            "broker_transaction_id",
+            "original_transaction_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.invitations": {
+      "name": "invitations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invited_by": {
+          "name": "invited_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invited_at": {
+          "name": "invited_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "invitations_team_id_teams_id_fk": {
+          "name": "invitations_team_id_teams_id_fk",
+          "tableFrom": "invitations",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "team_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "invitations_invited_by_users_id_fk": {
+          "name": "invitations_invited_by_users_id_fk",
+          "tableFrom": "invitations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "invited_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.raw_transactions": {
+      "name": "raw_transactions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "broker_code": {
+          "name": "broker_code",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "broker_transaction_id": {
+          "name": "broker_transaction_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw_data": {
+          "name": "raw_data",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "broker_timestamp": {
+          "name": "broker_timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_raw_transactions_user_status": {
+          "name": "idx_raw_transactions_user_status",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_raw_transactions_broker_id": {
+          "name": "idx_raw_transactions_broker_id",
+          "columns": [
+            {
+              "expression": "broker_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "raw_transactions_user_id_users_id_fk": {
+          "name": "raw_transactions_user_id_users_id_fk",
+          "tableFrom": "raw_transactions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "unique_broker_transaction": {
+          "name": "unique_broker_transaction",
+          "nullsNotDistinct": false,
+          "columns": [
+            "broker_transaction_id",
+            "broker_code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.team_members": {
+      "name": "team_members",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "team_members_user_id_users_id_fk": {
+          "name": "team_members_user_id_users_id_fk",
+          "tableFrom": "team_members",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "team_members_team_id_teams_id_fk": {
+          "name": "team_members_team_id_teams_id_fk",
+          "tableFrom": "team_members",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "team_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.teams": {
+      "name": "teams",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "stripe_customer_id": {
+          "name": "stripe_customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stripe_subscription_id": {
+          "name": "stripe_subscription_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stripe_product_id": {
+          "name": "stripe_product_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_name": {
+          "name": "plan_name",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subscription_status": {
+          "name": "subscription_status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "teams_stripe_customer_id_unique": {
+          "name": "teams_stripe_customer_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "stripe_customer_id"
+          ]
+        },
+        "teams_stripe_subscription_id_unique": {
+          "name": "teams_stripe_subscription_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "stripe_subscription_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_access_tokens": {
+      "name": "user_access_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "encrypted_tokens": {
+          "name": "encrypted_tokens",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_type": {
+          "name": "token_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "broker": {
+          "name": "broker",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_access_tokens_user_id_users_id_fk": {
+          "name": "user_access_tokens_user_id_users_id_fk",
+          "tableFrom": "user_access_tokens",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'member'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {
+    "public.view_portfolio_distribution": {
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "company": {
+          "name": "company",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "position_value": {
+          "name": "position_value",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "instrument_count": {
+          "name": "instrument_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "portfolio_percentage": {
+          "name": "portfolio_percentage",
+          "type": "numeric(10, 4)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT \n    user_id,\n    underlying_symbol as company,\n    SUM(position_value) as position_value,\n    COUNT(*)::integer as instrument_count,\n    (ABS(SUM(position_value)) / SUM(ABS(SUM(position_value))) OVER (PARTITION BY user_id)) * 100 as portfolio_percentage\n    \n  FROM view_positions\n  WHERE position_status = 'OPEN'\n  GROUP BY user_id, underlying_symbol\n  ORDER BY ABS(SUM(position_value)) DESC\n",
+      "name": "view_portfolio_distribution",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
+    "public.view_positions": {
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "underlying_symbol": {
+          "name": "underlying_symbol",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "security_type": {
+          "name": "security_type",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "option_type": {
+          "name": "option_type",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "strike_price": {
+          "name": "strike_price",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity_held": {
+          "name": "quantity_held",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "position_value": {
+          "name": "position_value",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "average_price": {
+          "name": "average_price",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_fees": {
+          "name": "total_fees",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "days_to_expiry": {
+          "name": "days_to_expiry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "position_status": {
+          "name": "position_status",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_transaction_date": {
+          "name": "first_transaction_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_transaction_date": {
+          "name": "last_transaction_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_count": {
+          "name": "transaction_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT \n    a.user_id,\n    s.symbol,\n    s.underlying_symbol,\n    MAX(s.security_type) as security_type,\n    MAX(s.option_type) as option_type,\n    s.strike_price,\n    \n    -- Core position metrics from transaction aggregation\n    SUM(ft.quantity) as quantity_held,\n    -- TODO: Option position_value calculation needs refinement:\n    -- - Short PUTs: Current logic (strike * 100) is correct for cash-secured puts\n    -- - Short CALLs: Should distinguish between covered calls (share collateral) vs naked calls (margin requirement)\n    -- - Current approach assumes all options use strike price collateral, which overestimates CALL requirements\n    SUM(\n      CASE \n        WHEN s.security_type = 'STOCK' THEN ft.net_amount\n        WHEN s.security_type = 'OPTION' THEN ABS(ft.quantity) * s.strike_price * 100 - ft.fees\n        ELSE ft.net_amount\n      END\n    ) as position_value,\n    SUM(ABS(ft.quantity * ft.price_per_unit)) / NULLIF(SUM(ABS(ft.quantity)), 0) as average_price,\n    SUM(ft.fees) as total_fees,\n    \n    -- Days to expiry calculation\n    CASE \n      WHEN MAX(s.expiry_date) IS NOT NULL \n      THEN (MAX(s.expiry_date) - CURRENT_DATE)::integer\n      ELSE NULL\n    END as days_to_expiry,\n    \n    -- Position status\n    CASE \n      -- Handle expired options\n      WHEN MAX(s.security_type) = 'OPTION' AND MAX(s.expiry_date) < CURRENT_DATE THEN 'CLOSED'\n      -- Different thresholds for different asset types\n      WHEN MAX(s.security_type) = 'OPTION' AND ABS(SUM(ft.quantity)) > 0.001 THEN 'OPEN'\n      WHEN MAX(s.security_type) = 'STOCK' AND ABS(SUM(ft.quantity)) > 0.0001 THEN 'OPEN'\n      ELSE 'CLOSED' \n    END as position_status,\n    \n    -- Transaction metadata\n    MIN(d.full_date) as first_transaction_date,\n    MAX(d.full_date) as last_transaction_date,\n    COUNT(*)::integer as transaction_count\n\n  FROM \"fact_transactions\" ft\n  JOIN \"dim_security\" s ON ft.security_key = s.security_key\n  JOIN \"dim_account\" a ON ft.account_key = a.account_key\n  JOIN \"dim_transaction_type\" tt ON ft.transaction_type_key = tt.transaction_type_key\n  JOIN \"dim_date\" d ON ft.date_key = d.date_key\n  WHERE tt.action_category IN ('TRADE', 'CORPORATE')\n  GROUP BY a.user_id, s.symbol, s.underlying_symbol, s.strike_price\n",
+      "name": "view_positions",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
+    "public.view_weekly_returns": {
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "week_start": {
+          "name": "week_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cumulative_portfolio_value": {
+          "name": "cumulative_portfolio_value",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cumulative_transfers": {
+          "name": "cumulative_transfers",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "weekly_return_percent": {
+          "name": "weekly_return_percent",
+          "type": "numeric(10, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "weekly_return_absolute": {
+          "name": "weekly_return_absolute",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  WITH weekly_data AS (\n      SELECT \n          a.user_id,\n          d.week_ending_date as week_start,\n          -- Weekly transfers (money wire in/out)\n          SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,\n          -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)\n          SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_gains\n      FROM \"fact_transactions\" ft\n      JOIN \"dim_date\" d ON ft.date_key = d.date_key\n      JOIN \"dim_account\" a ON ft.account_key = a.account_key\n      JOIN \"dim_transaction_type\" tt ON ft.transaction_type_key = tt.transaction_type_key\n      WHERE d.full_date <= CURRENT_DATE\n      GROUP BY a.user_id, d.week_ending_date\n  ),\n\n  cumulative_data AS (\n      SELECT \n          user_id,\n          week_start,\n          weekly_transfers,\n          weekly_gains,\n          -- Cumulative calculations\n          SUM(weekly_transfers) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_transfers,\n          SUM(weekly_transfers + weekly_gains) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_portfolio_value\n      FROM weekly_data\n  ),\n\n  lagged_data AS (\n      SELECT \n          user_id,\n          week_start,\n          weekly_gains,\n          weekly_transfers,\n          cumulative_portfolio_value,\n          cumulative_transfers,\n          -- LAG calculation for previous week's portfolio value\n          LAG(cumulative_portfolio_value, 1) OVER (PARTITION BY user_id ORDER BY week_start) as prev_week_portfolio_value\n      FROM cumulative_data\n  ),\n\n  returns_calculation AS (\n      SELECT \n          user_id,\n          week_start,\n          weekly_transfers,\n          cumulative_portfolio_value,\n          cumulative_transfers,\n          prev_week_portfolio_value,\n          weekly_gains as weekly_return_absolute,\n          -- Weekly return calculation: subtract transfers to avoid spikes\n          CASE \n              WHEN prev_week_portfolio_value > 0 \n              THEN ((cumulative_portfolio_value - weekly_transfers - prev_week_portfolio_value) \n                    / prev_week_portfolio_value) * 100\n              ELSE NULL\n          END as weekly_return_percent\n      FROM lagged_data\n      WHERE prev_week_portfolio_value IS NOT NULL\n  )\n\n  SELECT \n      user_id,\n      week_start,\n      cumulative_portfolio_value,\n      cumulative_transfers,\n      weekly_return_percent,\n      weekly_return_absolute\n  FROM returns_calculation\n  ORDER BY user_id, week_start\n",
+      "name": "view_weekly_returns",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    }
+  },
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

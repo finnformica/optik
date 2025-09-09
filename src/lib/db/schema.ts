@@ -370,7 +370,8 @@ export const viewPositions = pgView('view_positions', {
   optionType: varchar('option_type', { length: 10 }),
   strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
   quantityHeld: decimal('quantity_held', { precision: 18, scale: 8 }),
-  costBasis: decimal('cost_basis', { precision: 18, scale: 8 }),
+  positionValue: decimal('position_value', { precision: 18, scale: 8 }),
+  netPositionValue: decimal('net_position_value', { precision: 18, scale: 8 }),
   averagePrice: decimal('average_price', { precision: 18, scale: 8 }),
   totalFees: decimal('total_fees', { precision: 18, scale: 8 }),
   daysToExpiry: integer('days_to_expiry'),
@@ -389,7 +390,28 @@ export const viewPositions = pgView('view_positions', {
     
     -- Core position metrics from transaction aggregation
     SUM(ft.quantity) as quantity_held,
-    SUM(ft.net_amount) as cost_basis,
+    
+    -- Position value: Market exposure/collateral requirement (no fees)
+    -- TODO: Option position_value calculation needs refinement:
+    -- - Short PUTs: Current logic (strike * 100) is correct for cash-secured puts
+    -- - Short CALLs: Should distinguish between covered calls (share collateral) vs naked calls (margin requirement)
+    -- - Current approach assumes all options use strike price collateral, which overestimates CALL requirements
+    SUM(
+      CASE 
+        WHEN s.security_type = 'STOCK' THEN ABS(ft.gross_amount)
+        WHEN s.security_type = 'OPTION' THEN ABS(ft.quantity) * s.strike_price * 100
+        ELSE ABS(ft.gross_amount)
+      END
+    ) as position_value,
+    
+    -- Net position value: Same logic but includes fees
+    SUM(
+      CASE 
+        WHEN s.security_type = 'STOCK' THEN ft.net_amount
+        WHEN s.security_type = 'OPTION' THEN ABS(ft.quantity) * s.strike_price * 100 - ft.fees
+        ELSE ft.net_amount
+      END
+    ) as net_position_value,
     SUM(ABS(ft.quantity * ft.price_per_unit)) / NULLIF(SUM(ABS(ft.quantity)), 0) as average_price,
     SUM(ft.fees) as total_fees,
     
@@ -436,14 +458,14 @@ export const viewPortfolioDistribution = pgView('view_portfolio_distribution', {
   SELECT 
     user_id,
     underlying_symbol as company,
-    SUM(cost_basis) as position_value,
+    SUM(position_value) as position_value,
     COUNT(*)::integer as instrument_count,
-    (ABS(SUM(cost_basis)) / SUM(ABS(SUM(cost_basis))) OVER (PARTITION BY user_id)) * 100 as portfolio_percentage
+    (ABS(SUM(position_value)) / SUM(ABS(SUM(position_value))) OVER (PARTITION BY user_id)) * 100 as portfolio_percentage
     
   FROM view_positions
   WHERE position_status = 'OPEN'
   GROUP BY user_id, underlying_symbol
-  ORDER BY ABS(position_value) DESC
+  ORDER BY ABS(SUM(position_value)) DESC
 `);
 
 // Weekly Returns Chart

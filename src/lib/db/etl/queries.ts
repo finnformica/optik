@@ -188,11 +188,11 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
         ),
   
         position_values_calc AS (
-          -- Current invested amount (cost basis of held positions)
-          -- Note: cost_basis can be negative for short positions, positive for long positions
+          -- Current invested amount (position value of held positions)
+          -- Note: position_value can be negative for short positions, positive for long positions
           SELECT 
             user_id,
-            SUM(cost_basis) as total_position_value
+            SUM(position_value) as total_position_value
           FROM ${viewPositions}
           WHERE position_status = 'OPEN' AND user_id = ${userId}
           GROUP BY user_id
@@ -300,7 +300,7 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
         };
       }
   
-             return {
+      return {
          portfolioValue: String(row.portfolio_value),
          cashBalance: String(row.cash_balance),
          monthlyPnl: String(row.monthly_pnl),

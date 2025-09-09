@@ -27,8 +27,8 @@ export async function validatePositionCalculations(userId: number) {
     SELECT 
       position_status,
       COUNT(*) as position_count,
-      SUM(cost_basis) as total_cost_basis,
-      SUM(ABS(cost_basis)) as total_abs_cost_basis
+      SUM(position_value) as total_position_value,
+      SUM(ABS(position_value)) as total_abs_position_value
     FROM view_positions
     WHERE user_id = ${userId}
     GROUP BY position_status
@@ -44,7 +44,7 @@ export async function validatePositionCalculations(userId: number) {
       symbol,
       security_type,
       quantity_held,
-      cost_basis,
+      position_value,
       position_status,
       expiry_date,
       CASE WHEN expiry_date < CURRENT_DATE THEN 'EXPIRED' ELSE 'ACTIVE' END as expiry_status
@@ -76,7 +76,7 @@ export async function validatePositionCalculations(userId: number) {
       WHERE a.user_id = ${userId}
     ),
     position_val AS (
-      SELECT SUM(cost_basis) as total_positions
+      SELECT SUM(position_value) as total_positions
       FROM view_positions
       WHERE user_id = ${userId} AND position_status = 'OPEN'
     )

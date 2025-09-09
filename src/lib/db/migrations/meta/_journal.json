@@ -127,6 +127,20 @@
       "when": 1757411667888,
       "tag": "0017_thick_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1757413512335,
+      "tag": "0018_fast_moon_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1757418525334,
+      "tag": "0019_rare_the_liberteens",
+      "breakpoints": true
     }
   ]
 }
