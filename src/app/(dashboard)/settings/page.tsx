@@ -279,7 +279,7 @@ function InviteTeamMember() {
 export default function SettingsPage() {
   return (
     <section className="flex-1">
-      <h1 className="text-2xl font-bold text-white mb-6">Team Settings</h1>
+      <h1 className="text-xl font-semibold text-white mb-4">Team Settings</h1>
       <Suspense fallback={<SubscriptionSkeleton />}>
         <ManageSubscription />
       </Suspense>

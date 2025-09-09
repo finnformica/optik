@@ -89,7 +89,7 @@ export default async function ConnectionsPage({
 
   return (
     <section className="flex-1">
-      <h1 className="text-2xl font-bold text-white mb-6">Connections</h1>
+      <h1 className="text-xl font-semibold text-white mb-4">Connections</h1>
 
       {/* Success Messages */}
       {params.success && (

@@ -35,7 +35,9 @@ export default function SecurityPage() {
 
   return (
     <section className="flex-1">
-      <h1 className="text-2xl font-bold text-white mb-6">Security Settings</h1>
+      <h1 className="text-xl font-semibold text-white mb-4">
+        Security Settings
+      </h1>
       <Card className="mb-8 bg-[#1a2236] border-gray-800">
         <CardHeader>
           <CardTitle className="text-white">Password</CardTitle>

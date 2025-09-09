@@ -39,7 +39,7 @@ const Sidebar = () => {
 
   const renderMenuItem = (item: MenuItem) => {
     const Icon = item.icon;
-    const isActive = pathname === item.href;
+    const isActive = pathname.includes(item.href);
 
     return (
       <Tooltip key={item.href}>

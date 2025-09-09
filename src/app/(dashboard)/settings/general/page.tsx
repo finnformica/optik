@@ -81,7 +81,9 @@ export default function GeneralPage() {
 
   return (
     <section className="flex-1">
-      <h1 className="text-2xl font-bold text-white mb-6">General Settings</h1>
+      <h1 className="text-xl font-semibold text-white mb-4">
+        General Settings
+      </h1>
 
       <Card className="bg-[#1a2236] border-gray-800">
         <CardHeader>
