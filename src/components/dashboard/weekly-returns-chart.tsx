@@ -87,9 +87,9 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
                 />
                 <Bar
                   dataKey="percentReturns"
-                  fill="#8b5cf6"
-                  radius={[2, 2, 0, 0]}
-                  opacity={0.8}
+                  fill="#3b82f6"
+                  radius={[4, 4, 0, 0]}
+                  opacity={1}
                 >
                   <LabelList
                     dataKey="percentReturns"
