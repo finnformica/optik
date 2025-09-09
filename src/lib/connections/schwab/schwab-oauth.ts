@@ -17,8 +17,15 @@ export class SchwabAuth {
   private baseUrl: string = 'https://api.schwabapi.com'
 
   constructor() {
-    this.appKey = process.env.SCHWAB_APP_KEY!
-    this.appSecret = process.env.SCHWAB_APP_SECRET!
+    if (!process.env.SCHWAB_APP_KEY) {
+      throw new Error('SCHWAB_APP_KEY environment variable is required')
+    }
+    if (!process.env.SCHWAB_APP_SECRET) {
+      throw new Error('SCHWAB_APP_SECRET environment variable is required')
+    }
+
+    this.appKey = process.env.SCHWAB_APP_KEY
+    this.appSecret = process.env.SCHWAB_APP_SECRET
   }
 
   // Store tokens
@@ -165,7 +172,7 @@ export class SchwabAuth {
         redirect_uri: redirectUri,
       }),
     })
-    
+
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Token exchange error details:', errorText)

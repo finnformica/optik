@@ -67,7 +67,7 @@ export default async function ConnectionsPage({
   };
 
   const successMessages = {
-    connected: "Successfully connected!",
+    connected: "successfully connected!",
   };
 
   const getProviderDisplayName = (provider?: string) => {

@@ -92,7 +92,9 @@ export const userAccessTokens = pgTable('user_access_tokens', {
   broker: varchar('broker', { length: 50 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+}, (table) => [
+  unique('unique_user_broker_token').on(table.userId, table.broker)
+]);
 
 
 export const usersRelations = relations(users, ({ many }) => ({
