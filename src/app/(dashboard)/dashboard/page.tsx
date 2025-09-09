@@ -9,6 +9,7 @@ import {
   viewAccountValueOverTime,
   viewPortfolioDistribution,
   viewPositions,
+  viewWeeklyReturns,
 } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -23,7 +24,7 @@ export default async function DashboardPage() {
   const userId = session.user.id;
 
   // Fetch all analytics data in parallel
-  const [positionsData, distributionData, accountValueData] = await Promise.all(
+  const [positionsData, distributionData, accountValueData, weeklyReturnsData] = await Promise.all(
     [
       db
         .select()
@@ -45,6 +46,11 @@ export default async function DashboardPage() {
         .from(viewAccountValueOverTime)
         .where(eq(viewAccountValueOverTime.userId, userId))
         .limit(52),
+      db
+        .select()
+        .from(viewWeeklyReturns)
+        .where(eq(viewWeeklyReturns.userId, userId))
+        .limit(52),
     ]
   );
 
@@ -53,7 +59,7 @@ export default async function DashboardPage() {
       <SummaryStats />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <WeeklyReturnsChart weeklyData={accountValueData} />
+        <WeeklyReturnsChart weeklyData={weeklyReturnsData} />
         <AccountValueChart accountValueData={accountValueData} />
       </div>
 

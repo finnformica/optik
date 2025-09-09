@@ -1,12 +1,11 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ViewAccountValueOverTime } from "@/lib/db/schema";
+import { ViewWeeklyReturns } from "@/lib/db/schema";
 import {
   Bar,
   CartesianGrid,
   ComposedChart,
-  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,7 +13,7 @@ import {
 } from "recharts";
 
 interface WeeklyReturnsChartProps {
-  weeklyData: ViewAccountValueOverTime[];
+  weeklyData: ViewWeeklyReturns[];
 }
 
 const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
@@ -26,9 +25,9 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
   );
 
   // Format data for chart
-  const chartData = sortedData.map((item, index) => {
-    const absoluteReturns = parseFloat(item.cumulativeTransfers || "0");
-    const percentReturns = parseFloat(item.cumulativePortfolioValue || "0");
+  const chartData = sortedData.map((item) => {
+    const absoluteReturns = parseFloat(item.weeklyReturnAbsolute || "0");
+    const percentReturns = parseFloat(item.weeklyReturnPercent || "0");
 
     return {
       week: new Date(item.weekStart || "").toLocaleDateString("en-GB", {
@@ -97,25 +96,12 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
                   radius={[2, 2, 0, 0]}
                   opacity={0.8}
                 />
-                <Line
+                <Bar
                   yAxisId="percent"
-                  type="monotone"
                   dataKey="percentReturns"
-                  stroke="#8b5cf6"
-                  strokeWidth={0}
-                  opacity={0}
-                  dot={{
-                    fill: "transparent",
-                    strokeWidth: 0,
-                    r: 0,
-                    opacity: 0,
-                  }}
-                  activeDot={{
-                    fill: "transparent",
-                    r: 0,
-                    strokeWidth: 0,
-                    opacity: 0,
-                  }}
+                  fill="#8b5cf6"
+                  radius={[2, 2, 0, 0]}
+                  opacity={0.8}
                 />
               </ComposedChart>
             </ResponsiveContainer>
