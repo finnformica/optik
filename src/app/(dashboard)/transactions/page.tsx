@@ -1,9 +1,10 @@
 "use client";
 
+import _ from "lodash";
 import {
   AlertCircle,
-  ChevronDown,
-  ChevronUp,
+  ArrowDown,
+  ArrowUp,
   Filter,
   Info,
   RefreshCw,
@@ -150,6 +151,16 @@ export default function TransactionsPage() {
       if (aValue === null) aValue = "";
       if (bValue === null) bValue = "";
 
+      // Handle numeric fields
+      const numericFields = ["quantity", "netAmount", "fees", "grossAmount", "pricePerUnit"];
+      if (numericFields.includes(sortField as string)) {
+        const aNum = parseFloat(aValue as string) || 0;
+        const bNum = parseFloat(bValue as string) || 0;
+        if (aNum < bNum) return sortDirection === "asc" ? -1 : 1;
+        if (aNum > bNum) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      }
+
       // Handle string comparisons
       if (typeof aValue === "string" && typeof bValue === "string") {
         aValue = aValue.toLowerCase();
@@ -176,16 +187,21 @@ export default function TransactionsPage() {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection("desc");
     }
   };
 
   const SortIcon = ({ field }: { field: keyof Transaction }) => {
-    if (sortField !== field) return null;
-    return sortDirection === "asc" ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
+    const isActive = sortField === field;
+    const Icon = sortDirection === "asc" ? ArrowUp : ArrowDown;
+
+    return (
+      <Icon
+        className={`w-4 h-4 transition-opacity ${
+          isActive
+            ? "text-gray-300 opacity-100"
+            : "text-gray-400 opacity-0 group-hover:opacity-100"
+        }`}
+      />
     );
   };
 
@@ -287,7 +303,7 @@ export default function TransactionsPage() {
                     <option value="all">All Actions</option>
                     {uniqueActions.map((action: string) => (
                       <option key={action} value={action}>
-                        {action.replace(/_/g, " ")}
+                        {_.startCase(action)}
                       </option>
                     ))}
                   </select>
@@ -319,7 +335,7 @@ export default function TransactionsPage() {
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
                         onClick={() => handleSort("symbol")}
-                        className="flex items-center gap-1 hover:text-white transition-colors min-w-52"
+                        className="group flex items-center gap-1 hover:text-white transition-colors min-w-52"
                       >
                         Symbol
                         <SortIcon field="symbol" />
@@ -328,7 +344,7 @@ export default function TransactionsPage() {
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
                         onClick={() => handleSort("actionCode")}
-                        className="flex items-center gap-1 hover:text-white transition-colors min-w-32"
+                        className="group flex items-center gap-1 hover:text-white transition-colors min-w-32"
                       >
                         Action
                         <SortIcon field="actionCode" />
@@ -337,7 +353,7 @@ export default function TransactionsPage() {
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
                         onClick={() => handleSort("quantity")}
-                        className="flex items-center gap-1 hover:text-white transition-colors"
+                        className="group flex items-center gap-1 hover:text-white transition-colors"
                       >
                         Quantity
                         <SortIcon field="quantity" />
@@ -346,7 +362,7 @@ export default function TransactionsPage() {
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
                         onClick={() => handleSort("netAmount")}
-                        className="flex items-center gap-1 hover:text-white transition-colors"
+                        className="group flex items-center gap-1 hover:text-white transition-colors"
                       >
                         Amount
                         <SortIcon field="netAmount" />
@@ -355,7 +371,7 @@ export default function TransactionsPage() {
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
                         onClick={() => handleSort("fees")}
-                        className="flex items-center gap-1 hover:text-white transition-colors"
+                        className="group flex items-center gap-1 hover:text-white transition-colors"
                       >
                         Fees
                         <SortIcon field="fees" />
@@ -364,7 +380,7 @@ export default function TransactionsPage() {
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
                         onClick={() => handleSort("date")}
-                        className="flex items-center gap-1 hover:text-white transition-colors"
+                        className="group flex items-center gap-1 hover:text-white transition-colors"
                       >
                         Date
                         <SortIcon field="date" />
@@ -373,7 +389,7 @@ export default function TransactionsPage() {
                     <th className="text-left p-3 text-gray-300 font-medium">
                       <button
                         onClick={() => handleSort("brokerName")}
-                        className="flex items-center gap-1 hover:text-white transition-colors"
+                        className="group flex items-center gap-1 hover:text-white transition-colors"
                       >
                         Broker
                         <SortIcon field="brokerName" />
