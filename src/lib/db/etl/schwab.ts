@@ -125,7 +125,7 @@ export async function processSchwabTransaction(rawTx: RawTransaction, data: any,
     // Calculate facts
     const quantity = securityItem?.amount || 0;
     const pricePerUnit = securityItem?.price || null;
-    const grossAmount = Math.abs(securityItem?.cost || 0);
+    const grossAmount = securityItem?.cost ?? data.netAmount ?? 0;
     const netAmount = data.netAmount || 0;
     
     // Insert into fact_transactions

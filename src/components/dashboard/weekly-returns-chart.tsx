@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ViewWeeklyReturns } from "@/lib/db/schema";
 import {
   Bar,
+  BarChart,
   CartesianGrid,
-  ComposedChart,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -55,55 +56,51 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart
+              <BarChart
                 data={chartData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                margin={{ top: 30, right: 30, left: 20, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="week" stroke="#9CA3AF" fontSize={12} />
                 <YAxis
-                  yAxisId="absolute"
-                  orientation="left"
-                  stroke="#9CA3AF"
-                  fontSize={12}
-                  tickFormatter={(value) => `$${value}`}
-                />
-                <YAxis
-                  yAxisId="percent"
-                  orientation="right"
                   stroke="#9CA3AF"
                   fontSize={12}
                   tickFormatter={(value) => `${value.toFixed(1)}%`}
                 />
                 <Tooltip
+                  cursor={{ fill: "#0f172a", opacity: 0.5 }}
                   contentStyle={{
                     backgroundColor: "#1a2236",
                     border: "1px solid #374151",
                     borderRadius: "8px",
                     color: "#fff",
                   }}
-                  formatter={(value: number, name: string) => {
-                    if (name === "absoluteReturns") {
-                      return [`$${value.toLocaleString()}`, "Absolute"];
-                    }
-                    return [`${value.toFixed(2)}%`, "Percent"];
+                  formatter={(value: number, _: string, props: any) => {
+                    const absoluteValue = props.payload.absoluteReturns;
+                    return [
+                      `${value.toFixed(
+                        2
+                      )}% ($${absoluteValue.toLocaleString()})`,
+                      "Weekly Return",
+                    ];
                   }}
                 />
                 <Bar
-                  yAxisId="absolute"
-                  dataKey="absoluteReturns"
-                  fill="#3b82f6"
-                  radius={[2, 2, 0, 0]}
-                  opacity={0.8}
-                />
-                <Bar
-                  yAxisId="percent"
                   dataKey="percentReturns"
                   fill="#8b5cf6"
                   radius={[2, 2, 0, 0]}
                   opacity={0.8}
-                />
-              </ComposedChart>
+                >
+                  <LabelList
+                    dataKey="percentReturns"
+                    position="top"
+                    style={{ fill: "#fff", fontSize: "12px" }}
+                    formatter={(value: unknown) =>
+                      `${parseFloat(value as string).toFixed(2)}%`
+                    }
+                  />
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           )}
         </div>
