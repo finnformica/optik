@@ -6,7 +6,6 @@ import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import {
-  viewAccountValueOverTime,
   viewPortfolioDistribution,
   viewPositions,
   viewWeeklyReturns,
@@ -24,8 +23,8 @@ export default async function DashboardPage() {
   const userId = session.user.id;
 
   // Fetch all analytics data in parallel
-  const [positionsData, distributionData, accountValueData, weeklyReturnsData] = await Promise.all(
-    [
+  const [positionsData, distributionData, accountValueData, weeklyReturnsData] =
+    await Promise.all([
       db
         .select()
         .from(viewPositions)
@@ -43,16 +42,15 @@ export default async function DashboardPage() {
         .limit(20),
       db
         .select()
-        .from(viewAccountValueOverTime)
-        .where(eq(viewAccountValueOverTime.userId, userId))
+        .from(viewWeeklyReturns)
+        .where(eq(viewWeeklyReturns.userId, userId))
         .limit(52),
       db
         .select()
         .from(viewWeeklyReturns)
         .where(eq(viewWeeklyReturns.userId, userId))
         .limit(52),
-    ]
-  );
+    ]);
 
   return (
     <div className="space-y-6">
@@ -66,9 +64,9 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <CurrentPositions positions={positionsData} />
         <PortfolioDistribution
-          distribution={distributionData.map(item => ({
+          distribution={distributionData.map((item) => ({
             ...item,
-            ticker: item.company
+            ticker: item.company,
           }))}
           cashBalance={300}
         />

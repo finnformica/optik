@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AccountValueOverTime } from "@/lib/db/schema";
+import { ViewWeeklyReturns } from "@/lib/db/schema";
 import {
   CartesianGrid,
   Legend,
@@ -14,7 +14,7 @@ import {
 } from "recharts";
 
 interface AccountValueChartProps {
-  accountValueData: AccountValueOverTime[];
+  accountValueData: ViewWeeklyReturns[];
 }
 
 const formatDate = (dateStr: string) => {

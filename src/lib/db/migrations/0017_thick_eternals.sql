@@ -1,0 +1,1 @@
+DROP VIEW "public"."view_account_value_over_time";
