@@ -457,11 +457,11 @@ export const viewAccountValueOverTime = pgView('view_account_value_over_time', {
     SELECT 
       a.user_id,
       d.week_ending_date as week_start,
-      -- Weekly transfers (money wire in/out)
-      SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount * tt.direction ELSE 0 END) as weekly_transfers,
+      -- Weekly transfers (money wire in/out) - no direction needed, amounts already signed
+      SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
       -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
       SUM(CASE 
-        WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount * tt.direction
+        WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount
         ELSE 0
       END) as weekly_gains
     FROM fact_transactions ft
