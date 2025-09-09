@@ -366,17 +366,14 @@ export const viewPositions = pgView('view_positions', {
   userId: integer('user_id'),
   symbol: varchar('symbol', { length: 50 }),
   underlyingSymbol: varchar('underlying_symbol', { length: 50 }),
-  securityName: text('security_name'),
   securityType: varchar('security_type', { length: 20 }),
   optionType: varchar('option_type', { length: 10 }),
   strikePrice: decimal('strike_price', { precision: 18, scale: 8 }),
-  expiryDate: date('expiry_date'),
   quantityHeld: decimal('quantity_held', { precision: 18, scale: 8 }),
   costBasis: decimal('cost_basis', { precision: 18, scale: 8 }),
   averagePrice: decimal('average_price', { precision: 18, scale: 8 }),
   totalFees: decimal('total_fees', { precision: 18, scale: 8 }),
   daysToExpiry: integer('days_to_expiry'),
-  direction: varchar('direction', { length: 10 }),
   positionStatus: varchar('position_status', { length: 10 }),
   firstTransactionDate: date('first_transaction_date'),
   lastTransactionDate: date('last_transaction_date'),
@@ -386,11 +383,9 @@ export const viewPositions = pgView('view_positions', {
     a.user_id,
     s.symbol,
     s.underlying_symbol,
-    s.security_name,
-    s.security_type,
-    s.option_type,
+    MAX(s.security_type) as security_type,
+    MAX(s.option_type) as option_type,
     s.strike_price,
-    s.expiry_date,
     
     -- Core position metrics from transaction aggregation
     SUM(ft.quantity) as quantity_held,
@@ -400,21 +395,18 @@ export const viewPositions = pgView('view_positions', {
     
     -- Days to expiry calculation
     CASE 
-      WHEN s.expiry_date IS NOT NULL 
-      THEN (s.expiry_date - CURRENT_DATE)::integer
+      WHEN MAX(s.expiry_date) IS NOT NULL 
+      THEN (MAX(s.expiry_date) - CURRENT_DATE)::integer
       ELSE NULL
     END as days_to_expiry,
     
-    -- Position direction
-    CASE 
-      WHEN SUM(ft.quantity) > 0.001 THEN 'LONG'
-      WHEN SUM(ft.quantity) < -0.001 THEN 'SHORT'
-      ELSE 'CLOSED'
-    END as direction,
-    
     -- Position status
     CASE 
-      WHEN ABS(SUM(ft.quantity)) > 0.001 THEN 'OPEN' 
+      -- Handle expired options
+      WHEN MAX(s.security_type) = 'OPTION' AND MAX(s.expiry_date) < CURRENT_DATE THEN 'CLOSED'
+      -- Different thresholds for different asset types
+      WHEN MAX(s.security_type) = 'OPTION' AND ABS(SUM(ft.quantity)) > 0.001 THEN 'OPEN'
+      WHEN MAX(s.security_type) = 'STOCK' AND ABS(SUM(ft.quantity)) > 0.0001 THEN 'OPEN'
       ELSE 'CLOSED' 
     END as position_status,
     
@@ -428,9 +420,8 @@ export const viewPositions = pgView('view_positions', {
   JOIN ${dimAccount} a ON ft.account_key = a.account_key
   JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
   JOIN ${dimDate} d ON ft.date_key = d.date_key
-  WHERE tt.action_category = 'TRADE'
-  GROUP BY a.user_id, s.symbol, s.underlying_symbol, s.security_name,
-           s.security_type, s.option_type, s.strike_price, s.expiry_date
+  WHERE tt.action_category IN ('TRADE', 'CORPORATE')
+  GROUP BY a.user_id, s.symbol, s.underlying_symbol, s.strike_price
 `);
 
 
@@ -445,14 +436,14 @@ export const viewPortfolioDistribution = pgView('view_portfolio_distribution', {
   SELECT 
     user_id,
     underlying_symbol as company,
-    SUM(ABS(cost_basis)) as position_value,
+    SUM(cost_basis) as position_value,
     COUNT(*)::integer as instrument_count,
-    (SUM(ABS(cost_basis)) / SUM(SUM(ABS(cost_basis))) OVER (PARTITION BY user_id)) * 100 as portfolio_percentage
+    (ABS(SUM(cost_basis)) / SUM(ABS(SUM(cost_basis))) OVER (PARTITION BY user_id)) * 100 as portfolio_percentage
     
   FROM view_positions
   WHERE position_status = 'OPEN'
   GROUP BY user_id, underlying_symbol
-  ORDER BY position_value DESC
+  ORDER BY ABS(position_value) DESC
 `);
 
 // Account Value Over Time (Your dashboard top-right chart)

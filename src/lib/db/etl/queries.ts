@@ -189,9 +189,10 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
   
         position_values_calc AS (
           -- Current invested amount (cost basis of held positions)
+          -- Note: cost_basis can be negative for short positions, positive for long positions
           SELECT 
             user_id,
-            SUM(ABS(cost_basis)) as total_position_value
+            SUM(cost_basis) as total_position_value
           FROM ${viewPositions}
           WHERE position_status = 'OPEN' AND user_id = ${userId}
           GROUP BY user_id
@@ -251,7 +252,7 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
         SELECT 
           u.id as user_id,
           COALESCE(pv.total_portfolio_value, 0)::text as portfolio_value,
-          COALESCE(pv.total_portfolio_value - COALESCE(pvs.total_position_value, 0), 0)::text as cash_balance,
+          COALESCE(pv.total_portfolio_value - COALESCE(pvs.total_position_value, 0), pv.total_portfolio_value, 0)::text as cash_balance,
           COALESCE(mp.monthly_realised_pnl, 0)::text as monthly_pnl, 
           COALESCE(yp.yearly_realised_pnl, 0)::text as yearly_pnl,
           

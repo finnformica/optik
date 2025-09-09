@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Position } from "@/lib/db/schema";
+import { ViewPosition } from "@/lib/db/schema";
 import { Badge } from "../ui/badge";
 interface CurrentPositionsProps {
-  positions: Position[];
+  positions: ViewPosition[];
 }
 
 const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
@@ -72,13 +72,13 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                 positions.map((position, index) => {
                   return (
                     <tr
-                      key={`${position.ticker}-${position.optionType}-${position.strikePrice}-${index}`}
+                      key={`${position.underlyingSymbol}-${position.strikePrice}-${index}`}
                     >
                       <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-white">
-                        {position.ticker}
+                        {position.underlyingSymbol}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
-                        {position.optionType || "Stock"}
+                        {position.optionType ?? position.securityType ?? "N/A"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
                         {position.strikePrice
@@ -86,11 +86,13 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                           : "-"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
-                        {"-"}
+                        {`${position.daysToExpiry} days` || "-"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
-                        {parseFloat(position.netQuantity || "0") > 0 ? "+" : ""}
-                        {parseFloat(position.netQuantity || "0")}
+                        {parseFloat(position.quantityHeld || "0") > 0
+                          ? "+"
+                          : ""}
+                        {parseFloat(position.quantityHeld || "0")}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm">
                         {renderBadge(2.5)}

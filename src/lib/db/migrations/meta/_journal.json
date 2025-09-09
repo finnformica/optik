@@ -50,6 +50,27 @@
       "when": 1757365727127,
       "tag": "0006_wonderful_komodo",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1757366752380,
+      "tag": "0007_salty_doomsday",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1757368628904,
+      "tag": "0008_absurd_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1757403739190,
+      "tag": "0009_nosy_silver_samurai",
+      "breakpoints": true
     }
   ]
 }
