@@ -148,6 +148,13 @@
       "when": 1757443768465,
       "tag": "0020_workable_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1757448701416,
+      "tag": "0021_wild_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }
