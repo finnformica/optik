@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth/session'
 import { SchwabAuth } from '@/lib/connections/schwab/schwab-oauth'
+import { syncSchwabBrokerAccounts } from '@/lib/db/etl/broker-accounts'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -33,12 +34,15 @@ export async function GET(request: NextRequest) {
       const tokens = await schwabAuth.exchangeCodeForTokens(code, redirectUri)
       
       // Store the tokens securely
-      await schwabAuth.storeTokens(session.user.id.toString(), tokens)
+      await schwabAuth.storeTokens(session.user.id, tokens)
+      
+      // Sync broker accounts - this is critical for data ingestion to work
+      await syncSchwabBrokerAccounts(session.user.id)
       
       return NextResponse.redirect(`${baseUrl}/settings/connections?success=connected&provider=schwab`)
     } catch (tokenError) {
-      console.error('Token exchange error:', tokenError)
-      return NextResponse.redirect(`${baseUrl}/settings/connections?error=token_exchange_failed&provider=schwab`)
+      console.error('Token exchange or account sync error:', tokenError)
+      return NextResponse.redirect(`${baseUrl}/settings/connections?error=setup_failed&provider=schwab`)
     }
   } catch (error) {
     console.error('Schwab OAuth callback error:', error)

@@ -310,6 +310,24 @@ export const dimBroker = pgTable('dim_broker', {
   updatedAt: timestamp('updated_at').defaultNow()
 });
 
+// Broker Account Dimension - Maps broker accounts to user accounts
+export const dimBrokerAccounts = pgTable('dim_broker_accounts', {
+  brokerAccountKey: serial('broker_account_key').primaryKey(),
+  accountKey: integer('account_key').notNull().references(() => dimAccount.accountKey),
+  brokerKey: integer('broker_key').notNull().references(() => dimBroker.brokerKey),
+  brokerAccountNumber: varchar('broker_account_number', { length: 50 }).notNull(),
+  brokerAccountHash: varchar('broker_account_hash', { length: 100 }).notNull(),
+  brokerAccountType: varchar('broker_account_type', { length: 50 }),
+  isActive: boolean('is_active').default(true),
+  lastSyncedAt: timestamp('last_synced_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => [
+  unique('unique_broker_account').on(table.accountKey, table.brokerKey, table.brokerAccountNumber),
+  index('idx_broker_accounts_account_broker').on(table.accountKey, table.brokerKey),
+  index('idx_broker_accounts_hash').on(table.brokerAccountHash)
+]);
+
 // =============================================
 // FACT TABLES
 // =============================================
@@ -568,7 +586,24 @@ export const dimAccountRelations = relations(dimAccount, ({ one, many }) => ({
     fields: [dimAccount.userId],
     references: [users.id]
   }),
+  transactions: many(factTransactions),
+  brokerAccounts: many(dimBrokerAccounts)
+}));
+
+export const dimBrokerRelations = relations(dimBroker, ({ many }) => ({
+  brokerAccounts: many(dimBrokerAccounts),
   transactions: many(factTransactions)
+}));
+
+export const dimBrokerAccountsRelations = relations(dimBrokerAccounts, ({ one }) => ({
+  account: one(dimAccount, {
+    fields: [dimBrokerAccounts.accountKey],
+    references: [dimAccount.accountKey]
+  }),
+  broker: one(dimBroker, {
+    fields: [dimBrokerAccounts.brokerKey],
+    references: [dimBroker.brokerKey]
+  })
 }));
 
 export const factTransactionsRelations = relations(factTransactions, ({ one }) => ({
@@ -604,6 +639,7 @@ export type DimSecurity = typeof dimSecurity.$inferSelect;
 export type DimTransactionType = typeof dimTransactionType.$inferSelect;
 export type DimAccount = typeof dimAccount.$inferSelect;
 export type DimBroker = typeof dimBroker.$inferSelect;
+export type DimBrokerAccounts = typeof dimBrokerAccounts.$inferSelect;
 
 export type FactTransaction = typeof factTransactions.$inferSelect;
 
@@ -613,5 +649,6 @@ export type ViewWeeklyReturns = typeof viewWeeklyReturns.$inferSelect;
 
 // Insert types
 export type NewFactTransaction = typeof factTransactions.$inferInsert;
+export type NewDimBrokerAccounts = typeof dimBrokerAccounts.$inferInsert;
 export type RawTransaction = typeof rawTransactions.$inferSelect;
 export type NewRawTransaction = typeof rawTransactions.$inferInsert;
