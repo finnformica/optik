@@ -39,6 +39,3 @@ next-env.d.ts
 # Docker
 postgres_data/
 .env*.local
-
-transactions.json
-single-transaction.json
