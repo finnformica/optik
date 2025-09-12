@@ -24,7 +24,7 @@ const menuItems: MenuItem[] = [
   // { href: paths.analysis, icon: BarChart3, title: "Analysis" },
   { href: paths.settings, icon: Settings, title: "Settings", bottom: true },
   // { href: paths.help, icon: HelpCircle, title: "Help", bottom: true },
-  { href: paths.logout, icon: LogOut, title: "Logout", bottom: true },
+  { href: paths.auth.signOut, icon: LogOut, title: "Sign Out", bottom: true },
 ];
 
 const Sidebar = () => {

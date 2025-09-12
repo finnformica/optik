@@ -18,6 +18,10 @@ export const paths = {
   dashboard: "/dashboard",
   analysis: "/analysis",
   settings: "/settings",
-  logout: "/logout",
+  auth: {
+    signIn: "/sign-in",
+    signUp: "/sign-up",
+    signOut: "/sign-out",
+  },
   help: "/help",
 };

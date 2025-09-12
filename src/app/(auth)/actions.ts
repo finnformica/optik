@@ -8,8 +8,10 @@ import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
 import { db } from '@/lib/db/config';
 import {
   users,
+  dimAccount,
   type NewUser
 } from '@/lib/db/schema';
+import { paths } from '@/lib/utils';
 import { eq, sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -74,7 +76,7 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
 
   if (existingUser.length > 0) {
     return {
-      error: 'Failed to create user. Please try again.',
+      error: 'An account with this email already exists. Please sign in instead.',
       email,
       password
     };
@@ -98,13 +100,22 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     };
   }
 
+  // Create a default account for the new user
+  await db.insert(dimAccount).values({
+    userId: createdUser.id,
+    accountName: 'Primary Account',
+    accountType: 'INDIVIDUAL',
+    currency: 'USD'
+  });
+
   await setSession(createdUser);
 
-  redirect('/dashboard');
+  redirect(paths.dashboard);
 });
 
 export async function signOut() {
   (await cookies()).delete('session');
+  redirect(paths.auth.signIn);
 }
 
 const updatePasswordSchema = z.object({
@@ -190,7 +201,7 @@ export const deleteAccount = validatedActionWithUser(
       .where(eq(users.id, user.id));
 
     (await cookies()).delete('session');
-    redirect('/sign-in');
+    redirect(paths.auth.signIn);
   }
 );
 
