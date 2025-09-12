@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       })
       .from(factTransactions)
       .innerJoin(dimAccount, eq(factTransactions.accountKey, dimAccount.accountKey))
-      .innerJoin(dimSecurity, eq(factTransactions.securityKey, dimSecurity.securityKey))
+      .leftJoin(dimSecurity, eq(factTransactions.securityKey, dimSecurity.securityKey))
       .innerJoin(dimDate, eq(factTransactions.dateKey, dimDate.dateKey))
       .innerJoin(dimTransactionType, eq(factTransactions.transactionTypeKey, dimTransactionType.transactionTypeKey))
       .innerJoin(dimBroker, eq(factTransactions.brokerKey, dimBroker.brokerKey))

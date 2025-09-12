@@ -1,4 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
+import { AlertCircle, CheckCircle, Info } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -11,6 +12,12 @@ const alertVariants = cva(
         default: "bg-card text-card-foreground",
         destructive:
           "text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
+        success:
+          "text-green-400 bg-green-900/20 border-green-600 [&>svg]:text-current *:data-[slot=alert-description]:text-green-200",
+        warning:
+          "text-yellow-400 bg-yellow-900/20 border-yellow-600 [&>svg]:text-current *:data-[slot=alert-description]:text-yellow-200",
+        info:
+          "text-blue-400 bg-blue-900/20 border-blue-600 [&>svg]:text-current *:data-[slot=alert-description]:text-blue-200",
       },
     },
     defaultVariants: {
@@ -19,9 +26,26 @@ const alertVariants = cva(
   }
 );
 
+const getIcon = (variant: "default" | "destructive" | "success" | "warning" | "info" | null | undefined) => {
+  switch (variant) {
+    case 'success':
+      return <CheckCircle className="w-4 h-4" />;
+    case 'warning':
+      return <AlertCircle className="w-4 h-4" />;
+    case 'destructive':
+      return <AlertCircle className="w-4 h-4" />;
+    case 'info':
+      return <Info className="w-4 h-4" />;
+    case 'default':
+    default:
+      return <Info className="w-4 h-4" />;
+  }
+};
+
 function Alert({
   className,
   variant,
+  children,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
   return (
@@ -30,7 +54,10 @@ function Alert({
       role="alert"
       className={cn(alertVariants({ variant }), className)}
       {...props}
-    />
+    >
+      {getIcon(variant)}
+      {children}
+    </div>
   );
 }
 

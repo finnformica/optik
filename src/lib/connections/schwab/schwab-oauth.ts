@@ -1,5 +1,6 @@
 import { TokenEncryption } from '@/lib/auth/token-encryption'
 import { db } from '@/lib/db/config'
+import { SchwabActivity } from '@/lib/db/etl/queries'
 import { userAccessTokens } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 
@@ -29,7 +30,7 @@ export class SchwabAuth {
   }
 
   // Store tokens
-  async storeTokens(userId: string, tokens: SchwabTokens): Promise<void> {
+  async storeTokens(userId: number, tokens: SchwabTokens): Promise<void> {
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000)
     
     // Encrypt token data
@@ -44,7 +45,7 @@ export class SchwabAuth {
       await db
         .insert(userAccessTokens)
         .values({
-          userId: parseInt(userId),
+          userId: userId,
           encryptedTokens,
           expiresAt,
           tokenType: tokens.token_type,
@@ -67,13 +68,13 @@ export class SchwabAuth {
   }
 
   // Retrieve and decrypt tokens
-  async getStoredTokens(userId: string): Promise<SchwabTokens | null> {
+  async getStoredTokens(userId: number): Promise<SchwabTokens | null> {
     try {
       const data = await db
         .select()
         .from(userAccessTokens)
         .where(and(
-          eq(userAccessTokens.userId, parseInt(userId)),
+          eq(userAccessTokens.userId, userId),
           eq(userAccessTokens.broker, 'schwab')
         ))
 
@@ -106,7 +107,7 @@ export class SchwabAuth {
   }
 
   // Enhanced token refresh with retry logic
-  async refreshAccessTokenSecurely(userId: string): Promise<string> {
+  async refreshAccessTokenSecurely(userId: number): Promise<string> {
     const tokens = await this.getStoredTokens(userId)
     
     if (!tokens) {
@@ -130,12 +131,12 @@ export class SchwabAuth {
   }
 
   // Clear tokens (for logout or failed refresh)
-  async clearStoredTokens(userId: string): Promise<void> {
+  async clearStoredTokens(userId: number): Promise<void> {
     try {
       await db
         .delete(userAccessTokens)
         .where(and(
-          eq(userAccessTokens.userId, parseInt(userId)),
+          eq(userAccessTokens.userId, userId),
           eq(userAccessTokens.broker, 'schwab')
         ))
     } catch (error) {
@@ -207,16 +208,127 @@ export class SchwabAuth {
   }
 
   // Make authenticated API request
-  async makeAuthenticatedRequest(userId: string, endpoint: string, options: RequestInit = {}): Promise<Response> {
+  async makeAuthenticatedRequest(userId: number, endpoint: string, options: RequestInit = {}): Promise<Response> {
     const accessToken = await this.refreshAccessTokenSecurely(userId)
+    
+    // Build headers based on the request method
+    const defaultHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${accessToken}`,
+      'Accept': 'application/json'
+    }
+    
+    // Only add Content-Type for non-GET requests (Schwab API will fail if this improperly configured)
+    if (options.method && options.method !== 'GET') {
+      defaultHeaders['Content-Type'] = 'application/json'
+    }
     
     return fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+        ...defaultHeaders,
         ...options.headers,
       },
     })
   }
+
+  // Get account numbers and hashes for the authenticated user
+  async getAccountNumbers(userId: number): Promise<SchwabAccountInfo[]> {
+    const response = await this.makeAuthenticatedRequest(
+      userId, 
+      '/trader/v1/accounts/accountNumbers', 
+      { method: 'GET' }
+    )
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to get account numbers: ${response.status} ${response.statusText} - ${errorText}`)
+    }
+
+    return await response.json()
+  }
+
+  // Get transaction history for a specific account
+  async getTransactionHistory(
+    userId: number, 
+    accountHash: string, 
+    fromDate: Date, 
+    toDate?: Date
+  ): Promise<SchwabActivity[]> {
+    const endDate = toDate || new Date()
+    let allTransactions: SchwabActivity[] = []
+    
+    // Schwab API limits date ranges to 1 year maximum
+    // Break the request into 1-year chunks
+    let currentStartDate = new Date(fromDate)
+    
+    while (currentStartDate < endDate) {
+      // Calculate end date for this batch (1 year from start, or final end date if sooner)
+      const currentEndDate = new Date(currentStartDate)
+      currentEndDate.setFullYear(currentEndDate.getFullYear() + 1)
+      
+      // Don't exceed the final end date
+      if (currentEndDate > endDate) {
+        currentEndDate.setTime(endDate.getTime())
+      }
+            
+      try {
+        const batchTransactions = await this.getTransactionHistoryBatch(
+          userId, 
+          accountHash, 
+          currentStartDate, 
+          currentEndDate
+        )
+        
+        allTransactions.push(...batchTransactions)
+      } catch (error) {
+        console.error(`Failed to fetch batch ${currentStartDate.toISOString().split('T')[0]} to ${currentEndDate.toISOString().split('T')[0]}:`, error)
+        // Continue with next batch even if one fails
+      }
+      
+      // Move to next year
+      currentStartDate = new Date(currentEndDate)
+      currentStartDate.setDate(currentStartDate.getDate() + 1) // Start the day after the previous batch ended
+    }
+    
+    return allTransactions
+  }
+
+  // Helper method to fetch a single batch (max 1 year)
+  private async getTransactionHistoryBatch(
+    userId: number, 
+    accountHash: string, 
+    fromDate: Date, 
+    toDate: Date
+  ): Promise<SchwabActivity[]> {
+    // Schwab expects dates in full ISO string format
+    const fromDateStr = fromDate.toISOString()
+    const toDateStr = toDate.toISOString()
+    
+    // Types include:
+    // TRADE, RECEIVE_AND_DELIVER, DIVIDEND_OR_INTEREST, 
+    // ACH_RECEIPT, ACH_DISBURSEMENT, CASH_RECEIPT, 
+    // CASH_DISBURSEMENT, ELECTRONIC_FUND, WIRE_OUT, WIRE_IN,
+    // JOURNAL, MEMORANDUM, MARGIN_CALL, MONEY_MARKET, SMA_ADJUSTMENT
+    const params = new URLSearchParams({
+      startDate: fromDateStr,
+      endDate: toDateStr,
+      types: 'TRADE,RECEIVE_AND_DELIVER,DIVIDEND_OR_INTEREST,WIRE_OUT,WIRE_IN'
+    })
+
+    const endpoint = `/trader/v1/accounts/${accountHash}/transactions?${params.toString()}`
+    const response = await this.makeAuthenticatedRequest(userId, endpoint, { method: 'GET' })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to get transaction history: ${response.statusText} - ${errorText}`)
+    }
+
+    const transactions = await response.json()
+    return Array.isArray(transactions) ? transactions : []
+  }
+}
+
+export interface SchwabAccountInfo {
+  accountNumber: string
+  hashValue: string
 }

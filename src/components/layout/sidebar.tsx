@@ -6,14 +6,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { paths } from "@/lib/utils";
-import {
-  BarChart3,
-  HelpCircle,
-  LayoutDashboard,
-  LogOut,
-  Receipt,
-  Settings,
-} from "lucide-react";
+import { LayoutDashboard, LogOut, Settings, Table2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -26,11 +19,11 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { href: paths.dashboard, icon: LayoutDashboard, title: "Dashboard" },
-  { href: paths.transactions, icon: Receipt, title: "Transactions" },
-  { href: paths.positions, icon: Receipt, title: "Positions" },
-  { href: paths.analysis, icon: BarChart3, title: "Analysis" },
+  { href: paths.transactions, icon: Table2, title: "Transactions" },
+  // { href: paths.positions, icon: Receipt, title: "Positions" },
+  // { href: paths.analysis, icon: BarChart3, title: "Analysis" },
   { href: paths.settings, icon: Settings, title: "Settings", bottom: true },
-  { href: paths.help, icon: HelpCircle, title: "Help", bottom: true },
+  // { href: paths.help, icon: HelpCircle, title: "Help", bottom: true },
   { href: paths.logout, icon: LogOut, title: "Logout", bottom: true },
 ];
 

@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import { userAccessTokens } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function disconnectSchwab() {
@@ -23,9 +24,9 @@ export async function disconnectSchwab() {
         eq(userAccessTokens.broker, 'schwab')
       ));
     
-    redirect('/settings/connections');
+    // Revalidate the connections page to show updated state
+    revalidatePath('/settings/connections');
   } catch (error) {
-    console.error('Error disconnecting Schwab:', error);
     throw new Error('Failed to disconnect Schwab account');
   }
 }

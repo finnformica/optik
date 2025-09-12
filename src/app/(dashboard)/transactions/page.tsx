@@ -1,15 +1,7 @@
 "use client";
 
 import _ from "lodash";
-import {
-  AlertCircle,
-  ArrowDown,
-  ArrowUp,
-  Filter,
-  Info,
-  RefreshCw,
-  Search,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, Filter, RefreshCw, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { syncTransactions, useTransactions } from "@/api/transactions";
@@ -60,10 +52,14 @@ interface Transaction {
   updatedAt: string;
 }
 
+interface AlertData {
+  variant: "default" | "destructive" | "success" | "warning" | "info";
+  message: string;
+}
+
 export default function TransactionsPage() {
   const [syncing, setSyncing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [alert, setAlert] = useState<AlertData | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAction, setSelectedAction] = useState<string>("all");
   const [selectedBroker, setSelectedBroker] = useState<string>("all");
@@ -71,25 +67,26 @@ export default function TransactionsPage() {
   const [sortField, setSortField] = useState<keyof Transaction>("date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  // Custom hook for fetching transactions
   const {
     transactions,
-    error: swrError,
     isLoading: loading,
     mutate: refreshData,
   } = useTransactions();
 
   const syncData = () => {
     setSyncing(true);
-    setError(null);
+    setAlert(null);
 
     syncTransactions()
       .then((result) => {
         refreshData();
-        setInfo(result.errors?.join(", ") ?? null);
+        setAlert(result.alert);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to sync data");
+        setAlert({
+          variant: "destructive",
+          message: err instanceof Error ? err.message : "Failed to sync data",
+        });
       })
       .finally(() => {
         setSyncing(false);
@@ -152,7 +149,13 @@ export default function TransactionsPage() {
       if (bValue === null) bValue = "";
 
       // Handle numeric fields
-      const numericFields = ["quantity", "netAmount", "fees", "grossAmount", "pricePerUnit"];
+      const numericFields = [
+        "quantity",
+        "netAmount",
+        "fees",
+        "grossAmount",
+        "pricePerUnit",
+      ];
       if (numericFields.includes(sortField as string)) {
         const aNum = parseFloat(aValue as string) || 0;
         const bNum = parseFloat(bValue as string) || 0;
@@ -235,22 +238,9 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
-      {(error || swrError) && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="w-4 h-4" />
-          <AlertDescription>
-            {error ||
-              (swrError instanceof Error
-                ? swrError.message
-                : "Failed to fetch transactions")}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {info && (
-        <Alert className="mb-6">
-          <Info className="w-4 h-4" />
-          <AlertDescription>{info}</AlertDescription>
+      {alert && (
+        <Alert variant={alert ? alert.variant : "destructive"} className="mb-6">
+          <AlertDescription>{alert.message}</AlertDescription>
         </Alert>
       )}
 

@@ -17,7 +17,6 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.redirect(authUrl)
   } catch (error) {
-    console.error('Schwab OAuth initiation error:', error)
     return NextResponse.json(
       { error: 'Failed to initiate Schwab OAuth' }, 
       { status: 500 }

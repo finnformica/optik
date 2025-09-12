@@ -34,7 +34,6 @@ async function getSchwabConnectionStatus(userId: number) {
       expiresAt: tokenRecord.expiresAt,
     };
   } catch (error) {
-    console.error("Error checking Schwab connection:", error);
     return { connected: false, expiresAt: null };
   }
 }
@@ -67,7 +66,7 @@ export default async function ConnectionsPage({
   };
 
   const successMessages = {
-    connected: "successfully connected!",
+    connected: "Successfully connected!",
   };
 
   const getProviderDisplayName = (provider?: string) => {
@@ -95,7 +94,7 @@ export default async function ConnectionsPage({
       {params.success && (
         <div className="mb-6 p-4 bg-green-900/20 border border-green-700 rounded-lg">
           <p className="text-green-400">
-            {`${getProviderDisplayName(params.provider)} ${
+            {`${getProviderDisplayName(params.provider)}: ${
               successMessages[params.success as keyof typeof successMessages] ||
               "Operation completed successfully"
             }`}
