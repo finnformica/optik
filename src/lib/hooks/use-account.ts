@@ -4,25 +4,38 @@ import { useState, useEffect, useCallback } from 'react';
 import { DimAccount } from '@/lib/db/schema';
 import { AccountManager } from '@/lib/auth/account-context';
 
-export function useAccount(userId: number) {
+export function useAccount() {
   const [currentAccount, setCurrentAccount] = useState<DimAccount | null>(null);
   const [accounts, setAccounts] = useState<DimAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadAccounts = useCallback(async () => {
-    if (!userId) return;
-    
     setIsLoading(true);
     try {
-      const userAccounts = await AccountManager.getUserAccounts(userId);
+      const { accounts: userAccounts, currentAccountKey } = await AccountManager.getUserAccounts();
       setAccounts(userAccounts);
 
-      // Determine current account
-      const lastUsedAccountKey = AccountManager.getLastUsedAccountKey();
-      const selectedAccount = AccountManager.determineCurrentAccount(
-        userAccounts,
-        lastUsedAccountKey
-      );
+      // Determine current account - prioritize server session over localStorage
+      let selectedAccount: DimAccount | null = null;
+      
+      if (currentAccountKey) {
+        // Use account from server session
+        selectedAccount = userAccounts.find(acc => acc.accountKey === currentAccountKey) || null;
+      }
+      
+      if (!selectedAccount) {
+        // Fallback to localStorage then first account
+        const lastUsedAccountKey = AccountManager.getLastUsedAccountKey();
+        selectedAccount = AccountManager.determineCurrentAccount(userAccounts, lastUsedAccountKey);
+        
+        // Update server session if we determined an account
+        if (selectedAccount) {
+          const result = await AccountManager.switchAccount(selectedAccount.accountKey);
+          if (!result.success) {
+            console.error('Failed to set initial account:', result.error);
+          }
+        }
+      }
       
       setCurrentAccount(selectedAccount);
       
@@ -37,22 +50,23 @@ export function useAccount(userId: number) {
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, []);
 
   const switchAccount = useCallback(async (accountKey: number) => {
-    // Validate user has access to this account
-    const hasAccess = await AccountManager.validateAccountAccess(userId, accountKey);
-    if (!hasAccess) {
-      console.error('User does not have access to account:', accountKey);
-      return;
+    const account = accounts.find(acc => acc.accountKey === accountKey);
+    if (!account) {
+      console.error('Account not found:', accountKey);
+      return { success: false, error: 'Account not found' };
     }
 
-    const account = accounts.find(acc => acc.accountKey === accountKey);
-    if (account) {
+    // Switch account on server using server action
+    const result = await AccountManager.switchAccount(accountKey);
+    if (result.success) {
       setCurrentAccount(account);
       AccountManager.setLastUsedAccountKey(accountKey);
     }
-  }, [userId, accounts]);
+    return result;
+  }, [accounts]);
 
   useEffect(() => {
     loadAccounts();

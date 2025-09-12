@@ -9,11 +9,10 @@ const AccountContext = createContext<AccountContextType | null>(null);
 
 interface AccountProviderProps {
   children: React.ReactNode;
-  userId: number;
 }
 
-export function AccountProvider({ children, userId }: AccountProviderProps) {
-  const accountHook = useAccount(userId);
+export function AccountProvider({ children }: AccountProviderProps) {
+  const accountHook = useAccount();
   
   const contextValue: AccountContextType = {
     currentAccount: accountHook.currentAccount,

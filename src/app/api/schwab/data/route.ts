@@ -3,18 +3,33 @@ import { SchwabAuth } from '@/lib/connections/schwab/schwab-oauth';
 import { db } from '@/lib/db/config';
 import { getActiveBrokerAccounts, getLastTransactionDate } from '@/lib/db/etl/broker-accounts';
 import { insertRawTransactions, processRawTransactions, SchwabActivity } from '@/lib/db/etl/queries';
+import { getCurrentAccount } from '@/lib/db/queries';
 import { NextResponse } from 'next/server';
 
 
 export async function POST() {
   try {
     const userId = await getUserId();
+    
+    // Get current account from session
+    const currentAccount = await getCurrentAccount();
+    if (!currentAccount) {
+      return NextResponse.json({
+        success: false,
+        processed: 0,
+        failed: 0,
+        alert: {
+          variant: 'destructive',
+          message: 'No current account found.'
+        }
+      }, { status: 401 });
+    }
 
     const schwabAuth = new SchwabAuth();
     let allTransactions: SchwabActivity[] = [];
 
     // Get all active Schwab broker accounts from database
-    const brokerAccounts = await getActiveBrokerAccounts(userId, 'schwab');
+    const brokerAccounts = await getActiveBrokerAccounts(currentAccount.accountKey, 'schwab');
 
     if (brokerAccounts.length === 0) {
       return NextResponse.json({
@@ -32,7 +47,7 @@ export async function POST() {
     for (const account of brokerAccounts) {
       try {
         // Get the last transaction date for incremental sync
-        const lastTransactionDate = await getLastTransactionDate(userId, 'schwab');
+        const lastTransactionDate = await getLastTransactionDate(currentAccount.accountKey, 'schwab');
         
         // Fetch new transactions from Schwab API
         const accountTransactions = await schwabAuth.getTransactionHistory(
@@ -55,11 +70,11 @@ export async function POST() {
     const results = await db.transaction(async (tx) => {
       if (allTransactions.length > 0) {
         // 1. Insert raw broker data
-        await insertRawTransactions(allTransactions, userId, tx);
+        await insertRawTransactions(allTransactions, currentAccount.accountKey, tx);
       }
 
       // 2. Process pending transactions
-      return await processRawTransactions(userId, tx);
+      return await processRawTransactions(currentAccount.accountKey, tx);
     });
 
 

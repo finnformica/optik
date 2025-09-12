@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth/session'
 import { SchwabAuth } from '@/lib/connections/schwab/schwab-oauth'
 import { syncSchwabBrokerAccounts } from '@/lib/db/etl/broker-accounts'
+import { getCurrentAccount } from '@/lib/db/queries'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -32,8 +33,11 @@ export async function GET(request: NextRequest) {
       // Store the tokens securely
       await schwabAuth.storeTokens(session.user.id, tokens)
       
+      // Get current account for broker connection
+      const currentAccount = await getCurrentAccount()
+      
       // Sync broker accounts - this is critical for data ingestion to work
-      await syncSchwabBrokerAccounts(session.user.id)
+      await syncSchwabBrokerAccounts(session.user.id, currentAccount?.accountKey)
       
       return NextResponse.redirect(`${baseUrl}/settings/connections?success=connected&provider=schwab`)
     } catch (tokenError) {

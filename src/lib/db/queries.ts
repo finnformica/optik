@@ -1,8 +1,8 @@
-import { verifyToken } from '@/lib/auth/session';
+import { getCurrentAccountKey, getSession, verifyToken } from '@/lib/auth/session';
 import { and, eq, isNull } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { db } from './config';
-import { users, dimAccount } from './schema';
+import { dimAccount, users } from './schema';
 
 export async function getUser() {
   const sessionCookie = (await cookies()).get('session');
@@ -79,6 +79,23 @@ export async function getCurrentAccountForUser(userId: number, requestedAccountK
 
   // Fallback to first account (oldest/primary)
   return userAccounts[0];
+}
+
+export async function getCurrentAccount() {
+  const session = await getSession();
+
+  // Try to get account key from session
+  const sessionAccountKey = await getCurrentAccountKey();
+  
+  if (sessionAccountKey) {
+    // Validate user has access to this account
+    const account = await getUserAccount(session.user.id, sessionAccountKey);
+    if (account) return account;
+  }
+
+  // Fallback to first account if session account is invalid
+  const accounts = await getUserAccounts(session.user.id);
+  return accounts.length > 0 ? accounts[0] : null;
 }
 
 

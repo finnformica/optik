@@ -46,29 +46,28 @@ export class AccountManager {
     return accounts[0];
   }
 
-  static async getUserAccounts(userId: number): Promise<DimAccount[]> {
+  static async getUserAccounts(): Promise<{ accounts: DimAccount[], currentAccountKey?: number }> {
     try {
-      const response = await fetch(`/api/user/accounts?userId=${userId}`);
+      const response = await fetch('/api/user/accounts');
       if (!response.ok) {
         throw new Error('Failed to fetch user accounts');
       }
       return response.json();
     } catch (error) {
       console.error('Error fetching user accounts:', error);
-      return [];
+      return { accounts: [] };
     }
   }
 
-  static async validateAccountAccess(
-    userId: number,
-    accountKey: number
-  ): Promise<boolean> {
+  static async switchAccount(accountKey: number): Promise<{ success: boolean; error?: string }> {
     try {
-      const accounts = await this.getUserAccounts(userId);
-      return accounts.some((account) => account.accountKey === accountKey);
+      // Import server action dynamically to avoid SSR issues
+      const { switchAccount } = await import('@/lib/actions/account-actions');
+      const result = await switchAccount(accountKey);
+      return result;
     } catch (error) {
-      console.error('Error validating account access:', error);
-      return false;
+      console.error('Error switching account:', error);
+      return { success: false, error: 'Failed to switch account' };
     }
   }
 }

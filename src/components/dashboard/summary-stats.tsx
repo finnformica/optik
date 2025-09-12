@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { getUserId } from "@/lib/auth/session";
+import { getCurrentAccount } from "@/lib/db/queries";
 import { getPortfolioSummary, PortfolioSummary } from "@/lib/db/etl/queries";
 import {
   Calendar,
@@ -23,11 +23,11 @@ interface SummaryCard {
 }
 
 const SummaryStats = async () => {
-  const userId = await getUserId();
+  const currentAccount = await getCurrentAccount();
 
-  if (!userId) return null;
+  if (!currentAccount) return null;
 
-  const summary = await getPortfolioSummary(userId);
+  const summary = await getPortfolioSummary(currentAccount.accountKey);
 
   // Format currency
   const formatCurrency = (amount: number) => {

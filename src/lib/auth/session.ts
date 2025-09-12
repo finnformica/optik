@@ -21,6 +21,7 @@ export async function comparePasswords(
 
 type SessionData = {
   user: { id: number };
+  currentAccountKey?: number;
   expires: string;
 };
 
@@ -63,4 +64,27 @@ export async function setSession(user: NewUser) {
 export async function getUserId() {
   const session = await getSession();
   return session.user.id;
+}
+
+export async function getCurrentAccountKey() {
+  const session = await getSession();
+  return session.currentAccountKey;
+}
+
+export async function updateSessionAccount(accountKey: number) {
+  const session = await getSession();
+  const updatedSession: SessionData = {
+    ...session,
+    currentAccountKey: accountKey,
+  };
+  
+  const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const encryptedSession = await signToken(updatedSession);
+  
+  (await cookies()).set('session', encryptedSession, {
+    expires: expiresInOneDay,
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+  });
 }
