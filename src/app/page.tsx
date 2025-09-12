@@ -1,11 +1,12 @@
 import { getUserId } from "@/lib/auth/session";
+import { paths } from "@/lib/utils";
 import { redirect } from "next/navigation";
 
 export default async function HomePage() {
   const userId = await getUserId();
   if (!userId) {
-    redirect("/sign-in");
+    redirect(paths.auth.signIn);
   }
 
-  redirect("/dashboard");
+  redirect(paths.dashboard);
 }

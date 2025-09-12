@@ -13,11 +13,17 @@ export const endpoints = {
 };
 
 export const paths = {
-  transactions: "/transactions",
+  root: "/",
+  home: "/home",
+  help: "/help",
+  settings: "/settings",
+  analysis: "/analysis",
   positions: "/positions",
   dashboard: "/dashboard",
-  analysis: "/analysis",
-  settings: "/settings",
-  logout: "/logout",
-  help: "/help",
+  transactions: "/transactions",
+  auth: {
+    signIn: "/sign-in",
+    signUp: "/sign-up",
+    signOut: "/sign-out",
+  },
 };

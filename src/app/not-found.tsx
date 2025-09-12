@@ -1,3 +1,4 @@
+import { paths } from "@/lib/utils";
 import { CircleIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -16,7 +17,7 @@ export default function NotFound() {
           changed, or is temporarily unavailable.
         </p>
         <Link
-          href="/"
+          href={paths.home}
           className="max-w-48 mx-auto flex justify-center py-2 px-4 border border-gray-600 rounded-full shadow-sm text-sm font-medium text-white bg-[#1a2236] hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Back to Home
