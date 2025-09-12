@@ -11,15 +11,9 @@ import {
   viewWeeklyReturns,
 } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
-import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
-  // Get user session
   const session = await getSession();
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
   const userId = session.user.id;
 
   // Fetch all analytics data in parallel

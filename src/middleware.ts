@@ -4,15 +4,27 @@ import { NextResponse } from 'next/server';
 import { paths } from './lib/utils';
 
 const protectedRoutes = '/dashboard';
+const publicApiRoutes = ['/api/stripe/webhook'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('session');
+  
   const isProtectedRoute = pathname.startsWith(protectedRoutes);
+  const isApiRoute = pathname.startsWith('/api');
+  const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route));
+  const isProtectedApiRoute = isApiRoute && !isPublicApiRoute;
   const isAuthRoute = pathname.startsWith(paths.auth.signIn) || pathname.startsWith(paths.auth.signUp);
 
   if (isProtectedRoute && !sessionCookie) {
     return NextResponse.redirect(new URL(paths.auth.signIn, request.url));
+  }
+
+  if (isProtectedApiRoute && !sessionCookie) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
   }
 
   if (isAuthRoute && sessionCookie) {
@@ -43,6 +55,12 @@ export async function middleware(request: NextRequest) {
       if (isProtectedRoute) {
         return NextResponse.redirect(new URL(paths.auth.signIn, request.url));
       }
+      if (isProtectedApiRoute) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
     }
   }
 
@@ -50,6 +68,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
   runtime: "nodejs",
 };

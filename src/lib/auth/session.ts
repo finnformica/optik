@@ -1,7 +1,9 @@
 import { NewUser } from '@/lib/db/schema';
+import { paths } from '@/lib/utils';
 import { compare, hash } from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 const key = new TextEncoder().encode(process.env.AUTH_SECRET);
 const SALT_ROUNDS = 10;
@@ -39,7 +41,7 @@ export async function verifyToken(input: string) {
 
 export async function getSession() {
   const session = (await cookies()).get('session')?.value;
-  if (!session) return null;
+  if (!session) redirect(paths.auth.signIn);
   return await verifyToken(session);
 }
 
@@ -60,6 +62,5 @@ export async function setSession(user: NewUser) {
 
 export async function getUserId() {
   const session = await getSession();
-  if (!session?.user?.id) return null;
   return session.user.id;
 }

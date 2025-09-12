@@ -6,7 +6,6 @@ import { db } from "@/lib/db/config";
 import { userAccessTokens } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { CheckCircle, ExternalLink, XCircle } from "lucide-react";
-import { redirect } from "next/navigation";
 import { connectSchwab, disconnectSchwab } from "./actions";
 
 async function getSchwabConnectionStatus(userId: number) {
@@ -49,10 +48,6 @@ export default async function ConnectionsPage({
 }) {
   const session = await getSession();
   const params = await searchParams;
-
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
 
   const userId = session.user.id;
   const { connected, expiresAt } = await getSchwabConnectionStatus(userId);

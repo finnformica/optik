@@ -10,22 +10,6 @@ export async function POST() {
   try {
     const userId = await getUserId();
 
-    if (!userId) {
-      return NextResponse.json(
-        { 
-          success: false,
-          processed: 0,
-          failed: 0,
-          transactionsFetched: 0,
-          alert: {
-            variant: 'destructive',
-            message: 'Authentication required. Please log in to sync transactions.'
-          }
-        },
-        { status: 401 }
-      );
-    }
-
     const schwabAuth = new SchwabAuth();
     let allTransactions: SchwabActivity[] = [];
 

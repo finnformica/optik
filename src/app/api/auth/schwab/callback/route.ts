@@ -8,10 +8,6 @@ export async function GET(request: NextRequest) {
   
   try {
     const session = await getSession()
-    
-    if (!session?.user?.id) {
-      return NextResponse.redirect(`${baseUrl}/sign-in?error=not_authenticated&provider=schwab`)
-    }
 
     const searchParams = request.nextUrl.searchParams
     const code = searchParams.get('code')

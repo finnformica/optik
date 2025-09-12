@@ -12,15 +12,7 @@ import { desc, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  try {
     const userId = await getUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
 
     // Get all transactions for the user with dimension data
     const userTransactions = await db
@@ -72,12 +64,4 @@ export async function GET(request: NextRequest) {
       transactions: userTransactions,
       count: userTransactions.length
     });
-
-  } catch (error) {
-    console.error('Error fetching transactions:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
 }

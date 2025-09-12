@@ -9,11 +9,6 @@ import { redirect } from "next/navigation";
 
 export async function disconnectSchwab() {
   const session = await getSession();
-  
-  if (!session?.user?.id) {
-    throw new Error('Not authenticated');
-  }
-
   const userId = session.user.id;
 
   try {
