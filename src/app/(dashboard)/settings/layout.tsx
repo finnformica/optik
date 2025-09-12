@@ -1,16 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Activity,
-  Link as LinkIcon,
-  Settings,
-  Shield,
-  Users,
-} from "lucide-react";
+import { Link as LinkIcon, Settings, Shield } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 
 export default function SettingsLayout({
   children,
@@ -18,13 +11,10 @@ export default function SettingsLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navItems = [
-    { href: "/settings", icon: Users, label: "Team" },
     { href: "/settings/general", icon: Settings, label: "General" },
     { href: "/settings/connections", icon: LinkIcon, label: "Connections" },
-    { href: "/settings/activity", icon: Activity, label: "Activity" },
     { href: "/settings/security", icon: Shield, label: "Security" },
   ];
 
