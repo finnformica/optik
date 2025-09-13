@@ -1,0 +1,1 @@
+ALTER TABLE "dim_account" DROP CONSTRAINT "unique_user_account";

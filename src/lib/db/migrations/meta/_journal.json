@@ -169,6 +169,13 @@
       "when": 1757703754222,
       "tag": "0023_previous_slyde",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1757751499652,
+      "tag": "0024_true_paladin",
+      "breakpoints": true
     }
   ]
 }

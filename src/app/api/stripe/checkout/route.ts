@@ -1,6 +1,6 @@
 import { setSession } from '@/lib/auth/session';
 import { db } from '@/lib/db/config';
-import { teamMembers, teams, users } from '@/lib/db/schema';
+import { dimAccount, users } from '@/lib/db/schema';
 import { stripe } from '@/lib/payments/stripe';
 import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
@@ -55,8 +55,19 @@ export async function GET(request: NextRequest) {
     }
 
     const user = await db
-      .select()
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        passwordHash: users.passwordHash,
+        role: users.role,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        deletedAt: users.deletedAt,
+        accountKey: dimAccount.accountKey
+      })
       .from(users)
+      .innerJoin(dimAccount, eq(users.id, dimAccount.userId))
       .where(eq(users.id, Number(userId)))
       .limit(1);
 
@@ -64,31 +75,21 @@ export async function GET(request: NextRequest) {
       throw new Error('User not found in database.');
     }
 
-    const userTeam = await db
-      .select({
-        teamId: teamMembers.teamId,
-      })
-      .from(teamMembers)
-      .where(eq(teamMembers.userId, user[0].id))
-      .limit(1);
+    // await db
+    //   .update(teams)
+    //   .set({
+    //     stripeCustomerId: customerId,
+    //     stripeSubscriptionId: subscriptionId,
+    //     stripeProductId: productId,
+    //     planName: (plan.product as Stripe.Product).name,
+    //     subscriptionStatus: subscription.status,
+    //     updatedAt: new Date(),
+    //   })
+    //   .where(eq(teams.id, userTeam[0].teamId));
 
-    if (userTeam.length === 0) {
-      throw new Error('User is not associated with any team.');
-    }
 
-    await db
-      .update(teams)
-      .set({
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: subscriptionId,
-        stripeProductId: productId,
-        planName: (plan.product as Stripe.Product).name,
-        subscriptionStatus: subscription.status,
-        updatedAt: new Date(),
-      })
-      .where(eq(teams.id, userTeam[0].teamId));
 
-    await setSession(user[0]);
+    await setSession(user[0], user[0].accountKey);
     return NextResponse.redirect(new URL('/dashboard', request.url));
   } catch (error) {
     console.error('Error handling successful checkout:', error);

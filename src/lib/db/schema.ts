@@ -33,10 +33,6 @@ export const users = pgTable('users', {
   deletedAt: timestamp('deleted_at'),
 });
 
-
-
-
-
 export const userAccessTokens = pgTable('user_access_tokens', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id),
@@ -51,15 +47,10 @@ export const userAccessTokens = pgTable('user_access_tokens', {
   unique('unique_user_broker_token').on(table.userId, table.broker)
 ]);
 
-
 export const usersRelations = relations(users, ({ many }) => ({
   accessTokens: many(userAccessTokens),
+  accounts: many(dimAccount),
 }));
-
-
-
-
-
 
 export const userAccessTokensRelations = relations(userAccessTokens, ({ one }) => ({
   user: one(users, {
@@ -113,8 +104,6 @@ export const rawTransactions = pgTable('raw_transactions', {
   index('idx_raw_transactions_user_status').on(table.userId, table.status),
   index('idx_raw_transactions_broker_id').on(table.brokerTransactionId)
 ]);
-
-
 
 // =============================================
 // DIMENSIONAL TABLES
@@ -196,9 +185,7 @@ export const dimAccount = pgTable('dim_account', {
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
-}, (table) => [
-  unique('unique_user_account').on(table.userId) // One account per user for now
-]);
+});
 
 // Broker Dimension
 export const dimBroker = pgTable('dim_broker', {

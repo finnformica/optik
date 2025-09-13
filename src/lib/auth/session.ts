@@ -1,9 +1,13 @@
-import { NewUser } from '@/lib/db/schema';
-import { paths } from '@/lib/utils';
 import { compare, hash } from 'bcryptjs';
-import { SignJWT, jwtVerify } from 'jose';
+import { eq } from 'drizzle-orm';
+import { jwtVerify, SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+
+import { db } from '@/lib/db/config';
+import { dimAccount, NewUser } from '@/lib/db/schema';
+import { paths } from '@/lib/utils';
+
 
 const key = new TextEncoder().encode(process.env.AUTH_SECRET);
 const SALT_ROUNDS = 10;
@@ -22,6 +26,7 @@ export async function comparePasswords(
 type SessionData = {
   user: { id: number };
   expires: string;
+  accountKey: number;
 };
 
 export async function signToken(payload: SessionData) {
@@ -45,19 +50,53 @@ export async function getSession() {
   return await verifyToken(session);
 }
 
-export async function setSession(user: NewUser) {
+export async function setSession(user: NewUser, accountKey: number) {
   const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const session: SessionData = {
     user: { id: user.id! },
     expires: expiresInOneDay.toISOString(),
+    accountKey,
   };
+
   const encryptedSession = await signToken(session);
+
   (await cookies()).set('session', encryptedSession, {
     expires: expiresInOneDay,
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
   });
+}
+
+export async function updateSessionAccountKey(accountKey: number) {
+  const session = await getSession();
+  const updatedSession: SessionData = {
+    ...session,
+    accountKey,
+  };
+
+  // Keep the same expiry as the current session
+  const expiryDate = new Date(session.expires);
+  const encryptedSession = await signToken(updatedSession);
+  
+  (await cookies()).set('session', encryptedSession, {
+    expires: expiryDate,
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+  });
+}
+
+export async function getAccountKey() {
+  const session = await getSession();
+  return session.accountKey;
+}
+
+export async function getAccount() {
+  const session = await getSession();
+
+  const [account] = await db.select().from(dimAccount).where(eq(dimAccount.accountKey, session.accountKey)).limit(1);
+  return account
 }
 
 export async function getUserId() {

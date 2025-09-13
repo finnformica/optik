@@ -7,8 +7,8 @@ import {
 import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
 import { db } from '@/lib/db/config';
 import {
-  users,
   dimAccount,
+  users,
   type NewUser
 } from '@/lib/db/schema';
 import { paths } from '@/lib/utils';
@@ -27,8 +27,19 @@ export const signIn = validatedAction(signInSchema, async (data) => {
   const { email, password } = data;
 
   const foundUsers = await db
-    .select()
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      passwordHash: users.passwordHash,
+      role: users.role,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+      deletedAt: users.deletedAt,
+      accountKey: dimAccount.accountKey
+    })
     .from(users)
+    .innerJoin(dimAccount, eq(users.id, dimAccount.userId))
     .where(eq(users.email, email))
     .limit(1);
 
@@ -55,7 +66,7 @@ export const signIn = validatedAction(signInSchema, async (data) => {
     };
   }
 
-  await setSession(foundUser);
+  await setSession(foundUser, foundUser.accountKey);
 
   redirect('/dashboard');
 });
@@ -101,14 +112,14 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
   }
 
   // Create a default account for the new user
-  await db.insert(dimAccount).values({
+  const [createdAccount] = await db.insert(dimAccount).values({
     userId: createdUser.id,
     accountName: 'Primary Account',
     accountType: 'INDIVIDUAL',
     currency: 'USD'
-  });
+  }).returning();
 
-  await setSession(createdUser);
+  await setSession(createdUser, createdAccount.accountKey);
 
   redirect(paths.dashboard);
 });
