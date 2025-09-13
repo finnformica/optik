@@ -5,6 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AccountSwitcher } from "./account-switcher";
 import { paths } from "@/lib/utils";
 import { LayoutDashboard, LogOut, Settings, Table2 } from "lucide-react";
 import Link from "next/link";
@@ -35,21 +36,16 @@ const Sidebar = () => {
     const isActive = pathname.includes(item.href);
 
     return (
-      <Tooltip key={item.href}>
-        <TooltipTrigger asChild>
-          <Link
-            href={item.href}
-            className={`flex items-center justify-center p-4 mb-2 mx-2 rounded-lg transition-colors ${
-              isActive ? "bg-blue-900/50 text-blue-400" : "hover:bg-gray-800"
-            }`}
-          >
-            <Icon className="h-5 w-5" />
-          </Link>
-        </TooltipTrigger>
-        <TooltipContent side="right" showArrow={false} sideOffset={10}>
-          <p>{item.title}</p>
-        </TooltipContent>
-      </Tooltip>
+      <Link
+        key={item.href}
+        href={item.href}
+        className={`flex items-center gap-3 p-3 mb-2 rounded-lg transition-colors ${
+          isActive ? "bg-blue-900/50 text-blue-400" : "hover:bg-gray-800 text-gray-300"
+        }`}
+      >
+        <Icon className="h-5 w-5 flex-shrink-0" />
+        <span className="font-medium">{item.title}</span>
+      </Link>
     );
   };
 
@@ -57,12 +53,20 @@ const Sidebar = () => {
   const bottomMenuItems = menuItems.filter((item) => item.bottom);
 
   return (
-    <div className="w-18 bg-[#0a101e] text-white flex flex-col h-screen fixed left-0 top-0">
-      <div className="m-2 mb-2 rounded-lg p-4 flex justify-center bg-[#111827]">
-        <h1 className="text-md font-bold">XYZ</h1>
+    <div className="w-64 bg-[#0a101e] text-white flex flex-col h-screen fixed left-0 top-0">
+      <div className="m-2 mb-4 rounded-lg p-4 flex justify-center bg-[#111827]">
+        <h1 className="text-md font-bold">Optik</h1>
       </div>
-      <nav className="flex-1">{topMenuItems.map(renderMenuItem)}</nav>
-      <div className="mt-auto pb-4">{bottomMenuItems.map(renderMenuItem)}</div>
+      
+      {/* Account Switcher */}
+      <AccountSwitcher />
+      
+      <nav className="flex-1 px-2">
+        {topMenuItems.map(renderMenuItem)}
+      </nav>
+      <div className="px-2 pb-4">
+        {bottomMenuItems.map(renderMenuItem)}
+      </div>
     </div>
   );
 };

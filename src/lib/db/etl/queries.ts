@@ -60,12 +60,12 @@ export interface SchwabActivity {
  * Insert API data in raw transactions table
 */
 
-export async function insertRawTransactions(data: SchwabActivity[], userId: number, tx?: any) {
+export async function insertRawTransactions(data: SchwabActivity[], accountKey: number, tx?: any) {
     const database = tx || db;
 
     // Convert SchwabActivity to expected raw_transactions format
     const formattedData = data.map(activity => ({
-      userId,
+      accountKey,
       brokerCode: 'schwab', // hard-coded from the dim_broker table
       brokerTransactionId: activity.activityId.toString(),
       rawData: activity,
@@ -84,15 +84,15 @@ export async function insertRawTransactions(data: SchwabActivity[], userId: numb
  * Process raw transactions into dimensional model
  * Handles Schwab data transformation
  */
-export async function processRawTransactions(userId: number, tx?: any) {
+export async function processRawTransactions(accountKey: number, tx?: any) {
     const database = tx || db;
     
-    // Get pending transactions for user
+    // Get pending transactions for account
     const pendingTransactions = await database.select()
       .from(rawTransactions)
       .where(
         and(
-          eq(rawTransactions.userId, userId),
+          eq(rawTransactions.accountKey, accountKey),
         //   eq(rawTransactions.status, 'PENDING'),
         inArray(rawTransactions.status, ['PENDING', 'ERROR'])
         )
@@ -171,85 +171,81 @@ export interface PortfolioSummary {
   }
 
 
-export async function getPortfolioSummary(userId: number): Promise<PortfolioSummary> {
+export async function getPortfolioSummary(accountKey: number): Promise<PortfolioSummary> {
     try {
       const result = await db.execute(sql`
         WITH portfolio_value_calc AS (
           -- Calculate total portfolio value from all transaction flows
           SELECT 
-            a.user_id,
+            ft.account_key,
             SUM(ft.net_amount) as total_portfolio_value
           FROM ${factTransactions} ft
-          JOIN ${dimAccount} a ON ft.account_key = a.account_key
           JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-          WHERE a.user_id = ${userId}
-          GROUP BY a.user_id
+          WHERE ft.account_key = ${accountKey}
+          GROUP BY ft.account_key
         ),
   
         position_values_calc AS (
           -- Current invested amount (position value of held positions)
           -- Note: position_value can be negative for short positions, positive for long positions
           SELECT 
-            user_id,
+            account_key,
             SUM(position_value) as total_position_value
           FROM ${viewPositions}
-          WHERE position_status = 'OPEN' AND user_id = ${userId}
-          GROUP BY user_id
+          WHERE position_status = 'OPEN' AND account_key = ${accountKey}
+          GROUP BY account_key
         ),
   
         realised_monthly_pnl AS (
           -- Realised P/L for current month
           SELECT 
-            a.user_id,
+            ft.account_key,
             SUM(ft.net_amount) as monthly_realised_pnl
           FROM ${factTransactions} ft
           JOIN ${dimDate} d ON ft.date_key = d.date_key
-          JOIN ${dimAccount} a ON ft.account_key = a.account_key
           JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
           WHERE 
             tt.action_category IN ('TRADE', 'INCOME')
             AND d.year = EXTRACT(YEAR FROM CURRENT_DATE)
             AND d.month_number = EXTRACT(MONTH FROM CURRENT_DATE)
-            AND a.user_id = ${userId}
-          GROUP BY a.user_id
+            AND ft.account_key = ${accountKey}
+          GROUP BY ft.account_key
         ),
   
         realised_yearly_pnl AS (
           -- Realised P/L for current year
           SELECT 
-            a.user_id,
+            ft.account_key,
             SUM(ft.net_amount) as yearly_realised_pnl
           FROM ${factTransactions} ft
           JOIN ${dimDate} d ON ft.date_key = d.date_key
-          JOIN ${dimAccount} a ON ft.account_key = a.account_key
           JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
           WHERE 
             tt.action_category IN ('TRADE', 'INCOME')
             AND d.year = EXTRACT(YEAR FROM CURRENT_DATE)
-            AND a.user_id = ${userId}
-          GROUP BY a.user_id
+            AND ft.account_key = ${accountKey}
+          GROUP BY ft.account_key
         ),
   
         realised_weekly_pnl AS (
           -- Realised P/L for current week
           SELECT 
-            a.user_id,
+            ft.account_key,
             SUM(ft.net_amount) as weekly_realised_pnl
           FROM ${factTransactions} ft
           JOIN ${dimDate} d ON ft.date_key = d.date_key
-          JOIN ${dimAccount} a ON ft.account_key = a.account_key
           JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
           WHERE 
             tt.action_category IN ('TRADE', 'INCOME')
             AND d.full_date >= DATE_TRUNC('week', CURRENT_DATE)
             AND d.full_date <= CURRENT_DATE
-            AND a.user_id = ${userId}
-          GROUP BY a.user_id
+            AND ft.account_key = ${accountKey}
+          GROUP BY ft.account_key
         )
   
         -- Final summary query
         SELECT 
-          u.id as user_id,
+          a.account_key,
           COALESCE(pv.total_portfolio_value, 0)::text as portfolio_value,
           COALESCE(pv.total_portfolio_value - COALESCE(pvs.total_position_value, 0), pv.total_portfolio_value, 0)::text as cash_balance,
           COALESCE(mp.monthly_realised_pnl, 0)::text as monthly_pnl, 
@@ -274,14 +270,14 @@ export async function getPortfolioSummary(userId: number): Promise<PortfolioSumm
             ELSE '0'
           END as weekly_pnl_percent
   
-        FROM ${users} u
-        LEFT JOIN portfolio_value_calc pv ON u.id = pv.user_id
-        LEFT JOIN position_values_calc pvs ON u.id = pvs.user_id
-        LEFT JOIN realised_monthly_pnl mp ON u.id = mp.user_id
-        LEFT JOIN realised_yearly_pnl yp ON u.id = yp.user_id
-        LEFT JOIN realised_weekly_pnl wp ON u.id = wp.user_id
-        WHERE u.id = ${userId}
-        AND u.deleted_at IS NULL
+        FROM ${dimAccount} a
+        LEFT JOIN portfolio_value_calc pv ON a.account_key = pv.account_key
+        LEFT JOIN position_values_calc pvs ON a.account_key = pvs.account_key
+        LEFT JOIN realised_monthly_pnl mp ON a.account_key = mp.account_key
+        LEFT JOIN realised_yearly_pnl yp ON a.account_key = yp.account_key
+        LEFT JOIN realised_weekly_pnl wp ON a.account_key = wp.account_key
+        WHERE a.account_key = ${accountKey}
+        AND a.is_active = true
       `);
   
       const row = result[0];

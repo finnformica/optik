@@ -7,25 +7,42 @@ import { and, desc, eq } from 'drizzle-orm';
  * Sync Schwab broker accounts during OAuth flow
  * Called when user authenticates with Schwab
  */
-export async function syncSchwabBrokerAccounts(userId: number): Promise<void> {
+export async function syncSchwabBrokerAccounts(userId: number, targetAccountKey?: number): Promise<void> {
   const schwabAuth = new SchwabAuth();
   
   try {
     // Get account info from Schwab API
     const accountsFromAPI = await schwabAuth.getAccountNumbers(userId);
     
-    // Get user's account key (assumes one account per user for now)
-    const userAccount = await db
-      .select()
-      .from(dimAccount)
-      .where(eq(dimAccount.userId, userId))
-      .limit(1);
+    let accountKey: number;
+    
+    if (targetAccountKey) {
+      // Verify user has access to the specified account
+      const userAccount = await db
+        .select()
+        .from(dimAccount)
+        .where(and(eq(dimAccount.userId, userId), eq(dimAccount.accountKey, targetAccountKey)))
+        .limit(1);
 
-    if (!userAccount.length) {
-      throw new Error('User account not found');
+      if (!userAccount.length) {
+        throw new Error('Specified account not found or user does not have access');
+      }
+      
+      accountKey = targetAccountKey;
+    } else {
+      // Fallback to first account for backwards compatibility
+      const userAccount = await db
+        .select()
+        .from(dimAccount)
+        .where(eq(dimAccount.userId, userId))
+        .limit(1);
+
+      if (!userAccount.length) {
+        throw new Error('User account not found');
+      }
+
+      accountKey = userAccount[0].accountKey;
     }
-
-    const accountKey = userAccount[0].accountKey;
 
     // Get Schwab broker key
     const schwabBroker = await db
@@ -116,9 +133,9 @@ async function markMissingAccountsInactive(
 }
 
 /**
- * Get all active broker accounts for a user
+ * Get all active broker accounts for an account
  */
-export async function getActiveBrokerAccounts(userId: number, brokerCode: string) {
+export async function getActiveBrokerAccounts(accountKey: number, brokerCode: string) {
   return await db
     .select({
       brokerAccountKey: dimBrokerAccounts.brokerAccountKey,
@@ -127,11 +144,10 @@ export async function getActiveBrokerAccounts(userId: number, brokerCode: string
       lastSyncedAt: dimBrokerAccounts.lastSyncedAt
     })
     .from(dimBrokerAccounts)
-    .innerJoin(dimAccount, eq(dimBrokerAccounts.accountKey, dimAccount.accountKey))
     .innerJoin(dimBroker, eq(dimBrokerAccounts.brokerKey, dimBroker.brokerKey))
     .where(
       and(
-        eq(dimAccount.userId, userId),
+        eq(dimBrokerAccounts.accountKey, accountKey),
         eq(dimBroker.brokerCode, brokerCode),
         eq(dimBrokerAccounts.isActive, true)
       )
@@ -139,10 +155,10 @@ export async function getActiveBrokerAccounts(userId: number, brokerCode: string
 }
 
 /**
- * Get the last transaction date for a specific broker account
+ * Get the last transaction date for a specific account and broker
  * Used to determine the start date for incremental sync
  */
-export async function getLastTransactionDate(userId: number, brokerCode: string): Promise<Date> {
+export async function getLastTransactionDate(accountKey: number, brokerCode: string): Promise<Date> {
   const result = await db
     .select({
       brokerTimestamp: rawTransactions.brokerTimestamp
@@ -150,7 +166,7 @@ export async function getLastTransactionDate(userId: number, brokerCode: string)
     .from(rawTransactions)
     .where(
       and(
-        eq(rawTransactions.userId, userId),
+        eq(rawTransactions.accountKey, accountKey),
         eq(rawTransactions.brokerCode, brokerCode)
       )
     )
