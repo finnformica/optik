@@ -23,7 +23,7 @@ export async function comparePasswords(
   return compare(plainTextPassword, hashedPassword);
 }
 
-type SessionData = {
+export type SessionData = {
   user: { id: number };
   expires: string;
   accountKey: number;

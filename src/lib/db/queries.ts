@@ -1,8 +1,8 @@
-import { verifyToken } from '@/lib/auth/session';
-import { and, eq, isNull } from 'drizzle-orm';
+import { getSession, verifyToken } from '@/lib/auth/session';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { db } from './config';
-import { users } from './schema';
+import { dimAccount, users } from './schema';
 
 export async function getUser() {
   const sessionCookie = (await cookies()).get('session');
@@ -36,7 +36,9 @@ export async function getUser() {
   return user[0];
 }
 
+export async function getUserAccounts() {
+  const session = await getSession();
+  const accounts = await db.select().from(dimAccount).where(eq(dimAccount.userId, session.user.id)).orderBy(asc(dimAccount.accountKey));
 
-
-
-
+  return accounts;
+}

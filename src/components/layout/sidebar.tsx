@@ -1,14 +1,17 @@
 "use client";
 
+import { LayoutDashboard, LogOut, Settings, Table2 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { paths } from "@/lib/utils";
-import { LayoutDashboard, LogOut, Settings, Table2 } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+
+import { AccountMenu } from "./account-menu";
 
 interface MenuItem {
   href: string;
@@ -62,7 +65,10 @@ const Sidebar = () => {
         <h1 className="text-md font-bold">XYZ</h1>
       </div>
       <nav className="flex-1">{topMenuItems.map(renderMenuItem)}</nav>
-      <div className="mt-auto pb-4">{bottomMenuItems.map(renderMenuItem)}</div>
+      <div className="mt-auto pb-4">
+        <AccountMenu />
+        {bottomMenuItems.map(renderMenuItem)}
+      </div>
     </div>
   );
 };

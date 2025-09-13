@@ -180,7 +180,7 @@ export const dimAccount = pgTable('dim_account', {
   accountKey: serial('account_key').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id),
   accountName: varchar('account_name', { length: 100 }).default('Primary Account'),
-  accountType: varchar('account_type', { length: 50 }).default('INDIVIDUAL'),
+  accountType: varchar('account_type', { length: 50 }).default('INDIVIDUAL'), // INDIVIDUAL, JOINT, CORPORATE, IRA, ROTH, 401K, 403B, 529, OTHER
   currency: varchar('currency', { length: 3 }).default('USD'),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
