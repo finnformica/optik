@@ -332,8 +332,6 @@ export const viewPositions = pgView('view_positions', {
     
     -- Position status
     CASE 
-      -- Handle expired options
-      WHEN MAX(s.security_type) = 'OPTION' AND MAX(s.expiry_date) < CURRENT_DATE THEN 'CLOSED'
       -- Different thresholds for different asset types
       WHEN MAX(s.security_type) = 'OPTION' AND ABS(SUM(ft.quantity)) > 0.001 THEN 'OPEN'
       WHEN MAX(s.security_type) = 'STOCK' AND ABS(SUM(ft.quantity)) > 0.0001 THEN 'OPEN'

@@ -93,67 +93,59 @@ const PortfolioDistribution = ({
         <CardTitle className="text-white">Portfolio Distribution</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        {distribution.length === 0 ? (
+        <div className="space-y-4">
+          {/* Pie Chart with Labels */}
           <div className="h-[300px] flex items-center justify-center">
-            <div className="text-center text-gray-400">
-              No positions to display
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Pie Chart with Labels */}
-            <div className="h-[300px] flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data.map((item, index) => ({
-                      name: item.symbol,
-                      value: parseFloat(item.positionValue || "0"),
-                      fill: getColor(index),
-                    }))}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={80}
-                    outerRadius={120}
-                    paddingAngle={0}
-                    stroke="none"
-                    dataKey="value"
-                    label={renderCustomizedLabel}
-                    labelLine={false}
-                  >
-                    {data.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={getColor(index)} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1a2236",
-                      border: "1px solid #374151",
-                      borderRadius: "8px",
-                      color: "#fff",
-                    }}
-                    formatter={(value: number, name: string) => {
-                      const percentage =
-                        totalValue > 0
-                          ? ((value / totalValue) * 100).toFixed(1)
-                          : "0";
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data.map((item, index) => ({
+                    name: item.symbol,
+                    value: parseFloat(item.positionValue || "0"),
+                    fill: getColor(index),
+                  }))}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={80}
+                  outerRadius={120}
+                  paddingAngle={0}
+                  stroke="none"
+                  dataKey="value"
+                  label={renderCustomizedLabel}
+                  labelLine={false}
+                >
+                  {data.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={getColor(index)} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1a2236",
+                    border: "1px solid #374151",
+                    borderRadius: "8px",
+                    color: "#fff",
+                  }}
+                  formatter={(value: number, name: string) => {
+                    const percentage =
+                      totalValue > 0
+                        ? ((value / totalValue) * 100).toFixed(1)
+                        : "0";
 
-                      return [
-                        <div key="tooltip-content">
-                          <div className="font-medium text-white">{name}</div>
-                          <div className="text-gray-300">
-                            ${value.toLocaleString()} ({percentage}%)
-                          </div>
-                        </div>,
-                        null,
-                      ];
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+                    return [
+                      <div key="tooltip-content">
+                        <div className="font-medium text-white">{name}</div>
+                        <div className="text-gray-300">
+                          ${value.toLocaleString()} ({percentage}%)
+                        </div>
+                      </div>,
+                      null,
+                    ];
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );
