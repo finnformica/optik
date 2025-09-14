@@ -385,6 +385,7 @@ export const viewPositions = pgView("view_positions", {
   firstTransactionDate: date("first_transaction_date"),
   lastTransactionDate: date("last_transaction_date"),
   transactionCount: integer("transaction_count"),
+  expiryDate: date("expiry_date"),
 }).as(sql`
   SELECT
     a.account_key,
@@ -439,7 +440,14 @@ export const viewPositions = pgView("view_positions", {
     -- Transaction metadata
     MIN(d.full_date) as first_transaction_date,
     MAX(d.full_date) as last_transaction_date,
-    COUNT(*)::integer as transaction_count
+    COUNT(*)::integer as transaction_count,
+
+    -- Expiration date
+    CASE
+      WHEN MAX(s.expiry_date) IS NOT NULL 
+      THEN MAX(s.expiry_date)
+      ELSE NULL
+    END as expiry_date
 
   FROM ${factTransactions} ft
   JOIN ${dimSecurity} s ON ft.security_key = s.security_key

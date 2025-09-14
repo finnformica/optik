@@ -86,7 +86,9 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                           : "-"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
-                        {`${position.daysToExpiry} days` || "-"}
+                        {position.expiryDate
+                          ? new Date(position.expiryDate).toLocaleDateString()
+                          : "-"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
                         {parseFloat(position.quantityHeld || "0") > 0
