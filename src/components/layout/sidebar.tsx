@@ -25,7 +25,12 @@ const menuItems: MenuItem[] = [
   { href: paths.transactions, icon: Table2, title: "Transactions" },
   // { href: paths.positions, icon: Receipt, title: "Positions" },
   // { href: paths.analysis, icon: BarChart3, title: "Analysis" },
-  { href: paths.settings, icon: Settings, title: "Settings", bottom: true },
+  {
+    href: paths.settings.general,
+    icon: Settings,
+    title: "Settings",
+    bottom: true,
+  },
   // { href: paths.help, icon: HelpCircle, title: "Help", bottom: true },
   { href: paths.auth.signOut, icon: LogOut, title: "Sign Out", bottom: true },
 ];

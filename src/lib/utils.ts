@@ -8,14 +8,16 @@ export function cn(...inputs: ClassValue[]) {
 export const endpoints = {
   accounts: "/api/accounts",
   transactions: "/api/transactions",
-  schwab: { data: "/api/schwab/data" },
+  schwab: { data: "/api/schwab/data", auth: "/api/auth/schwab", callback: "/api/auth/schwab/callback" },
+  stripe: { webhook: "/api/stripe/webhook", checkout: "/api/stripe/checkout" },
 };
 
 export const paths = {
   root: "/",
   home: "/home",
   help: "/help",
-  settings: "/settings",
+  error: "/error",
+  pricing: "/pricing",
   analysis: "/analysis",
   positions: "/positions",
   dashboard: "/dashboard",
@@ -25,4 +27,9 @@ export const paths = {
     signUp: "/sign-up",
     signOut: "/sign-out",
   },
+  settings: {
+    connections: "/settings/connections",
+    general: "/settings/general",
+    security: "/settings/security",
+  }
 };

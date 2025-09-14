@@ -68,7 +68,7 @@ export const signIn = validatedAction(signInSchema, async (data) => {
 
   await setSession(foundUser, foundUser.accountKey);
 
-  redirect('/dashboard');
+  redirect(paths.dashboard);
 });
 
 const signUpSchema = z.object({

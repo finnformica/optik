@@ -1,10 +1,10 @@
 import { signToken, verifyToken } from '@/lib/auth/session';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { paths } from './lib/utils';
+import { endpoints, paths } from './lib/utils';
 
-const protectedRoutes = '/dashboard';
-const publicApiRoutes = ['/api/stripe/webhook'];
+const protectedRoutes = paths.dashboard;
+const publicApiRoutes = [endpoints.stripe.webhook];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
