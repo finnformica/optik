@@ -1,4 +1,4 @@
-import { PositionFilters } from "@/components/positions/position-filters";
+// import { PositionFilters } from "@/components/positions/position-filters";
 import { PositionStats } from "@/components/positions/position-stats";
 import { PositionTable } from "@/components/positions/position-table";
 
@@ -19,7 +19,7 @@ export default function PositionsPage() {
       <PositionStats stats={currentStats} isOpen={true} />
 
       {/* Filters Component */}
-      <PositionFilters
+      {/* <PositionFilters
         activeTab="open"
         tickerFilter=""
         strategyFilter=""
@@ -28,7 +28,7 @@ export default function PositionsPage() {
         onStrategyChange={() => {}}
         openCount={0}
         closedCount={0}
-      />
+      /> */}
 
       {/* Table Component */}
       <PositionTable
