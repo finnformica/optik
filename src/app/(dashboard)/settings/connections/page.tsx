@@ -54,8 +54,8 @@ export default async function ConnectionsPage({
 
   const errorMessages = {
     oauth_error: "OAuth authentication was cancelled or failed",
-    no_code: "No authorization code received",
-    token_exchange_failed: "Failed to exchange authorization code for tokens",
+    no_code: "No authorisation code received",
+    token_exchange_failed: "Failed to exchange authorisation code for tokens",
     callback_error: "An error occurred during the OAuth callback",
     not_authenticated: "You must be logged in to connect your account",
   };
@@ -195,7 +195,7 @@ export default async function ConnectionsPage({
                 <ul className="list-disc list-inside mt-1 space-y-1">
                   <li>Import your portfolio holdings</li>
                   <li>Track account performance</li>
-                  <li>Analyze your investment strategy</li>
+                  <li>Analyse your investment strategy</li>
                 </ul>
               </div>
             </div>

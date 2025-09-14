@@ -22,7 +22,7 @@ export async function middleware(request: NextRequest) {
 
   if (isProtectedApiRoute && !sessionCookie) {
     return NextResponse.json(
-      { error: 'Unauthorized' },
+      { error: 'Unauthorised' },
       { status: 401 }
     );
   }
@@ -57,7 +57,7 @@ export async function middleware(request: NextRequest) {
       }
       if (isProtectedApiRoute) {
         return NextResponse.json(
-          { error: 'Unauthorized' },
+          { error: 'Unauthorised' },
           { status: 401 }
         );
       }

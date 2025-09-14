@@ -42,7 +42,7 @@ const PortfolioDistribution = ({
   ];
 
   // Calculate positions for labels extending from the pie chart
-  const renderCustomizedLabel = ({
+  const renderCustomisedLabel = ({
     cx,
     cy,
     midAngle,
@@ -111,7 +111,7 @@ const PortfolioDistribution = ({
                   paddingAngle={0}
                   stroke="none"
                   dataKey="value"
-                  label={renderCustomizedLabel}
+                  label={renderCustomisedLabel}
                   labelLine={false}
                 >
                   {data.map((_, index) => (

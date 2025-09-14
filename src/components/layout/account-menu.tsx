@@ -84,15 +84,15 @@ export function AccountMenu() {
           {accounts?.map((account) => (
             <div
               key={account.accountKey}
-              className="flex items-center justify-between"
+              className="flex items-center rounded-sm justify-between hover:bg-accent hover:text-accent-foreground"
             >
               <DropdownMenuRadioItem
-                className="cursor-pointer flex-1"
+                className="cursor-pointer flex-1 hover:bg-transparent hover:text-current"
                 value={account.accountKey.toString()}
               >
                 {account.accountName}
               </DropdownMenuRadioItem>
-              <div className="flex">
+              <div className="flex mr-0.5">
                 <AccountForm
                   mode="edit"
                   account={account}

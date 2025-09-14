@@ -76,7 +76,7 @@ export default function AccountForm({
             </DialogTitle>
             <DialogDescription>
               {mode === "create"
-                ? "Create a new account to organize your investments."
+                ? "Create a new account to organise your investments."
                 : "Update your account information below."}
             </DialogDescription>
           </DialogHeader>
