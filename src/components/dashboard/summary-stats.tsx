@@ -1,6 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { getUserId } from "@/lib/auth/session";
-import { getPortfolioSummary, PortfolioSummary } from "@/lib/db/etl/queries";
+import { db } from "@/lib/db/config";
+import { viewPortfolioSummary, ViewPortfolioSummary } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import {
   Calendar,
   DollarSign,
@@ -14,12 +16,22 @@ interface SummaryCard {
   title: string;
   icon: LucideIcon;
   iconColor: string;
-  value: (summary: PortfolioSummary) => string;
-  subtitle?: (summary: PortfolioSummary) => string;
+  value: (summary: ViewPortfolioSummary) => string;
+  subtitle?: (summary: ViewPortfolioSummary) => string;
   subtitleColor?: string;
   showTrend?: boolean;
-  trendValue?: (summary: PortfolioSummary) => number;
+  trendValue?: (summary: ViewPortfolioSummary) => number;
   trendLabel?: string;
+}
+
+export async function getSummary(userId: number) {
+  const [row] = await db
+    .select()
+    .from(viewPortfolioSummary)
+    .where(eq(viewPortfolioSummary.userId, userId))
+    .limit(1);
+
+  return row;
 }
 
 const SummaryStats = async () => {
@@ -27,7 +39,7 @@ const SummaryStats = async () => {
 
   if (!userId) return null;
 
-  const summary = await getPortfolioSummary(userId);
+  const summary = await getSummary(userId);
 
   // Format currency
   const formatCurrency = (amount: number) => {

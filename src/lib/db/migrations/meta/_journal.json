@@ -183,6 +183,13 @@
       "when": 1757759822719,
       "tag": "0025_careless_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1757840612450,
+      "tag": "0026_violet_khan",
+      "breakpoints": true
     }
   ]
 }

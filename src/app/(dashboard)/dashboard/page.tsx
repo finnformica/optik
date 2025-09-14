@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import {
   viewPortfolioDistribution,
+  viewPortfolioSummary,
   viewPositions,
   viewWeeklyReturns,
 } from "@/lib/db/schema";
@@ -17,34 +18,44 @@ export default async function DashboardPage() {
   const userId = session.user.id;
 
   // Fetch all analytics data in parallel
-  const [positionsData, distributionData, accountValueData, weeklyReturnsData] =
-    await Promise.all([
-      db
-        .select()
-        .from(viewPositions)
-        .where(
-          and(
-            eq(viewPositions.userId, userId),
-            eq(viewPositions.positionStatus, "OPEN")
-          )
+  const [
+    positionsData,
+    distributionData,
+    [{ cashBalance }],
+    accountValueData,
+    weeklyReturnsData,
+  ] = await Promise.all([
+    db
+      .select()
+      .from(viewPositions)
+      .where(
+        and(
+          eq(viewPositions.userId, userId),
+          eq(viewPositions.positionStatus, "OPEN")
         )
-        .limit(50),
-      db
-        .select()
-        .from(viewPortfolioDistribution)
-        .where(eq(viewPortfolioDistribution.userId, userId))
-        .limit(20),
-      db
-        .select()
-        .from(viewWeeklyReturns)
-        .where(eq(viewWeeklyReturns.userId, userId))
-        .limit(52),
-      db
-        .select()
-        .from(viewWeeklyReturns)
-        .where(eq(viewWeeklyReturns.userId, userId))
-        .limit(52),
-    ]);
+      )
+      .limit(50),
+    db
+      .select()
+      .from(viewPortfolioDistribution)
+      .where(eq(viewPortfolioDistribution.userId, userId))
+      .limit(20),
+    db
+      .select({ cashBalance: viewPortfolioSummary.cashBalance })
+      .from(viewPortfolioSummary)
+      .where(eq(viewPortfolioSummary.userId, userId))
+      .limit(1),
+    db
+      .select()
+      .from(viewWeeklyReturns)
+      .where(eq(viewWeeklyReturns.userId, userId))
+      .limit(52),
+    db
+      .select()
+      .from(viewWeeklyReturns)
+      .where(eq(viewWeeklyReturns.userId, userId))
+      .limit(52),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -59,7 +70,7 @@ export default async function DashboardPage() {
         <CurrentPositions positions={positionsData} />
         <PortfolioDistribution
           distribution={distributionData}
-          cashBalance={300}
+          cashBalance={Number(cashBalance)}
         />
       </div>
     </div>
