@@ -1,6 +1,12 @@
 "use client";
 
-import { LayoutDashboard, LogOut, Settings, Table2 } from "lucide-react";
+import {
+  CircleIcon,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  Table2,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -67,7 +73,7 @@ const Sidebar = () => {
   return (
     <div className="w-18 bg-[#0a101e] text-white flex flex-col h-screen fixed left-0 top-0">
       <div className="m-2 mb-2 rounded-lg p-4 flex justify-center bg-[#111827]">
-        <h1 className="text-md font-bold">XYZ</h1>
+        <CircleIcon className="text-blue-400" />
       </div>
       <nav className="flex-1">{topMenuItems.map(renderMenuItem)}</nav>
       <div className="mt-auto pb-4">

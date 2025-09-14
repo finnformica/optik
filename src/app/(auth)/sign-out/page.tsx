@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { signOut } from '../actions';
-import { CircleIcon } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { signOut } from "@/app/(auth)/actions";
+import { CircleIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function LogoutPage() {
   const router = useRouter();
