@@ -33,7 +33,7 @@ const PortfolioDistribution = ({
 }: PortfolioDistributionProps) => {
   const totalValue = distribution.reduce(
     (sum, item) => sum + parseFloat(item.positionValue || "0"),
-    cashBalance
+    cashBalance,
   );
 
   // Check if there's no data to display

@@ -4,7 +4,7 @@ const axiosInstance = axios.create();
 
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
@@ -15,7 +15,9 @@ export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
   return response.data;
 };
 
-export const postFetcher = async (args: string | [string, AxiosRequestConfig]) => {
+export const postFetcher = async (
+  args: string | [string, AxiosRequestConfig],
+) => {
   const [url, config] = Array.isArray(args) ? args : [args, {}];
 
   const response = await axiosInstance.post(url, config);
@@ -23,7 +25,9 @@ export const postFetcher = async (args: string | [string, AxiosRequestConfig]) =
   return response.data;
 };
 
-export const patchFetcher = async (args: string | [string, AxiosRequestConfig]) => {
+export const patchFetcher = async (
+  args: string | [string, AxiosRequestConfig],
+) => {
   const [url, config] = Array.isArray(args) ? args : [args, {}];
 
   const response = await axiosInstance.patch(url, config);
@@ -31,7 +35,9 @@ export const patchFetcher = async (args: string | [string, AxiosRequestConfig]) 
   return response.data;
 };
 
-export const putFetcher = async (args: string | [string, AxiosRequestConfig]) => {
+export const putFetcher = async (
+  args: string | [string, AxiosRequestConfig],
+) => {
   const [url, config] = Array.isArray(args) ? args : [args, {}];
 
   const response = await axiosInstance.put(url, config);
@@ -39,7 +45,9 @@ export const putFetcher = async (args: string | [string, AxiosRequestConfig]) =>
   return response.data;
 };
 
-export const deleteFetcher = async (args: string | [string, AxiosRequestConfig]) => {
+export const deleteFetcher = async (
+  args: string | [string, AxiosRequestConfig],
+) => {
   const [url, config] = Array.isArray(args) ? args : [args, {}];
 
   const response = await axiosInstance.delete(url, config);

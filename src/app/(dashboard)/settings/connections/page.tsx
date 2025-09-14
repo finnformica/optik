@@ -20,8 +20,8 @@ async function getSchwabConnectionStatus() {
       .where(
         and(
           eq(dimAccountAccessToken.accountKey, accountKey),
-          eq(dimAccountAccessToken.brokerCode, "schwab")
-        )
+          eq(dimAccountAccessToken.brokerCode, "schwab"),
+        ),
       )
       .limit(1);
 

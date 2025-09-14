@@ -1,6 +1,6 @@
-import { getUser } from '@/lib/db/queries';
-import { DimUser } from '@/lib/db/schema';
-import { z } from 'zod';
+import { getUser } from "@/lib/db/queries";
+import { DimUser } from "@/lib/db/schema";
+import { z } from "zod";
 
 export type ActionState = {
   error?: string;
@@ -10,12 +10,12 @@ export type ActionState = {
 
 type ValidatedActionFunction<S extends z.ZodType<any, any>, T> = (
   data: z.infer<S>,
-  formData: FormData
+  formData: FormData,
 ) => Promise<T>;
 
 export function validatedAction<S extends z.ZodType<any, any>, T>(
   schema: S,
-  action: ValidatedActionFunction<S, T>
+  action: ValidatedActionFunction<S, T>,
 ) {
   return async (prevState: ActionState, formData: FormData) => {
     const result = schema.safeParse(Object.fromEntries(formData));
@@ -30,17 +30,17 @@ export function validatedAction<S extends z.ZodType<any, any>, T>(
 type ValidatedActionWithUserFunction<S extends z.ZodType<any, any>, T> = (
   data: z.infer<S>,
   formData: FormData,
-  user: DimUser
+  user: DimUser,
 ) => Promise<T>;
 
 export function validatedActionWithUser<S extends z.ZodType<any, any>, T>(
   schema: S,
-  action: ValidatedActionWithUserFunction<S, T>
+  action: ValidatedActionWithUserFunction<S, T>,
 ) {
   return async (prevState: ActionState, formData: FormData) => {
     const user = await getUser();
     if (!user) {
-      throw new Error('User is not authenticated');
+      throw new Error("User is not authenticated");
     }
 
     const result = schema.safeParse(Object.fromEntries(formData));
@@ -51,4 +51,3 @@ export function validatedActionWithUser<S extends z.ZodType<any, any>, T>(
     return action(result.data, formData, user);
   };
 }
-

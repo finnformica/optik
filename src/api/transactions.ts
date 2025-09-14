@@ -3,7 +3,10 @@ import useSWR from "swr";
 import { fetcher, postFetcher } from "./fetchers";
 
 export function useTransactions() {
-  const { data, error, isLoading, mutate } = useSWR(endpoints.transactions, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(
+    endpoints.transactions,
+    fetcher,
+  );
 
   return {
     transactions: data?.transactions || [],
@@ -13,8 +16,8 @@ export function useTransactions() {
   };
 }
 
-export async function syncTransactions(){
-    const URL = endpoints.schwab.data;
+export async function syncTransactions() {
+  const URL = endpoints.schwab.data;
 
-    return postFetcher(URL);
+  return postFetcher(URL);
 }

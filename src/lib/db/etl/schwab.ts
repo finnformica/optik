@@ -12,7 +12,7 @@ export async function getSchwabTransactionType(
   database: any,
   assetType: string,
   amount: number,
-  description: string
+  description: string,
 ) {
   let actionCode: string;
 
@@ -72,7 +72,7 @@ export async function getSchwabTransactionType(
 
   if (!transactionType) {
     throw new Error(
-      `Transaction type not found for action code: ${actionCode}`
+      `Transaction type not found for action code: ${actionCode}`,
     );
   }
 
@@ -85,14 +85,14 @@ export async function getSchwabTransactionType(
 export async function processSchwabTransaction(
   rawTx: StgTransaction,
   data: any,
-  database: any
+  database: any,
 ) {
   // Extract main security transaction from transferItems
   const securityItem = data.transferItems?.find(
     (item: any) =>
       item.instrument?.assetType === "OPTION" ||
       item.instrument?.assetType === "EQUITY" ||
-      item.instrument?.assetType === "COLLECTIVE_INVESTMENT"
+      item.instrument?.assetType === "COLLECTIVE_INVESTMENT",
   );
 
   // Calculate total fees
@@ -114,7 +114,7 @@ export async function processSchwabTransaction(
 
     if (!securityKey) {
       throw new Error(
-        `Security data not found for transaction ${data.activityId}`
+        `Security data not found for transaction ${data.activityId}`,
       );
     }
   }
@@ -134,7 +134,7 @@ export async function processSchwabTransaction(
     database,
     assetType,
     amount,
-    description
+    description,
   );
 
   // Calculate facts

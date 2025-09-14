@@ -1,13 +1,12 @@
-import { compare, hash } from 'bcryptjs';
-import { eq } from 'drizzle-orm';
-import { jwtVerify, SignJWT } from 'jose';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { compare, hash } from "bcryptjs";
+import { eq } from "drizzle-orm";
+import { jwtVerify, SignJWT } from "jose";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { db } from '@/lib/db/config';
-import { dimAccount, NewDimUser } from '@/lib/db/schema';
-import { paths } from '@/lib/utils';
-
+import { db } from "@/lib/db/config";
+import { dimAccount, NewDimUser } from "@/lib/db/schema";
+import { paths } from "@/lib/utils";
 
 const key = new TextEncoder().encode(process.env.AUTH_SECRET);
 const SALT_ROUNDS = 10;
@@ -18,7 +17,7 @@ export async function hashPassword(password: string) {
 
 export async function comparePasswords(
   plainTextPassword: string,
-  hashedPassword: string
+  hashedPassword: string,
 ) {
   return compare(plainTextPassword, hashedPassword);
 }
@@ -31,21 +30,21 @@ export type SessionData = {
 
 export async function signToken(payload: SessionData) {
   return await new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime('1 day from now')
+    .setExpirationTime("1 day from now")
     .sign(key);
 }
 
 export async function verifyToken(input: string) {
   const { payload } = await jwtVerify(input, key, {
-    algorithms: ['HS256'],
+    algorithms: ["HS256"],
   });
   return payload as SessionData;
 }
 
 export async function getSession() {
-  const session = (await cookies()).get('session')?.value;
+  const session = (await cookies()).get("session")?.value;
   if (!session) redirect(paths.auth.signIn);
   return await verifyToken(session);
 }
@@ -60,11 +59,11 @@ export async function setSession(user: NewDimUser, accountKey: number) {
 
   const encryptedSession = await signToken(session);
 
-  (await cookies()).set('session', encryptedSession, {
+  (await cookies()).set("session", encryptedSession, {
     expires: expiresInOneDay,
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: "lax",
   });
 }
 
@@ -78,12 +77,12 @@ export async function updateSessionAccountKey(accountKey: number) {
   // Keep the same expiry as the current session
   const expiryDate = new Date(session.expires);
   const encryptedSession = await signToken(updatedSession);
-  
-  (await cookies()).set('session', encryptedSession, {
+
+  (await cookies()).set("session", encryptedSession, {
     expires: expiryDate,
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: "lax",
   });
 }
 
@@ -95,8 +94,12 @@ export async function getAccountKey() {
 export async function getAccount() {
   const session = await getSession();
 
-  const [account] = await db.select().from(dimAccount).where(eq(dimAccount.accountKey, session.accountKey)).limit(1);
-  return account
+  const [account] = await db
+    .select()
+    .from(dimAccount)
+    .where(eq(dimAccount.accountKey, session.accountKey))
+    .limit(1);
+  return account;
 }
 
 export async function getUserId() {

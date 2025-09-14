@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 import { getAccountKey } from "@/lib/auth/session";
 import { SchwabAuth } from "@/lib/connections/schwab/oauth";
@@ -15,21 +15,23 @@ export async function disconnectSchwab() {
   try {
     await db
       .delete(dimAccountAccessToken)
-      .where(and(
-        eq(dimAccountAccessToken.accountKey, accountKey),
-        eq(dimAccountAccessToken.brokerCode, 'schwab')
-      ));
-    
+      .where(
+        and(
+          eq(dimAccountAccessToken.accountKey, accountKey),
+          eq(dimAccountAccessToken.brokerCode, "schwab"),
+        ),
+      );
+
     // Revalidate the connections page to show updated state
     revalidatePath(paths.settings.connections);
   } catch (error) {
-    throw new Error('Failed to disconnect Schwab account');
+    throw new Error("Failed to disconnect Schwab account");
   }
 }
 
 export async function connectSchwab() {
-  const schwabAuth = new SchwabAuth()
-  
-  const authUrl = schwabAuth.getAuthorizationUrl()
-  redirect(authUrl)
+  const schwabAuth = new SchwabAuth();
+
+  const authUrl = schwabAuth.getAuthorizationUrl();
+  redirect(authUrl);
 }

@@ -1,26 +1,21 @@
-'use server';
+"use server";
 
 import {
   validatedAction,
-  validatedActionWithUser
-} from '@/lib/auth/middleware';
-import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
-import { db } from '@/lib/db/config';
-import {
-  dimAccount,
-  dimUser,
-  type NewDimUser
-} from '@/lib/db/schema';
-import { paths } from '@/lib/utils';
-import { eq, sql } from 'drizzle-orm';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { z } from 'zod';
-
+  validatedActionWithUser,
+} from "@/lib/auth/middleware";
+import { comparePasswords, hashPassword, setSession } from "@/lib/auth/session";
+import { db } from "@/lib/db/config";
+import { dimAccount, dimUser, type NewDimUser } from "@/lib/db/schema";
+import { paths } from "@/lib/utils";
+import { eq, sql } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { z } from "zod";
 
 const signInSchema = z.object({
   email: z.string().email().min(3).max(255),
-  password: z.string().min(8).max(100)
+  password: z.string().min(8).max(100),
 });
 
 export const signIn = validatedAction(signInSchema, async (data) => {
@@ -36,7 +31,7 @@ export const signIn = validatedAction(signInSchema, async (data) => {
       createdAt: dimUser.createdAt,
       updatedAt: dimUser.updatedAt,
       deletedAt: dimUser.deletedAt,
-      accountKey: dimAccount.accountKey
+      accountKey: dimAccount.accountKey,
     })
     .from(dimUser)
     .innerJoin(dimAccount, eq(dimUser.id, dimAccount.userId))
@@ -45,22 +40,22 @@ export const signIn = validatedAction(signInSchema, async (data) => {
 
   if (!foundUser) {
     return {
-      error: 'Invalid email or password. Please try again.',
+      error: "Invalid email or password. Please try again.",
       email,
-      password
+      password,
     };
   }
 
   const isPasswordValid = await comparePasswords(
     password,
-    foundUser.passwordHash
+    foundUser.passwordHash,
   );
 
   if (!isPasswordValid) {
     return {
-      error: 'Invalid email or password. Please try again.',
+      error: "Invalid email or password. Please try again.",
       email,
-      password
+      password,
     };
   }
 
@@ -71,7 +66,7 @@ export const signIn = validatedAction(signInSchema, async (data) => {
 
 const signUpSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8)
+  password: z.string().min(8),
 });
 
 export const signUp = validatedAction(signUpSchema, async (data) => {
@@ -85,9 +80,10 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
 
   if (existingUser) {
     return {
-      error: 'An account with this email already exists. Please sign in instead.',
+      error:
+        "An account with this email already exists. Please sign in instead.",
       email,
-      password
+      password,
     };
   }
 
@@ -96,26 +92,29 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
   const newUser: NewDimUser = {
     email,
     passwordHash,
-    role: 'member'
+    role: "member",
   };
 
   const [createdUser] = await db.insert(dimUser).values(newUser).returning();
 
   if (!createdUser) {
     return {
-      error: 'Failed to create user. Please try again.',
+      error: "Failed to create user. Please try again.",
       email,
-      password
+      password,
     };
   }
 
   // Create a default account for the new user
-  const [createdAccount] = await db.insert(dimAccount).values({
-    userId: createdUser.id,
-    accountName: 'Primary Account',
-    accountType: 'INDIVIDUAL',
-    currency: 'USD'
-  }).returning();
+  const [createdAccount] = await db
+    .insert(dimAccount)
+    .values({
+      userId: createdUser.id,
+      accountName: "Primary Account",
+      accountType: "INDIVIDUAL",
+      currency: "USD",
+    })
+    .returning();
 
   await setSession(createdUser, createdAccount.accountKey);
 
@@ -123,14 +122,14 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
 });
 
 export async function signOut() {
-  (await cookies()).delete('session');
+  (await cookies()).delete("session");
   redirect(paths.auth.signIn);
 }
 
 const updatePasswordSchema = z.object({
   currentPassword: z.string().min(8).max(100),
   newPassword: z.string().min(8).max(100),
-  confirmPassword: z.string().min(8).max(100)
+  confirmPassword: z.string().min(8).max(100),
 });
 
 export const updatePassword = validatedActionWithUser(
@@ -140,7 +139,7 @@ export const updatePassword = validatedActionWithUser(
 
     const isPasswordValid = await comparePasswords(
       currentPassword,
-      user.passwordHash
+      user.passwordHash,
     );
 
     if (!isPasswordValid) {
@@ -148,7 +147,7 @@ export const updatePassword = validatedActionWithUser(
         currentPassword,
         newPassword,
         confirmPassword,
-        error: 'Current password is incorrect.'
+        error: "Current password is incorrect.",
       };
     }
 
@@ -157,7 +156,7 @@ export const updatePassword = validatedActionWithUser(
         currentPassword,
         newPassword,
         confirmPassword,
-        error: 'New password must be different from the current password.'
+        error: "New password must be different from the current password.",
       };
     }
 
@@ -166,7 +165,7 @@ export const updatePassword = validatedActionWithUser(
         currentPassword,
         newPassword,
         confirmPassword,
-        error: 'New password and confirmation password do not match.'
+        error: "New password and confirmation password do not match.",
       };
     }
 
@@ -178,13 +177,13 @@ export const updatePassword = validatedActionWithUser(
       .where(eq(dimUser.id, user.id));
 
     return {
-      success: 'Password updated successfully.'
+      success: "Password updated successfully.",
     };
-  }
+  },
 );
 
 const deleteAccountSchema = z.object({
-  password: z.string().min(8).max(100)
+  password: z.string().min(8).max(100),
 });
 
 export const deleteAccount = validatedActionWithUser(
@@ -196,7 +195,7 @@ export const deleteAccount = validatedActionWithUser(
     if (!isPasswordValid) {
       return {
         password,
-        error: 'Incorrect password. Account deletion failed.'
+        error: "Incorrect password. Account deletion failed.",
       };
     }
 
@@ -205,18 +204,18 @@ export const deleteAccount = validatedActionWithUser(
       .update(dimUser)
       .set({
         deletedAt: sql`CURRENT_TIMESTAMP`,
-        email: sql`CONCAT(email, '-', id, '-deleted')` // Ensure email uniqueness
+        email: sql`CONCAT(email, '-', id, '-deleted')`, // Ensure email uniqueness
       })
       .where(eq(dimUser.id, user.id));
 
-    (await cookies()).delete('session');
+    (await cookies()).delete("session");
     redirect(paths.auth.signIn);
-  }
+  },
 );
 
 const updateAccountSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100),
-  email: z.string().email('Invalid email address')
+  name: z.string().min(1, "Name is required").max(100),
+  email: z.string().email("Invalid email address"),
 });
 
 export const updateAccount = validatedActionWithUser(
@@ -224,10 +223,11 @@ export const updateAccount = validatedActionWithUser(
   async (data, _, user) => {
     const { name, email } = data;
 
-    await db.update(dimUser).set({ name, email }).where(eq(dimUser.id, user.id));
+    await db
+      .update(dimUser)
+      .set({ name, email })
+      .where(eq(dimUser.id, user.id));
 
-    return { name, success: 'Account updated successfully.' };
-  }
+    return { name, success: "Account updated successfully." };
+  },
 );
-
-

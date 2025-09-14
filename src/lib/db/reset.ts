@@ -2,7 +2,6 @@ import { reset } from "drizzle-seed";
 import { db } from "./config";
 import * as schema from "./schema";
 
-
 async function main() {
   console.log("Resetting database...");
   await reset(db, schema);

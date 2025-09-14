@@ -51,26 +51,18 @@
         "activity_logs_team_id_teams_id_fk": {
           "name": "activity_logs_team_id_teams_id_fk",
           "tableFrom": "activity_logs",
-          "columnsFrom": [
-            "team_id"
-          ],
+          "columnsFrom": ["team_id"],
           "tableTo": "teams",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "activity_logs_user_id_users_id_fk": {
           "name": "activity_logs_user_id_users_id_fk",
           "tableFrom": "activity_logs",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -145,13 +137,9 @@
         "dim_account_user_id_users_id_fk": {
           "name": "dim_account_user_id_users_id_fk",
           "tableFrom": "dim_account",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -160,9 +148,7 @@
       "uniqueConstraints": {
         "unique_user_account": {
           "name": "unique_user_account",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "nullsNotDistinct": false
         }
       },
@@ -225,9 +211,7 @@
       "uniqueConstraints": {
         "dim_broker_broker_code_unique": {
           "name": "dim_broker_broker_code_unique",
-          "columns": [
-            "broker_code"
-          ],
+          "columns": ["broker_code"],
           "nullsNotDistinct": false
         }
       },
@@ -368,9 +352,7 @@
       "uniqueConstraints": {
         "dim_date_full_date_unique": {
           "name": "dim_date_full_date_unique",
-          "columns": [
-            "full_date"
-          ],
+          "columns": ["full_date"],
           "nullsNotDistinct": false
         }
       },
@@ -572,9 +554,7 @@
       "uniqueConstraints": {
         "dim_transaction_type_action_code_unique": {
           "name": "dim_transaction_type_action_code_unique",
-          "columns": [
-            "action_code"
-          ],
+          "columns": ["action_code"],
           "nullsNotDistinct": false
         }
       },
@@ -679,39 +659,27 @@
         "fact_current_positions_account_key_dim_account_account_key_fk": {
           "name": "fact_current_positions_account_key_dim_account_account_key_fk",
           "tableFrom": "fact_current_positions",
-          "columnsFrom": [
-            "account_key"
-          ],
+          "columnsFrom": ["account_key"],
           "tableTo": "dim_account",
-          "columnsTo": [
-            "account_key"
-          ],
+          "columnsTo": ["account_key"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "fact_current_positions_security_key_dim_security_security_key_fk": {
           "name": "fact_current_positions_security_key_dim_security_security_key_fk",
           "tableFrom": "fact_current_positions",
-          "columnsFrom": [
-            "security_key"
-          ],
+          "columnsFrom": ["security_key"],
           "tableTo": "dim_security",
-          "columnsTo": [
-            "security_key"
-          ],
+          "columnsTo": ["security_key"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "fk_fact_current_positions_security": {
           "name": "fk_fact_current_positions_security",
           "tableFrom": "fact_current_positions",
-          "columnsFrom": [
-            "security_key"
-          ],
+          "columnsFrom": ["security_key"],
           "tableTo": "dim_security",
-          "columnsTo": [
-            "security_key"
-          ],
+          "columnsTo": ["security_key"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -719,10 +687,7 @@
       "compositePrimaryKeys": {
         "fact_current_positions_account_key_security_key_pk": {
           "name": "fact_current_positions_account_key_security_key_pk",
-          "columns": [
-            "account_key",
-            "security_key"
-          ]
+          "columns": ["account_key", "security_key"]
         }
       },
       "uniqueConstraints": {},
@@ -879,78 +844,54 @@
         "fact_transactions_date_key_dim_date_date_key_fk": {
           "name": "fact_transactions_date_key_dim_date_date_key_fk",
           "tableFrom": "fact_transactions",
-          "columnsFrom": [
-            "date_key"
-          ],
+          "columnsFrom": ["date_key"],
           "tableTo": "dim_date",
-          "columnsTo": [
-            "date_key"
-          ],
+          "columnsTo": ["date_key"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "fact_transactions_account_key_dim_account_account_key_fk": {
           "name": "fact_transactions_account_key_dim_account_account_key_fk",
           "tableFrom": "fact_transactions",
-          "columnsFrom": [
-            "account_key"
-          ],
+          "columnsFrom": ["account_key"],
           "tableTo": "dim_account",
-          "columnsTo": [
-            "account_key"
-          ],
+          "columnsTo": ["account_key"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "fact_transactions_security_key_dim_security_security_key_fk": {
           "name": "fact_transactions_security_key_dim_security_security_key_fk",
           "tableFrom": "fact_transactions",
-          "columnsFrom": [
-            "security_key"
-          ],
+          "columnsFrom": ["security_key"],
           "tableTo": "dim_security",
-          "columnsTo": [
-            "security_key"
-          ],
+          "columnsTo": ["security_key"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "fact_transactions_transaction_type_key_dim_transaction_type_transaction_type_key_fk": {
           "name": "fact_transactions_transaction_type_key_dim_transaction_type_transaction_type_key_fk",
           "tableFrom": "fact_transactions",
-          "columnsFrom": [
-            "transaction_type_key"
-          ],
+          "columnsFrom": ["transaction_type_key"],
           "tableTo": "dim_transaction_type",
-          "columnsTo": [
-            "transaction_type_key"
-          ],
+          "columnsTo": ["transaction_type_key"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "fact_transactions_broker_key_dim_broker_broker_key_fk": {
           "name": "fact_transactions_broker_key_dim_broker_broker_key_fk",
           "tableFrom": "fact_transactions",
-          "columnsFrom": [
-            "broker_key"
-          ],
+          "columnsFrom": ["broker_key"],
           "tableTo": "dim_broker",
-          "columnsTo": [
-            "broker_key"
-          ],
+          "columnsTo": ["broker_key"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "fk_fact_transactions_security": {
           "name": "fk_fact_transactions_security",
           "tableFrom": "fact_transactions",
-          "columnsFrom": [
-            "security_key"
-          ],
+          "columnsFrom": ["security_key"],
           "tableTo": "dim_security",
-          "columnsTo": [
-            "security_key"
-          ],
+          "columnsTo": ["security_key"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -959,10 +900,7 @@
       "uniqueConstraints": {
         "unique_transaction": {
           "name": "unique_transaction",
-          "columns": [
-            "broker_transaction_id",
-            "original_transaction_id"
-          ],
+          "columns": ["broker_transaction_id", "original_transaction_id"],
           "nullsNotDistinct": false
         }
       },
@@ -1024,26 +962,18 @@
         "invitations_team_id_teams_id_fk": {
           "name": "invitations_team_id_teams_id_fk",
           "tableFrom": "invitations",
-          "columnsFrom": [
-            "team_id"
-          ],
+          "columnsFrom": ["team_id"],
           "tableTo": "teams",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "invitations_invited_by_users_id_fk": {
           "name": "invitations_invited_by_users_id_fk",
           "tableFrom": "invitations",
-          "columnsFrom": [
-            "invited_by"
-          ],
+          "columnsFrom": ["invited_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1170,13 +1100,9 @@
         "raw_transactions_user_id_users_id_fk": {
           "name": "raw_transactions_user_id_users_id_fk",
           "tableFrom": "raw_transactions",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1185,10 +1111,7 @@
       "uniqueConstraints": {
         "unique_broker_transaction": {
           "name": "unique_broker_transaction",
-          "columns": [
-            "broker_transaction_id",
-            "broker_code"
-          ],
+          "columns": ["broker_transaction_id", "broker_code"],
           "nullsNotDistinct": false
         }
       },
@@ -1237,26 +1160,18 @@
         "team_members_user_id_users_id_fk": {
           "name": "team_members_user_id_users_id_fk",
           "tableFrom": "team_members",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "team_members_team_id_teams_id_fk": {
           "name": "team_members_team_id_teams_id_fk",
           "tableFrom": "team_members",
-          "columnsFrom": [
-            "team_id"
-          ],
+          "columnsFrom": ["team_id"],
           "tableTo": "teams",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1334,16 +1249,12 @@
       "uniqueConstraints": {
         "teams_stripe_customer_id_unique": {
           "name": "teams_stripe_customer_id_unique",
-          "columns": [
-            "stripe_customer_id"
-          ],
+          "columns": ["stripe_customer_id"],
           "nullsNotDistinct": false
         },
         "teams_stripe_subscription_id_unique": {
           "name": "teams_stripe_subscription_id_unique",
-          "columns": [
-            "stripe_subscription_id"
-          ],
+          "columns": ["stripe_subscription_id"],
           "nullsNotDistinct": false
         }
       },
@@ -1417,13 +1328,9 @@
         "user_access_tokens_user_id_users_id_fk": {
           "name": "user_access_tokens_user_id_users_id_fk",
           "tableFrom": "user_access_tokens",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1496,9 +1403,7 @@
       "uniqueConstraints": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "nullsNotDistinct": false
         }
       },

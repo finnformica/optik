@@ -42,7 +42,7 @@ const ActionBadge = ({ action }: { action: ITransactionAction }) => {
           className={cn("bg-muted border-muted hover:bg-muted/80", className)}
         >
           {_.startCase(part)}
-        </Badge>
+        </Badge>,
       );
     }
   });

@@ -1,11 +1,11 @@
-import { getSession, verifyToken } from '@/lib/auth/session';
-import { and, asc, eq, isNull } from 'drizzle-orm';
-import { cookies } from 'next/headers';
-import { db } from './config';
-import { dimAccount, dimUser } from './schema';
+import { getSession, verifyToken } from "@/lib/auth/session";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { db } from "./config";
+import { dimAccount, dimUser } from "./schema";
 
 export async function getUser() {
-  const sessionCookie = (await cookies()).get('session');
+  const sessionCookie = (await cookies()).get("session");
   if (!sessionCookie || !sessionCookie.value) {
     return null;
   }
@@ -14,7 +14,7 @@ export async function getUser() {
   if (
     !sessionData ||
     !sessionData.user ||
-    typeof sessionData.user.id !== 'number'
+    typeof sessionData.user.id !== "number"
   ) {
     return null;
   }
@@ -41,10 +41,12 @@ export async function getUserAccounts() {
   const accounts = await db
     .select()
     .from(dimAccount)
-    .where(and(
-      eq(dimAccount.userId, session.user.id), 
-      eq(dimAccount.isActive, true)
-    ))
+    .where(
+      and(
+        eq(dimAccount.userId, session.user.id),
+        eq(dimAccount.isActive, true),
+      ),
+    )
     .orderBy(asc(dimAccount.accountKey));
 
   return accounts;

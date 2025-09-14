@@ -22,7 +22,7 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
   const sortedData = [...weeklyData].sort(
     (a, b) =>
       new Date(a.weekStart || "").getTime() -
-      new Date(b.weekStart || "").getTime()
+      new Date(b.weekStart || "").getTime(),
   );
 
   // Format data for chart
@@ -79,7 +79,7 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
                     const absoluteValue = props.payload.absoluteReturns;
                     return [
                       `${value.toFixed(
-                        2
+                        2,
                       )}% ($${absoluteValue.toLocaleString()})`,
                       "Weekly Return",
                     ];

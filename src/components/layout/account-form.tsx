@@ -105,8 +105,8 @@ export default function AccountForm({
               {isPending
                 ? "Saving..."
                 : mode === "create"
-                ? "Create Account"
-                : "Save Changes"}
+                  ? "Create Account"
+                  : "Save Changes"}
             </Button>
           </DialogFooter>
         </form>

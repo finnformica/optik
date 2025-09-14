@@ -23,10 +23,10 @@ interface PositionRowProps {
 export function PositionRow({ position, index }: PositionRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [expandedPositions, setExpandedPositions] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   const formatCurrency = (value: string | number) => {

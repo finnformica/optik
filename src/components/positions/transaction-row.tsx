@@ -105,7 +105,7 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
             }`}
           >
             {formatCurrency(
-              transaction.realizedPnl + transaction.unrealizedPnl
+              transaction.realizedPnl + transaction.unrealizedPnl,
             )}
           </span>
         </TableCell>

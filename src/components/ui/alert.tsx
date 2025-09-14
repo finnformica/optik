@@ -16,27 +16,35 @@ const alertVariants = cva(
           "text-green-400 bg-green-900/20 border-green-600 [&>svg]:text-current *:data-[slot=alert-description]:text-green-200",
         warning:
           "text-yellow-400 bg-yellow-900/20 border-yellow-600 [&>svg]:text-current *:data-[slot=alert-description]:text-yellow-200",
-        info:
-          "text-blue-400 bg-blue-900/20 border-blue-600 [&>svg]:text-current *:data-[slot=alert-description]:text-blue-200",
+        info: "text-blue-400 bg-blue-900/20 border-blue-600 [&>svg]:text-current *:data-[slot=alert-description]:text-blue-200",
       },
     },
     defaultVariants: {
       variant: "default",
     },
-  }
+  },
 );
 
-const getIcon = (variant: "default" | "destructive" | "success" | "warning" | "info" | null | undefined) => {
+const getIcon = (
+  variant:
+    | "default"
+    | "destructive"
+    | "success"
+    | "warning"
+    | "info"
+    | null
+    | undefined,
+) => {
   switch (variant) {
-    case 'success':
+    case "success":
       return <CheckCircle className="w-4 h-4" />;
-    case 'warning':
+    case "warning":
       return <AlertCircle className="w-4 h-4" />;
-    case 'destructive':
+    case "destructive":
       return <AlertCircle className="w-4 h-4" />;
-    case 'info':
+    case "info":
       return <Info className="w-4 h-4" />;
-    case 'default':
+    case "default":
     default:
       return <Info className="w-4 h-4" />;
   }
@@ -67,7 +75,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="alert-title"
       className={cn(
         "col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight",
-        className
+        className,
       )}
       {...props}
     />
@@ -83,7 +91,7 @@ function AlertDescription({
       data-slot="alert-description"
       className={cn(
         "text-muted-foreground col-start-2 grid justify-items-start gap-1 text-sm [&_p]:leading-relaxed",
-        className
+        className,
       )}
       {...props}
     />

@@ -422,8 +422,8 @@ export default function TransactionsPage() {
                               parseFloat(transaction.netAmount) > 0
                                 ? "text-green-400"
                                 : parseFloat(transaction.netAmount) < 0
-                                ? "text-red-400"
-                                : ""
+                                  ? "text-red-400"
+                                  : ""
                             }`}
                           >
                             {formatCurrency(transaction.netAmount)}
@@ -441,7 +441,7 @@ export default function TransactionsPage() {
                           </span>
                         </td>
                       </tr>
-                    )
+                    ),
                   )}
                 </tbody>
               </table>

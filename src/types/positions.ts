@@ -11,7 +11,7 @@ export interface PositionTransaction {
   fees: number;
   description?: string;
   unitPrice: number;
-  creditDebitType: 'CR' | 'DB';
+  creditDebitType: "CR" | "DB";
   optionType: string | null;
   costBasis: number;
   realizedPnl: number;
@@ -64,18 +64,18 @@ export interface PositionFilters {
 }
 
 // Strategy types for filtering and display
-export type PositionStrategy = 
-  | 'Short Put'
-  | 'Long Put' 
-  | 'Short Call'
-  | 'Long Call'
-  | 'Long Stock'
-  | 'Short Stock'
-  | 'Put Trade'
-  | 'Call Trade'
-  | 'Stock Trade'
-  | 'Unknown';
+export type PositionStrategy =
+  | "Short Put"
+  | "Long Put"
+  | "Short Call"
+  | "Long Call"
+  | "Long Stock"
+  | "Short Stock"
+  | "Put Trade"
+  | "Call Trade"
+  | "Stock Trade"
+  | "Unknown";
 
-export type PositionEffect = 'OPENING' | 'CLOSING' | 'OTHER';
-export type DisplayAction = 'BUY' | 'SELL';
-export type CreditDebitType = 'CR' | 'DB';
+export type PositionEffect = "OPENING" | "CLOSING" | "OTHER";
+export type DisplayAction = "BUY" | "SELL";
+export type CreditDebitType = "CR" | "DB";

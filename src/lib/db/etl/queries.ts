@@ -103,8 +103,8 @@ export async function processRawTransactions(tx?: any) {
       and(
         eq(stgTransaction.accountKey, accountKey),
         //   eq(stgTransaction.status, 'PENDING'),
-        inArray(stgTransaction.status, ["PENDING", "ERROR"])
-      )
+        inArray(stgTransaction.status, ["PENDING", "ERROR"]),
+      ),
     );
 
   const results = {

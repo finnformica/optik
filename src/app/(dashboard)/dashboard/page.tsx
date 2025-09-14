@@ -30,8 +30,8 @@ export default async function DashboardPage() {
       .where(
         and(
           eq(viewPosition.accountKey, accountKey),
-          eq(viewPosition.positionStatus, "OPEN")
-        )
+          eq(viewPosition.positionStatus, "OPEN"),
+        ),
       )
       .limit(50),
     db

@@ -69,12 +69,8 @@
           "name": "dim_account_user_id_users_id_fk",
           "tableFrom": "dim_account",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -152,12 +148,8 @@
           "name": "dim_account_access_tokens_account_key_dim_account_account_key_fk",
           "tableFrom": "dim_account_access_tokens",
           "tableTo": "dim_account",
-          "columnsFrom": [
-            "account_key"
-          ],
-          "columnsTo": [
-            "account_key"
-          ],
+          "columnsFrom": ["account_key"],
+          "columnsTo": ["account_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -165,12 +157,8 @@
           "name": "dim_account_access_tokens_broker_code_dim_broker_broker_code_fk",
           "tableFrom": "dim_account_access_tokens",
           "tableTo": "dim_broker",
-          "columnsFrom": [
-            "broker_code"
-          ],
-          "columnsTo": [
-            "broker_code"
-          ],
+          "columnsFrom": ["broker_code"],
+          "columnsTo": ["broker_code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -180,10 +168,7 @@
         "unique_account_broker_token": {
           "name": "unique_account_broker_token",
           "nullsNotDistinct": false,
-          "columns": [
-            "account_key",
-            "broker_code"
-          ]
+          "columns": ["account_key", "broker_code"]
         }
       },
       "policies": {},
@@ -246,9 +231,7 @@
         "dim_broker_broker_code_unique": {
           "name": "dim_broker_broker_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "broker_code"
-          ]
+          "columns": ["broker_code"]
         }
       },
       "policies": {},
@@ -366,12 +349,8 @@
           "name": "dim_broker_accounts_account_key_dim_account_account_key_fk",
           "tableFrom": "dim_broker_accounts",
           "tableTo": "dim_account",
-          "columnsFrom": [
-            "account_key"
-          ],
-          "columnsTo": [
-            "account_key"
-          ],
+          "columnsFrom": ["account_key"],
+          "columnsTo": ["account_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -379,12 +358,8 @@
           "name": "dim_broker_accounts_broker_key_dim_broker_broker_key_fk",
           "tableFrom": "dim_broker_accounts",
           "tableTo": "dim_broker",
-          "columnsFrom": [
-            "broker_key"
-          ],
-          "columnsTo": [
-            "broker_key"
-          ],
+          "columnsFrom": ["broker_key"],
+          "columnsTo": ["broker_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -394,11 +369,7 @@
         "unique_broker_account": {
           "name": "unique_broker_account",
           "nullsNotDistinct": false,
-          "columns": [
-            "account_key",
-            "broker_key",
-            "broker_account_number"
-          ]
+          "columns": ["account_key", "broker_key", "broker_account_number"]
         }
       },
       "policies": {},
@@ -539,9 +510,7 @@
         "dim_date_full_date_unique": {
           "name": "dim_date_full_date_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "full_date"
-          ]
+          "columns": ["full_date"]
         }
       },
       "policies": {},
@@ -743,9 +712,7 @@
         "dim_transaction_type_action_code_unique": {
           "name": "dim_transaction_type_action_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "action_code"
-          ]
+          "columns": ["action_code"]
         }
       },
       "policies": {},
@@ -908,12 +875,8 @@
           "name": "fact_transactions_date_key_dim_date_date_key_fk",
           "tableFrom": "fact_transactions",
           "tableTo": "dim_date",
-          "columnsFrom": [
-            "date_key"
-          ],
-          "columnsTo": [
-            "date_key"
-          ],
+          "columnsFrom": ["date_key"],
+          "columnsTo": ["date_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -921,12 +884,8 @@
           "name": "fact_transactions_account_key_dim_account_account_key_fk",
           "tableFrom": "fact_transactions",
           "tableTo": "dim_account",
-          "columnsFrom": [
-            "account_key"
-          ],
-          "columnsTo": [
-            "account_key"
-          ],
+          "columnsFrom": ["account_key"],
+          "columnsTo": ["account_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -934,12 +893,8 @@
           "name": "fact_transactions_security_key_dim_security_security_key_fk",
           "tableFrom": "fact_transactions",
           "tableTo": "dim_security",
-          "columnsFrom": [
-            "security_key"
-          ],
-          "columnsTo": [
-            "security_key"
-          ],
+          "columnsFrom": ["security_key"],
+          "columnsTo": ["security_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -947,12 +902,8 @@
           "name": "fact_transactions_transaction_type_key_dim_transaction_type_transaction_type_key_fk",
           "tableFrom": "fact_transactions",
           "tableTo": "dim_transaction_type",
-          "columnsFrom": [
-            "transaction_type_key"
-          ],
-          "columnsTo": [
-            "transaction_type_key"
-          ],
+          "columnsFrom": ["transaction_type_key"],
+          "columnsTo": ["transaction_type_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -960,12 +911,8 @@
           "name": "fact_transactions_broker_key_dim_broker_broker_key_fk",
           "tableFrom": "fact_transactions",
           "tableTo": "dim_broker",
-          "columnsFrom": [
-            "broker_key"
-          ],
-          "columnsTo": [
-            "broker_key"
-          ],
+          "columnsFrom": ["broker_key"],
+          "columnsTo": ["broker_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -973,12 +920,8 @@
           "name": "fk_fact_transactions_security",
           "tableFrom": "fact_transactions",
           "tableTo": "dim_security",
-          "columnsFrom": [
-            "security_key"
-          ],
-          "columnsTo": [
-            "security_key"
-          ],
+          "columnsFrom": ["security_key"],
+          "columnsTo": ["security_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -988,10 +931,7 @@
         "unique_transaction": {
           "name": "unique_transaction",
           "nullsNotDistinct": false,
-          "columns": [
-            "broker_transaction_id",
-            "original_transaction_id"
-          ]
+          "columns": ["broker_transaction_id", "original_transaction_id"]
         }
       },
       "policies": {},
@@ -1115,12 +1055,8 @@
           "name": "raw_transactions_account_key_dim_account_account_key_fk",
           "tableFrom": "raw_transactions",
           "tableTo": "dim_account",
-          "columnsFrom": [
-            "account_key"
-          ],
-          "columnsTo": [
-            "account_key"
-          ],
+          "columnsFrom": ["account_key"],
+          "columnsTo": ["account_key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1130,10 +1066,7 @@
         "unique_broker_transaction": {
           "name": "unique_broker_transaction",
           "nullsNotDistinct": false,
-          "columns": [
-            "broker_transaction_id",
-            "broker_code"
-          ]
+          "columns": ["broker_transaction_id", "broker_code"]
         }
       },
       "policies": {},
@@ -1203,9 +1136,7 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
