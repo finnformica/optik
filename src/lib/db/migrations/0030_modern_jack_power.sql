@@ -1,0 +1,2 @@
+ALTER TABLE "raw_transactions" DROP CONSTRAINT "unique_broker_transaction";--> statement-breakpoint
+ALTER TABLE "raw_transactions" ADD CONSTRAINT "unique_account_broker_transaction" UNIQUE("account_key","broker_transaction_id","broker_code");

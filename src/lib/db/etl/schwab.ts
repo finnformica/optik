@@ -162,7 +162,11 @@ export async function processSchwabTransaction(
       netAmount,
     })
     .onConflictDoNothing({
-      target: factTransactions.brokerTransactionId,
+      target: [
+        factTransactions.accountKey,
+        factTransactions.brokerTransactionId,
+        factTransactions.originalTransactionId,
+      ],
     });
 
   // Note: Positions are now calculated from transactions via viewPositions - no separate position maintenance needed
