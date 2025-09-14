@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { SWRConfig } from "swr";
+
+import { Toaster } from "@/components/ui/sonner";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,6 +28,7 @@ export default function RootLayout({
         >
           {children}
         </SWRConfig>
+        <Toaster richColors position="top-center" />
       </body>
     </html>
   );

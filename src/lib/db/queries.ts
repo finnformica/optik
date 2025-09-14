@@ -38,7 +38,14 @@ export async function getUser() {
 
 export async function getUserAccounts() {
   const session = await getSession();
-  const accounts = await db.select().from(dimAccount).where(eq(dimAccount.userId, session.user.id)).orderBy(asc(dimAccount.accountKey));
+  const accounts = await db
+    .select()
+    .from(dimAccount)
+    .where(and(
+      eq(dimAccount.userId, session.user.id), 
+      eq(dimAccount.isActive, true)
+    ))
+    .orderBy(asc(dimAccount.accountKey));
 
   return accounts;
 }

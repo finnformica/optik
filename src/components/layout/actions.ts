@@ -3,7 +3,7 @@
 import { z } from 'zod';
 
 import { validatedActionWithUser } from '@/lib/auth/middleware';
-import { updateSessionAccountKey } from '@/lib/auth/session';
+import { getSession, updateSessionAccountKey } from '@/lib/auth/session';
 import { db } from '@/lib/db/config';
 import { dimAccount } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -52,13 +52,19 @@ export const updateAccount = validatedActionWithUser(
 );
 
 const deleteAccountSchema = z.object({
-  accountKey: z.number(),
+  accountKey: z.string().transform(Number),
 });
 
 export const deleteAccount = validatedActionWithUser(
   deleteAccountSchema,
   async (data, _, user) => {
     const { accountKey } = data;
+
+    const session = await getSession();
+    
+    if (session.accountKey === accountKey) {
+      return { error: 'Current account cannot be deleted.' };
+    }
 
     await db
       .update(dimAccount)
