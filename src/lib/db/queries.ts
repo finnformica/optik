@@ -2,7 +2,7 @@ import { getSession, verifyToken } from '@/lib/auth/session';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { db } from './config';
-import { dimAccount, users } from './schema';
+import { dimAccount, dimUser } from './schema';
 
 export async function getUser() {
   const sessionCookie = (await cookies()).get('session');
@@ -25,8 +25,8 @@ export async function getUser() {
 
   const user = await db
     .select()
-    .from(users)
-    .where(and(eq(users.id, sessionData.user.id), isNull(users.deletedAt)))
+    .from(dimUser)
+    .where(and(eq(dimUser.id, sessionData.user.id), isNull(dimUser.deletedAt)))
     .limit(1);
 
   if (user.length === 0) {

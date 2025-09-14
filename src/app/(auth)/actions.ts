@@ -8,8 +8,8 @@ import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
 import { db } from '@/lib/db/config';
 import {
   dimAccount,
-  users,
-  type NewUser
+  dimUser,
+  type NewDimUser
 } from '@/lib/db/schema';
 import { paths } from '@/lib/utils';
 import { eq, sql } from 'drizzle-orm';
@@ -28,19 +28,19 @@ export const signIn = validatedAction(signInSchema, async (data) => {
 
   const [foundUser] = await db
     .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      passwordHash: users.passwordHash,
-      role: users.role,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-      deletedAt: users.deletedAt,
+      id: dimUser.id,
+      name: dimUser.name,
+      email: dimUser.email,
+      passwordHash: dimUser.passwordHash,
+      role: dimUser.role,
+      createdAt: dimUser.createdAt,
+      updatedAt: dimUser.updatedAt,
+      deletedAt: dimUser.deletedAt,
       accountKey: dimAccount.accountKey
     })
-    .from(users)
-    .innerJoin(dimAccount, eq(users.id, dimAccount.userId))
-    .where(eq(users.email, email))
+    .from(dimUser)
+    .innerJoin(dimAccount, eq(dimUser.id, dimAccount.userId))
+    .where(eq(dimUser.email, email))
     .limit(1);
 
   if (!foundUser) {
@@ -79,8 +79,8 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
 
   const [existingUser] = await db
     .select()
-    .from(users)
-    .where(eq(users.email, email))
+    .from(dimUser)
+    .where(eq(dimUser.email, email))
     .limit(1);
 
   if (existingUser) {
@@ -93,13 +93,13 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
 
   const passwordHash = await hashPassword(password);
 
-  const newUser: NewUser = {
+  const newUser: NewDimUser = {
     email,
     passwordHash,
     role: 'member'
   };
 
-  const [createdUser] = await db.insert(users).values(newUser).returning();
+  const [createdUser] = await db.insert(dimUser).values(newUser).returning();
 
   if (!createdUser) {
     return {
@@ -173,9 +173,9 @@ export const updatePassword = validatedActionWithUser(
     const newPasswordHash = await hashPassword(newPassword);
 
     await db
-      .update(users)
+      .update(dimUser)
       .set({ passwordHash: newPasswordHash })
-      .where(eq(users.id, user.id));
+      .where(eq(dimUser.id, user.id));
 
     return {
       success: 'Password updated successfully.'
@@ -202,12 +202,12 @@ export const deleteAccount = validatedActionWithUser(
 
     // Soft delete
     await db
-      .update(users)
+      .update(dimUser)
       .set({
         deletedAt: sql`CURRENT_TIMESTAMP`,
         email: sql`CONCAT(email, '-', id, '-deleted')` // Ensure email uniqueness
       })
-      .where(eq(users.id, user.id));
+      .where(eq(dimUser.id, user.id));
 
     (await cookies()).delete('session');
     redirect(paths.auth.signIn);
@@ -224,7 +224,7 @@ export const updateAccount = validatedActionWithUser(
   async (data, _, user) => {
     const { name, email } = data;
 
-    await db.update(users).set({ name, email }).where(eq(users.id, user.id));
+    await db.update(dimUser).set({ name, email }).where(eq(dimUser.id, user.id));
 
     return { name, success: 'Account updated successfully.' };
   }

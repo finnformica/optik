@@ -3,7 +3,7 @@
 import { getAccountKey } from "@/lib/auth/session";
 import { SchwabAuth } from "@/lib/connections/schwab/oauth";
 import { db } from "@/lib/db/config";
-import { dimAccountAccessTokens } from "@/lib/db/schema";
+import { dimAccountAccessToken } from "@/lib/db/schema";
 import { paths } from "@/lib/utils";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -14,10 +14,10 @@ export async function disconnectSchwab() {
 
   try {
     await db
-      .delete(dimAccountAccessTokens)
+      .delete(dimAccountAccessToken)
       .where(and(
-        eq(dimAccountAccessTokens.accountKey, accountKey),
-        eq(dimAccountAccessTokens.brokerCode, 'schwab')
+        eq(dimAccountAccessToken.accountKey, accountKey),
+        eq(dimAccountAccessToken.brokerCode, 'schwab')
       ));
     
     // Revalidate the connections page to show updated state

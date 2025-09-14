@@ -2,7 +2,7 @@ import { getAccountKey } from "@/lib/auth/session";
 import { TokenEncryption } from "@/lib/auth/token-encryption";
 import { db } from "@/lib/db/config";
 import { SchwabActivity } from "@/lib/db/etl/queries";
-import { dimAccountAccessTokens } from "@/lib/db/schema";
+import { dimAccountAccessToken } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 
 export interface SchwabTokens {
@@ -50,7 +50,7 @@ export class SchwabAuth {
 
     try {
       await db
-        .insert(dimAccountAccessTokens)
+        .insert(dimAccountAccessToken)
         .values({
           accountKey,
           encryptedTokens,
@@ -61,8 +61,8 @@ export class SchwabAuth {
         })
         .onConflictDoUpdate({
           target: [
-            dimAccountAccessTokens.accountKey,
-            dimAccountAccessTokens.brokerCode,
+            dimAccountAccessToken.accountKey,
+            dimAccountAccessToken.brokerCode,
           ],
           set: {
             encryptedTokens,
@@ -88,11 +88,11 @@ export class SchwabAuth {
     try {
       const data = await db
         .select()
-        .from(dimAccountAccessTokens)
+        .from(dimAccountAccessToken)
         .where(
           and(
-            eq(dimAccountAccessTokens.accountKey, accountKey),
-            eq(dimAccountAccessTokens.brokerCode, "schwab")
+            eq(dimAccountAccessToken.accountKey, accountKey),
+            eq(dimAccountAccessToken.brokerCode, "schwab")
           )
         );
 
@@ -161,11 +161,11 @@ export class SchwabAuth {
     const accountKey = await getAccountKey();
     try {
       await db
-        .delete(dimAccountAccessTokens)
+        .delete(dimAccountAccessToken)
         .where(
           and(
-            eq(dimAccountAccessTokens.accountKey, accountKey),
-            eq(dimAccountAccessTokens.brokerCode, "schwab")
+            eq(dimAccountAccessToken.accountKey, accountKey),
+            eq(dimAccountAccessToken.brokerCode, "schwab")
           )
         );
     } catch (error) {

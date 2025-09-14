@@ -1,6 +1,6 @@
 import { setSession } from '@/lib/auth/session';
 import { db } from '@/lib/db/config';
-import { dimAccount, users } from '@/lib/db/schema';
+import { dimAccount, dimUser } from '@/lib/db/schema';
 import { stripe } from '@/lib/payments/stripe';
 import { paths } from '@/lib/utils';
 import { eq } from 'drizzle-orm';
@@ -57,19 +57,19 @@ export async function GET(request: NextRequest) {
 
     const user = await db
       .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        passwordHash: users.passwordHash,
-        role: users.role,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-        deletedAt: users.deletedAt,
+        id: dimUser.id,
+        name: dimUser.name,
+        email: dimUser.email,
+        passwordHash: dimUser.passwordHash,
+        role: dimUser.role,
+        createdAt: dimUser.createdAt,
+        updatedAt: dimUser.updatedAt,
+        deletedAt: dimUser.deletedAt,
         accountKey: dimAccount.accountKey
       })
-      .from(users)
-      .innerJoin(dimAccount, eq(users.id, dimAccount.userId))
-      .where(eq(users.id, Number(userId)))
+      .from(dimUser)
+      .innerJoin(dimAccount, eq(dimUser.id, dimAccount.userId))
+      .where(eq(dimUser.id, Number(userId)))
       .limit(1);
 
     if (user.length === 0) {

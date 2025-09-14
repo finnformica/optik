@@ -1,7 +1,7 @@
 import {
   dimTransactionType,
-  factTransactions,
-  RawTransaction,
+  factTransaction,
+  StgTransaction,
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getBrokerKey, getDate, getOrCreateSecurity } from "./utils";
@@ -83,7 +83,7 @@ export async function getSchwabTransactionType(
  * Process Schwab-specific transaction format
  */
 export async function processSchwabTransaction(
-  rawTx: RawTransaction,
+  rawTx: StgTransaction,
   data: any,
   database: any
 ) {
@@ -143,9 +143,9 @@ export async function processSchwabTransaction(
   const grossAmount = securityItem?.cost ?? data.netAmount ?? 0;
   const netAmount = data.netAmount || 0;
 
-  // Insert into fact_transactions
+  // Insert into fact_transaction
   await database
-    .insert(factTransactions)
+    .insert(factTransaction)
     .values({
       dateKey: date.dateKey,
       accountKey,
@@ -163,9 +163,9 @@ export async function processSchwabTransaction(
     })
     .onConflictDoNothing({
       target: [
-        factTransactions.accountKey,
-        factTransactions.brokerTransactionId,
-        factTransactions.originalTransactionId,
+        factTransaction.accountKey,
+        factTransaction.brokerTransactionId,
+        factTransaction.originalTransactionId,
       ],
     });
 

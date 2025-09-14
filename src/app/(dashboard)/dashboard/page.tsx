@@ -8,8 +8,8 @@ import { db } from "@/lib/db/config";
 import {
   viewPortfolioDistribution,
   viewPortfolioSummary,
-  viewPositions,
-  viewWeeklyReturns,
+  viewPosition,
+  viewWeeklyReturn,
 } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 
@@ -26,11 +26,11 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     db
       .select()
-      .from(viewPositions)
+      .from(viewPosition)
       .where(
         and(
-          eq(viewPositions.accountKey, accountKey),
-          eq(viewPositions.positionStatus, "OPEN")
+          eq(viewPosition.accountKey, accountKey),
+          eq(viewPosition.positionStatus, "OPEN")
         )
       )
       .limit(50),
@@ -46,13 +46,13 @@ export default async function DashboardPage() {
       .limit(1),
     db
       .select()
-      .from(viewWeeklyReturns)
-      .where(eq(viewWeeklyReturns.accountKey, accountKey))
+      .from(viewWeeklyReturn)
+      .where(eq(viewWeeklyReturn.accountKey, accountKey))
       .limit(52),
     db
       .select()
-      .from(viewWeeklyReturns)
-      .where(eq(viewWeeklyReturns.accountKey, accountKey))
+      .from(viewWeeklyReturn)
+      .where(eq(viewWeeklyReturn.accountKey, accountKey))
       .limit(52),
   ]);
 

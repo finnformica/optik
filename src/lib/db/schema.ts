@@ -17,89 +17,12 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-// ------------------------------------------------------------
-// Users, User Access Tokens
-// ------------------------------------------------------------
-
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 100 }),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
-  role: varchar("role", { length: 20 }).notNull().default("member"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  deletedAt: timestamp("deleted_at"),
-});
-
-export const dimAccountAccessTokens = pgTable(
-  "dim_account_access_tokens",
-  {
-    accessTokenKey: serial("access_token_key").primaryKey(),
-    accountKey: integer("account_key")
-      .notNull()
-      .references(() => dimAccount.accountKey),
-    encryptedTokens: text("encrypted_tokens").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
-    tokenType: varchar("token_type", { length: 50 }).notNull(),
-    scope: varchar("scope", { length: 255 }).notNull(),
-    brokerCode: varchar("broker_code", { length: 20 })
-      .notNull()
-      .references(() => dimBroker.brokerCode),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  },
-  (table) => [
-    unique("unique_account_broker_token").on(
-      table.accountKey,
-      table.brokerCode
-    ),
-  ]
-);
-
-export const usersRelations = relations(users, ({ many }) => ({
-  accounts: many(dimAccount),
-}));
-
-export const dimAccountAccessTokensRelations = relations(
-  dimAccountAccessTokens,
-  ({ one }) => ({
-    account: one(dimAccount, {
-      fields: [dimAccountAccessTokens.accountKey],
-      references: [dimAccount.accountKey],
-    }),
-    broker: one(dimBroker, {
-      fields: [dimAccountAccessTokens.brokerCode],
-      references: [dimBroker.brokerCode],
-    }),
-  })
-);
-
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-export type DimAccountAccessToken = typeof dimAccountAccessTokens.$inferSelect;
-export type NewDimAccountAccessToken =
-  typeof dimAccountAccessTokens.$inferInsert;
-
-export enum ActivityType {
-  SIGN_UP = "SIGN_UP",
-  SIGN_IN = "SIGN_IN",
-  SIGN_OUT = "SIGN_OUT",
-  UPDATE_PASSWORD = "UPDATE_PASSWORD",
-  DELETE_ACCOUNT = "DELETE_ACCOUNT",
-  UPDATE_ACCOUNT = "UPDATE_ACCOUNT",
-}
-
-// ------------------------------------------------------------
-// Data Model
-// ------------------------------------------------------------
-
 // =============================================
-// RAW TRANSACTIONS STAGING TABLE
+// STAGING TABLES
 // =============================================
 
-export const rawTransactions = pgTable(
-  "raw_transactions",
+export const stgTransaction = pgTable(
+  "stg_transaction",
   {
     id: serial("id").primaryKey(),
     accountKey: integer("account_key")
@@ -129,11 +52,11 @@ export const rawTransactions = pgTable(
       table.brokerTransactionId,
       table.brokerCode
     ),
-    index("idx_raw_transactions_account_status").on(
+    index("idx_stg_transaction_account_status").on(
       table.accountKey,
       table.status
     ),
-    index("idx_raw_transactions_broker_id").on(table.brokerTransactionId),
+    index("idx_stg_transaction_broker_id").on(table.brokerTransactionId),
   ]
 );
 
@@ -141,7 +64,61 @@ export const rawTransactions = pgTable(
 // DIMENSIONAL TABLES
 // =============================================
 
-// Date Dimension - Essential for time-based analytics
+// User Dimension - Represents a user of the application
+export const dimUser = pgTable("dim_user", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  role: varchar("role", { length: 20 }).notNull().default("member"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at"),
+});
+
+// Account Dimension - Represents an account of a user
+export const dimAccount = pgTable("dim_account", {
+  accountKey: serial("account_key").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => dimUser.id),
+  accountName: varchar("account_name", { length: 100 }).default(
+    "Primary Account"
+  ),
+  accountType: varchar("account_type", { length: 50 }).default("INDIVIDUAL"), // INDIVIDUAL, JOINT, CORPORATE, IRA, ROTH, 401K, 403B, 529, OTHER
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Account Access Token Dimension
+export const dimAccountAccessToken = pgTable(
+  "dim_account_access_token",
+  {
+    accessTokenKey: serial("access_token_key").primaryKey(),
+    accountKey: integer("account_key")
+      .notNull()
+      .references(() => dimAccount.accountKey),
+    encryptedTokens: text("encrypted_tokens").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    tokenType: varchar("token_type", { length: 50 }).notNull(),
+    scope: varchar("scope", { length: 255 }).notNull(),
+    brokerCode: varchar("broker_code", { length: 20 })
+      .notNull()
+      .references(() => dimBroker.brokerCode),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    unique("unique_account_broker_token").on(
+      table.accountKey,
+      table.brokerCode
+    ),
+  ]
+);
+
+// Date Dimension
 export const dimDate = pgTable(
   "dim_date",
   {
@@ -204,20 +181,6 @@ export const dimSecurity = pgTable(
   ]
 );
 
-export type ITransactionAction =
-  | "buy"
-  | "sell"
-  | "buy_to_open"
-  | "sell_to_close"
-  | "sell_to_open"
-  | "buy_to_close"
-  | "expire"
-  | "assign"
-  | "dividend"
-  | "interest"
-  | "transfer"
-  | "other";
-
 // Transaction Type Dimension
 export const dimTransactionType = pgTable("dim_transaction_type", {
   transactionTypeKey: serial("transaction_type_key").primaryKey(),
@@ -226,22 +189,6 @@ export const dimTransactionType = pgTable("dim_transaction_type", {
   actionCategory: varchar("action_category", { length: 50 }), // 'TRADE', 'INCOME', 'TRANSFER', 'CORPORATE'
   affectsPosition: boolean("affects_position"),
   direction: integer("direction"), // +1 for inflows, -1 for outflows, 0 for neutral
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Account Dimension
-export const dimAccount = pgTable("dim_account", {
-  accountKey: serial("account_key").primaryKey(),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id),
-  accountName: varchar("account_name", { length: 100 }).default(
-    "Primary Account"
-  ),
-  accountType: varchar("account_type", { length: 50 }).default("INDIVIDUAL"), // INDIVIDUAL, JOINT, CORPORATE, IRA, ROTH, 401K, 403B, 529, OTHER
-  currency: varchar("currency", { length: 3 }).default("USD"),
-  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -258,8 +205,8 @@ export const dimBroker = pgTable("dim_broker", {
 });
 
 // Broker Account Dimension - Maps broker accounts to user accounts
-export const dimBrokerAccounts = pgTable(
-  "dim_broker_accounts",
+export const dimBrokerAccount = pgTable(
+  "dim_broker_account",
   {
     brokerAccountKey: serial("broker_account_key").primaryKey(),
     accountKey: integer("account_key")
@@ -286,11 +233,11 @@ export const dimBrokerAccounts = pgTable(
       table.brokerKey,
       table.brokerAccountNumber
     ),
-    index("idx_broker_accounts_account_broker").on(
+    index("idx_broker_account_account_broker").on(
       table.accountKey,
       table.brokerKey
     ),
-    index("idx_broker_accounts_hash").on(table.brokerAccountHash),
+    index("idx_broker_account_hash").on(table.brokerAccountHash),
   ]
 );
 
@@ -299,8 +246,8 @@ export const dimBrokerAccounts = pgTable(
 // =============================================
 
 // Transaction Fact Table - One row per trade
-export const factTransactions = pgTable(
-  "fact_transactions",
+export const factTransaction = pgTable(
+  "fact_transaction",
   {
     // Primary key
     transactionKey: serial("transaction_key").primaryKey(),
@@ -346,7 +293,7 @@ export const factTransactions = pgTable(
     foreignKey({
       columns: [table.securityKey],
       foreignColumns: [dimSecurity.securityKey],
-      name: "fk_fact_transactions_security",
+      name: "fk_fact_transaction_security",
     }),
 
     // Unique constraint for idempotent loading per account
@@ -357,9 +304,9 @@ export const factTransactions = pgTable(
     ),
 
     // Performance indexes
-    index("idx_fact_transactions_date").on(table.dateKey),
-    index("idx_fact_transactions_account").on(table.accountKey),
-    index("idx_fact_transactions_security").on(table.securityKey),
+    index("idx_fact_transaction_date").on(table.dateKey),
+    index("idx_fact_transaction_account").on(table.accountKey),
+    index("idx_fact_transaction_security").on(table.securityKey),
   ]
 );
 
@@ -368,7 +315,7 @@ export const factTransactions = pgTable(
 // =============================================
 
 // Simplified positions view based purely on transaction aggregation
-export const viewPositions = pgView("view_positions", {
+export const viewPosition = pgView("view_position", {
   accountKey: integer("account_key"),
   symbol: varchar("symbol", { length: 50 }),
   underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
@@ -449,7 +396,7 @@ export const viewPositions = pgView("view_positions", {
       ELSE NULL
     END as expiry_date
 
-  FROM ${factTransactions} ft
+  FROM ${factTransaction} ft
   JOIN ${dimSecurity} s ON ft.security_key = s.security_key
   JOIN ${dimAccount} a ON ft.account_key = a.account_key
   JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
@@ -476,14 +423,14 @@ export const viewPortfolioDistribution = pgView("view_portfolio_distribution", {
     COUNT(*)::integer as instrument_count,
     (ABS(SUM(position_value)) / SUM(ABS(SUM(position_value))) OVER (PARTITION BY account_key)) * 100 as portfolio_percentage
 
-  FROM view_positions
+  FROM ${viewPosition}
   WHERE position_status = 'OPEN'
   GROUP BY account_key, underlying_symbol
   ORDER BY ABS(SUM(position_value)) DESC
 `);
 
 // Weekly Returns Chart
-export const viewWeeklyReturns = pgView("view_weekly_returns", {
+export const viewWeeklyReturn = pgView("view_weekly_return", {
   accountKey: integer("account_key"),
   weekStart: date("week_start"),
   cumulativePortfolioValue: decimal("cumulative_portfolio_value", {
@@ -511,7 +458,7 @@ export const viewWeeklyReturns = pgView("view_weekly_returns", {
           SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
           -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
           SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_gains
-      FROM ${factTransactions} ft
+      FROM ${factTransaction} ft
       JOIN ${dimDate} d ON ft.date_key = d.date_key
       JOIN ${dimAccount} a ON ft.account_key = a.account_key
       JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
@@ -605,7 +552,7 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     SELECT
       a.account_key,
       SUM(ft.net_amount) as total_portfolio_value
-    FROM ${factTransactions} ft
+    FROM ${factTransaction} ft
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
     GROUP BY a.account_key
@@ -617,7 +564,7 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     SELECT
       account_key,
       SUM(position_value) as total_position_value
-    FROM ${viewPositions}
+    FROM ${viewPosition}
     WHERE position_status = 'OPEN'
     GROUP BY account_key
   ),
@@ -627,7 +574,7 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     SELECT
       a.account_key,
       SUM(ft.net_amount) as monthly_realised_pnl
-    FROM ${factTransactions} ft
+    FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
@@ -643,7 +590,7 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     SELECT
       a.account_key,
       SUM(ft.net_amount) as yearly_realised_pnl
-    FROM ${factTransactions} ft
+    FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
@@ -658,7 +605,7 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     SELECT
       a.account_key,
       SUM(ft.net_amount) as weekly_realised_pnl
-    FROM ${factTransactions} ft
+    FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
@@ -709,66 +656,84 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
 // RELATIONS (for Drizzle ORM)
 // =============================================
 
-export const rawTransactionsRelations = relations(
-  rawTransactions,
+export const stgTransactionRelations = relations(
+  stgTransaction,
   ({ one }) => ({
     account: one(dimAccount, {
-      fields: [rawTransactions.accountKey],
+      fields: [stgTransaction.accountKey],
       references: [dimAccount.accountKey],
+    }),
+  })
+);
+
+export const dimUserRelations = relations(dimUser, ({ many }) => ({
+  accounts: many(dimAccount),
+}));
+
+export const dimAccountAccessTokenRelations = relations(
+  dimAccountAccessToken,
+  ({ one }) => ({
+    account: one(dimAccount, {
+      fields: [dimAccountAccessToken.accountKey],
+      references: [dimAccount.accountKey],
+    }),
+    broker: one(dimBroker, {
+      fields: [dimAccountAccessToken.brokerCode],
+      references: [dimBroker.brokerCode],
     }),
   })
 );
 
 export const dimAccountRelations = relations(dimAccount, ({ one, many }) => ({
-  user: one(users, {
+  user: one(dimUser, {
     fields: [dimAccount.userId],
-    references: [users.id],
+    references: [dimUser.id],
   }),
-  transactions: many(factTransactions),
-  brokerAccounts: many(dimBrokerAccounts),
-  accessTokens: many(dimAccountAccessTokens),
+  transactions: many(factTransaction),
+  brokerAccounts: many(dimBrokerAccount),
+  accessTokens: many(dimAccountAccessToken),
 }));
 
 export const dimBrokerRelations = relations(dimBroker, ({ many }) => ({
-  brokerAccounts: many(dimBrokerAccounts),
-  transactions: many(factTransactions),
+  brokerAccounts: many(dimBrokerAccount),
+  transactions: many(factTransaction),
 }));
 
-export const dimBrokerAccountsRelations = relations(
-  dimBrokerAccounts,
+export const dimBrokerAccountRelations = relations(
+  dimBrokerAccount,
   ({ one }) => ({
     account: one(dimAccount, {
-      fields: [dimBrokerAccounts.accountKey],
+      fields: [dimBrokerAccount.accountKey],
       references: [dimAccount.accountKey],
     }),
     broker: one(dimBroker, {
-      fields: [dimBrokerAccounts.brokerKey],
+      fields: [dimBrokerAccount.brokerKey],
       references: [dimBroker.brokerKey],
     }),
   })
 );
 
-export const factTransactionsRelations = relations(
-  factTransactions,
+export const factTransactionRelations = relations(
+  factTransaction,
   ({ one }) => ({
     date: one(dimDate, {
-      fields: [factTransactions.dateKey],
+      fields: [factTransaction.dateKey],
       references: [dimDate.dateKey],
     }),
     account: one(dimAccount, {
-      fields: [factTransactions.accountKey],
+      fields: [factTransaction.accountKey],
       references: [dimAccount.accountKey],
     }),
     transactionType: one(dimTransactionType, {
-      fields: [factTransactions.transactionTypeKey],
+      fields: [factTransaction.transactionTypeKey],
       references: [dimTransactionType.transactionTypeKey],
     }),
     broker: one(dimBroker, {
-      fields: [factTransactions.brokerKey],
+      fields: [factTransaction.brokerKey],
       references: [dimBroker.brokerKey],
     }),
     security: one(dimSecurity, {
-      fields: [factTransactions.securityKey],
+      fields: [factTransaction.securityKey],
       references: [dimSecurity.securityKey],
     }),
   })
@@ -778,23 +743,42 @@ export const factTransactionsRelations = relations(
 // TYPE EXPORTS
 // =============================================
 
+export type ITransactionAction =
+  | "buy"
+  | "sell"
+  | "buy_to_open"
+  | "sell_to_close"
+  | "sell_to_open"
+  | "buy_to_close"
+  | "expire"
+  | "assign"
+  | "dividend"
+  | "interest"
+  | "transfer"
+  | "other";
+
+export type StgTransaction = typeof stgTransaction.$inferSelect;
+export type NewStgTransaction = typeof stgTransaction.$inferInsert;
+
+export type DimUser = typeof dimUser.$inferSelect;
+export type NewDimUser = typeof dimUser.$inferInsert;
+
+export type DimAccountAccessToken = typeof dimAccountAccessToken.$inferSelect;
+export type NewDimAccountAccessToken = typeof dimAccountAccessToken.$inferInsert;
+
 export type DimDate = typeof dimDate.$inferSelect;
 export type DimSecurity = typeof dimSecurity.$inferSelect;
 export type DimTransactionType = typeof dimTransactionType.$inferSelect;
 export type DimAccount = typeof dimAccount.$inferSelect;
 export type DimBroker = typeof dimBroker.$inferSelect;
-export type DimBrokerAccounts = typeof dimBrokerAccounts.$inferSelect;
 
-export type FactTransaction = typeof factTransactions.$inferSelect;
+export type DimBrokerAccount = typeof dimBrokerAccount.$inferSelect;
+export type NewDimBrokerAccount = typeof dimBrokerAccount.$inferInsert;
 
-export type ViewPosition = typeof viewPositions.$inferSelect;
-export type ViewPortfolioDistribution =
-  typeof viewPortfolioDistribution.$inferSelect;
-export type ViewWeeklyReturns = typeof viewWeeklyReturns.$inferSelect;
+export type FactTransaction = typeof factTransaction.$inferSelect;
+export type NewFactTransaction = typeof factTransaction.$inferInsert;
+
+export type ViewPosition = typeof viewPosition.$inferSelect;
+export type ViewPortfolioDistribution = typeof viewPortfolioDistribution.$inferSelect;
+export type ViewWeeklyReturn = typeof viewWeeklyReturn.$inferSelect;
 export type ViewPortfolioSummary = typeof viewPortfolioSummary.$inferSelect;
-
-// Insert types
-export type NewFactTransaction = typeof factTransactions.$inferInsert;
-export type NewDimBrokerAccounts = typeof dimBrokerAccounts.$inferInsert;
-export type RawTransaction = typeof rawTransactions.$inferSelect;
-export type NewRawTransaction = typeof rawTransactions.$inferInsert;

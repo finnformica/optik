@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { db } from '@/lib/db/config';
-import { dimAccount, NewUser } from '@/lib/db/schema';
+import { dimAccount, NewDimUser } from '@/lib/db/schema';
 import { paths } from '@/lib/utils';
 
 
@@ -50,7 +50,7 @@ export async function getSession() {
   return await verifyToken(session);
 }
 
-export async function setSession(user: NewUser, accountKey: number) {
+export async function setSession(user: NewDimUser, accountKey: number) {
   const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const session: SessionData = {
     user: { id: user.id! },

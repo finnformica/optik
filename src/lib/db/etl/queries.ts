@@ -1,5 +1,5 @@
 import { db } from "@/lib/db/config";
-import { RawTransaction, rawTransactions } from "@/lib/db/schema";
+import { StgTransaction, stgTransaction } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { getAccountKey } from "@/lib/auth/session";
@@ -63,7 +63,7 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
   const accountKey = await getAccountKey();
   const database = tx || db;
 
-  // Convert SchwabActivity to expected raw_transactions format
+  // Convert SchwabActivity to expected stg_transaction format
   const formattedData = data.map((activity) => ({
     accountKey,
     brokerCode: "schwab", // hard-coded from the dim_broker table
@@ -74,13 +74,13 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
   }));
 
   await database
-    .insert(rawTransactions)
+    .insert(stgTransaction)
     .values(formattedData)
     .onConflictDoNothing({
       target: [
-        rawTransactions.accountKey,
-        rawTransactions.brokerTransactionId,
-        rawTransactions.brokerCode,
+        stgTransaction.accountKey,
+        stgTransaction.brokerTransactionId,
+        stgTransaction.brokerCode,
       ],
     });
 
@@ -98,12 +98,12 @@ export async function processRawTransactions(tx?: any) {
   // Get pending transactions for account
   const pendingTransactions = await database
     .select()
-    .from(rawTransactions)
+    .from(stgTransaction)
     .where(
       and(
-        eq(rawTransactions.accountKey, accountKey),
-        //   eq(rawTransactions.status, 'PENDING'),
-        inArray(rawTransactions.status, ["PENDING", "ERROR"])
+        eq(stgTransaction.accountKey, accountKey),
+        //   eq(stgTransaction.status, 'PENDING'),
+        inArray(stgTransaction.status, ["PENDING", "ERROR"])
       )
     );
 
@@ -119,12 +119,12 @@ export async function processRawTransactions(tx?: any) {
 
       // Mark as processed
       await database
-        .update(rawTransactions)
+        .update(stgTransaction)
         .set({
           status: "PROCESSED",
           processedAt: new Date(),
         })
-        .where(eq(rawTransactions.id, rawTx.id));
+        .where(eq(stgTransaction.id, rawTx.id));
 
       results.processed++;
     } catch (error: unknown) {
@@ -137,13 +137,13 @@ export async function processRawTransactions(tx?: any) {
 
       // Mark as failed
       await database
-        .update(rawTransactions)
+        .update(stgTransaction)
         .set({
           status: "ERROR",
           errorMessage: `Failed to process ${errorMessage}`,
           processedAt: new Date(),
         })
-        .where(eq(rawTransactions.id, rawTx.id));
+        .where(eq(stgTransaction.id, rawTx.id));
 
       results.failed++;
       results.errors.push(errorMessage);
@@ -156,7 +156,7 @@ export async function processRawTransactions(tx?: any) {
 /**
  * Process a single raw transaction into dimensional model
  */
-async function processSingleTransaction(rawTx: RawTransaction, database: any) {
+async function processSingleTransaction(rawTx: StgTransaction, database: any) {
   const data = rawTx.rawData as any;
 
   // Route to broker-specific processor

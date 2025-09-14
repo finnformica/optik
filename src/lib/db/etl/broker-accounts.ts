@@ -4,9 +4,9 @@ import { db } from "@/lib/db/config";
 import {
   dimAccount,
   dimBroker,
-  dimBrokerAccounts,
-  NewDimBrokerAccounts,
-  rawTransactions,
+  dimBrokerAccount,
+  NewDimBrokerAccount,
+  stgTransaction,
 } from "@/lib/db/schema";
 import { and, desc, eq, notInArray } from "drizzle-orm";
 
@@ -57,21 +57,21 @@ export async function syncSchwabBrokerAccounts(): Promise<void> {
  */
 async function upsertBrokerAccount(
   accountData: Omit<
-    NewDimBrokerAccounts,
+    NewDimBrokerAccount,
     "brokerAccountKey" | "createdAt" | "updatedAt"
   >
 ): Promise<void> {
   await db
-    .insert(dimBrokerAccounts)
+    .insert(dimBrokerAccount)
     .values({
       ...accountData,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: [
-        dimBrokerAccounts.accountKey,
-        dimBrokerAccounts.brokerKey,
-        dimBrokerAccounts.brokerAccountNumber,
+        dimBrokerAccount.accountKey,
+        dimBrokerAccount.brokerKey,
+        dimBrokerAccount.brokerAccountNumber,
       ],
       set: {
         brokerAccountHash: accountData.brokerAccountHash,
@@ -94,16 +94,16 @@ async function markMissingAccountsInactive(
   const accountKey = await getAccountKey();
 
   await db
-    .update(dimBrokerAccounts)
+    .update(dimBrokerAccount)
     .set({
       isActive: false,
       updatedAt: new Date(),
     })
     .where(
       and(
-        eq(dimBrokerAccounts.accountKey, accountKey),
-        eq(dimBrokerAccounts.brokerKey, brokerKey),
-        notInArray(dimBrokerAccounts.brokerAccountNumber, activeAccountNumbers)
+        eq(dimBrokerAccount.accountKey, accountKey),
+        eq(dimBrokerAccount.brokerKey, brokerKey),
+        notInArray(dimBrokerAccount.brokerAccountNumber, activeAccountNumbers)
       )
     );
 
@@ -119,22 +119,22 @@ export async function getActiveBrokerAccounts(brokerCode: string) {
 
   return await db
     .select({
-      brokerAccountKey: dimBrokerAccounts.brokerAccountKey,
-      brokerAccountHash: dimBrokerAccounts.brokerAccountHash,
-      brokerAccountNumber: dimBrokerAccounts.brokerAccountNumber,
-      lastSyncedAt: dimBrokerAccounts.lastSyncedAt,
+      brokerAccountKey: dimBrokerAccount.brokerAccountKey,
+      brokerAccountHash: dimBrokerAccount.brokerAccountHash,
+      brokerAccountNumber: dimBrokerAccount.brokerAccountNumber,
+      lastSyncedAt: dimBrokerAccount.lastSyncedAt,
     })
-    .from(dimBrokerAccounts)
+    .from(dimBrokerAccount)
     .innerJoin(
       dimAccount,
-      eq(dimBrokerAccounts.accountKey, dimAccount.accountKey)
+      eq(dimBrokerAccount.accountKey, dimAccount.accountKey)
     )
-    .innerJoin(dimBroker, eq(dimBrokerAccounts.brokerKey, dimBroker.brokerKey))
+    .innerJoin(dimBroker, eq(dimBrokerAccount.brokerKey, dimBroker.brokerKey))
     .where(
       and(
         eq(dimAccount.accountKey, accountKey),
         eq(dimBroker.brokerCode, brokerCode),
-        eq(dimBrokerAccounts.isActive, true)
+        eq(dimBrokerAccount.isActive, true)
       )
     );
 }
@@ -150,16 +150,16 @@ export async function getLastTransactionDate(
 
   const result = await db
     .select({
-      brokerTimestamp: rawTransactions.brokerTimestamp,
+      brokerTimestamp: stgTransaction.brokerTimestamp,
     })
-    .from(rawTransactions)
+    .from(stgTransaction)
     .where(
       and(
-        eq(rawTransactions.accountKey, accountKey),
-        eq(rawTransactions.brokerCode, brokerCode)
+        eq(stgTransaction.accountKey, accountKey),
+        eq(stgTransaction.brokerCode, brokerCode)
       )
     )
-    .orderBy(desc(rawTransactions.brokerTimestamp))
+    .orderBy(desc(stgTransaction.brokerTimestamp))
     .limit(1);
 
   if (result.length > 0) {

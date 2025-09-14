@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User } from "@/lib/db/schema";
+import { DimUser } from "@/lib/db/schema";
 import { Loader2 } from "lucide-react";
 import { Suspense, useActionState } from "react";
 import useSWR from "swr";
@@ -63,7 +63,7 @@ function AccountForm({
 }
 
 function AccountFormWithData({ state }: { state: ActionState }) {
-  const { data: user } = useSWR<User>("/api/user", fetcher);
+  const { data: user } = useSWR<DimUser>("/api/user", fetcher);
   return (
     <AccountForm
       state={state}

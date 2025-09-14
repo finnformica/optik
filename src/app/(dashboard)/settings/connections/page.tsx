@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAccountKey } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
-import { dimAccountAccessTokens } from "@/lib/db/schema";
+import { dimAccountAccessToken } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { CheckCircle, ExternalLink, XCircle } from "lucide-react";
 import { connectSchwab, disconnectSchwab } from "./actions";
@@ -14,13 +14,13 @@ async function getSchwabConnectionStatus() {
   try {
     const token = await db
       .select({
-        expiresAt: dimAccountAccessTokens.expiresAt,
+        expiresAt: dimAccountAccessToken.expiresAt,
       })
-      .from(dimAccountAccessTokens)
+      .from(dimAccountAccessToken)
       .where(
         and(
-          eq(dimAccountAccessTokens.accountKey, accountKey),
-          eq(dimAccountAccessTokens.brokerCode, "schwab")
+          eq(dimAccountAccessToken.accountKey, accountKey),
+          eq(dimAccountAccessToken.brokerCode, "schwab")
         )
       )
       .limit(1);
