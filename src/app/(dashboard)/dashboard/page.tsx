@@ -3,7 +3,7 @@ import CurrentPositions from "@/components/dashboard/current-positions";
 import PortfolioDistribution from "@/components/dashboard/portfolio-distribution";
 import SummaryStats from "@/components/dashboard/summary-stats";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
-import { getSession } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import {
   viewPortfolioDistribution,
@@ -14,8 +14,7 @@ import {
 import { and, eq } from "drizzle-orm";
 
 export default async function DashboardPage() {
-  const session = await getSession();
-  const userId = session.user.id;
+  const accountKey = await getAccountKey();
 
   // Fetch all analytics data in parallel
   const [
@@ -30,7 +29,7 @@ export default async function DashboardPage() {
       .from(viewPositions)
       .where(
         and(
-          eq(viewPositions.userId, userId),
+          eq(viewPositions.accountKey, accountKey),
           eq(viewPositions.positionStatus, "OPEN")
         )
       )
@@ -38,22 +37,22 @@ export default async function DashboardPage() {
     db
       .select()
       .from(viewPortfolioDistribution)
-      .where(eq(viewPortfolioDistribution.userId, userId))
+      .where(eq(viewPortfolioDistribution.accountKey, accountKey))
       .limit(20),
     db
       .select({ cashBalance: viewPortfolioSummary.cashBalance })
       .from(viewPortfolioSummary)
-      .where(eq(viewPortfolioSummary.userId, userId))
+      .where(eq(viewPortfolioSummary.accountKey, accountKey))
       .limit(1),
     db
       .select()
       .from(viewWeeklyReturns)
-      .where(eq(viewWeeklyReturns.userId, userId))
+      .where(eq(viewWeeklyReturns.accountKey, accountKey))
       .limit(52),
     db
       .select()
       .from(viewWeeklyReturns)
-      .where(eq(viewWeeklyReturns.userId, userId))
+      .where(eq(viewWeeklyReturns.accountKey, accountKey))
       .limit(52),
   ]);
 

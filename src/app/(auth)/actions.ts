@@ -26,7 +26,7 @@ const signInSchema = z.object({
 export const signIn = validatedAction(signInSchema, async (data) => {
   const { email, password } = data;
 
-  const foundUsers = await db
+  const [foundUser] = await db
     .select({
       id: users.id,
       name: users.name,
@@ -43,15 +43,13 @@ export const signIn = validatedAction(signInSchema, async (data) => {
     .where(eq(users.email, email))
     .limit(1);
 
-  if (foundUsers.length === 0) {
+  if (!foundUser) {
     return {
       error: 'Invalid email or password. Please try again.',
       email,
       password
     };
   }
-
-  const foundUser = foundUsers[0];
 
   const isPasswordValid = await comparePasswords(
     password,
@@ -79,13 +77,13 @@ const signUpSchema = z.object({
 export const signUp = validatedAction(signUpSchema, async (data) => {
   const { email, password } = data;
 
-  const existingUser = await db
+  const [existingUser] = await db
     .select()
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
 
-  if (existingUser.length > 0) {
+  if (existingUser) {
     return {
       error: 'An account with this email already exists. Please sign in instead.',
       email,
