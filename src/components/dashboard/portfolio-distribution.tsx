@@ -36,19 +36,24 @@ const PortfolioDistribution = ({
     cashBalance
   );
 
+  // Check if there's no data to display
+  const hasNoData = distribution.length === 0 && cashBalance === 0;
+
   const data = [
     ...distribution,
     { symbol: "Cash", positionValue: cashBalance.toString() },
-  ];
+  ].map((item, index) => ({
+    name: item.symbol,
+    value: parseFloat(item.positionValue || "0"),
+    fill: getColor(index),
+  }));
 
   // Calculate positions for labels extending from the pie chart
   const renderCustomisedLabel = ({
     cx,
     cy,
     midAngle,
-    innerRadius,
     outerRadius,
-    percent,
     index,
   }: any) => {
     const RADIAN = Math.PI / 180;
@@ -57,7 +62,7 @@ const PortfolioDistribution = ({
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
     // Calculate the percentage for this segment
-    const value = parseFloat(data[index]?.positionValue || "0");
+    const value = data[index].value;
     const percentage =
       totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : "0";
 
@@ -81,7 +86,7 @@ const PortfolioDistribution = ({
           dominantBaseline="central"
           className="text-xs font-medium"
         >
-          {data[index].symbol} ({percentage}%)
+          {data[index].name} ({percentage}%)
         </text>
       </g>
     );
@@ -93,17 +98,14 @@ const PortfolioDistribution = ({
         <CardTitle className="text-white">Portfolio Distribution</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="space-y-4">
-          {/* Pie Chart with Labels */}
-          <div className="h-[300px] flex items-center justify-center">
+        <div className="h-[300px] flex items-center justify-center">
+          {hasNoData ? (
+            <p className="text-gray-400">No portfolio data available</p>
+          ) : (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={data.map((item, index) => ({
-                    name: item.symbol,
-                    value: parseFloat(item.positionValue || "0"),
-                    fill: getColor(index),
-                  }))}
+                  data={data}
                   cx="50%"
                   cy="50%"
                   innerRadius={80}
@@ -144,7 +146,7 @@ const PortfolioDistribution = ({
                 />
               </PieChart>
             </ResponsiveContainer>
-          </div>
+          )}
         </div>
       </CardContent>
     </Card>
