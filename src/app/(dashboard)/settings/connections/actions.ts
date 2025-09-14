@@ -1,24 +1,23 @@
 'use server';
 
-import { getSession } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/auth/session";
 import { SchwabAuth } from "@/lib/connections/schwab/oauth";
 import { db } from "@/lib/db/config";
-import { userAccessTokens } from "@/lib/db/schema";
+import { dimAccountAccessTokens } from "@/lib/db/schema";
 import { paths } from "@/lib/utils";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function disconnectSchwab() {
-  const session = await getSession();
-  const userId = session.user.id;
+  const accountKey = await getAccountKey();
 
   try {
     await db
-      .delete(userAccessTokens)
+      .delete(dimAccountAccessTokens)
       .where(and(
-        eq(userAccessTokens.userId, userId),
-        eq(userAccessTokens.brokerCode, 'schwab')
+        eq(dimAccountAccessTokens.accountKey, accountKey),
+        eq(dimAccountAccessTokens.brokerCode, 'schwab')
       ));
     
     // Revalidate the connections page to show updated state

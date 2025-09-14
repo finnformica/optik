@@ -2,6 +2,7 @@ import { db } from "@/lib/db/config";
 import { RawTransaction, rawTransactions } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
+import { getAccountKey } from "@/lib/auth/session";
 import { processSchwabTransaction } from "./schwab";
 
 export interface SchwabActivity {
@@ -60,7 +61,9 @@ export interface SchwabActivity {
  * Insert API data in raw transactions table
 */
 
-export async function insertRawTransactions(data: SchwabActivity[], accountKey: number, tx?: any) {
+export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
+    const accountKey = await getAccountKey();
+    
     const database = tx || db;
 
     // Convert SchwabActivity to expected raw_transactions format
@@ -84,7 +87,9 @@ export async function insertRawTransactions(data: SchwabActivity[], accountKey: 
  * Process raw transactions into dimensional model
  * Handles Schwab data transformation
  */
-export async function processRawTransactions(accountKey: number, tx?: any) {
+export async function processRawTransactions(tx?: any) {
+    const accountKey = await getAccountKey();
+    
     const database = tx || db;
 
     // Get pending transactions for account

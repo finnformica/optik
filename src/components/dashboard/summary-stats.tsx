@@ -24,7 +24,9 @@ interface SummaryCard {
   trendLabel?: string;
 }
 
-export async function getSummary(accountKey: number) {
+export async function getSummary() {
+  const accountKey = await getAccountKey();
+
   const [row] = await db
     .select()
     .from(viewPortfolioSummary)
@@ -35,8 +37,7 @@ export async function getSummary(accountKey: number) {
 }
 
 const SummaryStats = async () => {
-  const accountKey = await getAccountKey();
-  const summary = await getSummary(accountKey);
+  const summary = await getSummary();
 
   // Format currency
   const formatCurrency = (amount: number) => {

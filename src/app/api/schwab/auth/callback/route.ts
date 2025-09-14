@@ -1,6 +1,5 @@
 // DELETE FILE ONCE NEW CALLBACK URL IS APPROVED
 
-import { getSession } from '@/lib/auth/session'
 import { SchwabAuth } from '@/lib/connections/schwab/oauth'
 import { syncSchwabBrokerAccounts } from '@/lib/db/etl/broker-accounts'
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,8 +8,6 @@ export async function GET(request: NextRequest) {
   const baseUrl = process.env.BASE_URL || request.nextUrl.origin
   
   try {
-    const session = await getSession()
-
     const searchParams = request.nextUrl.searchParams
     const code = searchParams.get('code')
     const error = searchParams.get('error')
@@ -32,10 +29,10 @@ export async function GET(request: NextRequest) {
       const tokens = await schwabAuth.exchangeCodeForTokens(code, redirectUri)
       
       // Store the tokens securely
-      await schwabAuth.storeTokens(session.user.id, tokens)
-      
+      await schwabAuth.storeTokens(tokens)
+
       // Sync broker accounts - this is critical for data ingestion to work
-      await syncSchwabBrokerAccounts(session.user.id)
+      await syncSchwabBrokerAccounts()
       
       return NextResponse.redirect(`${baseUrl}/settings/connections?success=connected&provider=schwab`)
     } catch (tokenError) {

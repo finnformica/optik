@@ -33,9 +33,9 @@ export const users = pgTable('users', {
   deletedAt: timestamp('deleted_at'),
 });
 
-export const userAccessTokens = pgTable('user_access_tokens', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id),
+export const dimAccountAccessTokens = pgTable('dim_account_access_tokens', {
+  accessTokenKey: serial('access_token_key').primaryKey(),
+  accountKey: integer('account_key').notNull().references(() => dimAccount.accountKey),
   encryptedTokens: text('encrypted_tokens').notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   tokenType: varchar('token_type', { length: 50 }).notNull(),
@@ -44,29 +44,28 @@ export const userAccessTokens = pgTable('user_access_tokens', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
-  unique('unique_user_broker_token').on(table.userId, table.brokerCode)
+  unique('unique_account_broker_token').on(table.accountKey, table.brokerCode)
 ]);
 
 export const usersRelations = relations(users, ({ many }) => ({
-  accessTokens: many(userAccessTokens),
   accounts: many(dimAccount),
 }));
 
-export const userAccessTokensRelations = relations(userAccessTokens, ({ one }) => ({
-  user: one(users, {
-    fields: [userAccessTokens.userId],
-    references: [users.id],
+export const dimAccountAccessTokensRelations = relations(dimAccountAccessTokens, ({ one }) => ({
+  account: one(dimAccount, {
+    fields: [dimAccountAccessTokens.accountKey],
+    references: [dimAccount.accountKey],
   }),
   broker: one(dimBroker, {
-    fields: [userAccessTokens.brokerCode],
+    fields: [dimAccountAccessTokens.brokerCode],
     references: [dimBroker.brokerCode],
   }),
 }));
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
-export type UserAccessToken = typeof userAccessTokens.$inferSelect;
-export type NewUserAccessToken = typeof userAccessTokens.$inferInsert;
+export type DimAccountAccessToken = typeof dimAccountAccessTokens.$inferSelect;
+export type NewDimAccountAccessToken = typeof dimAccountAccessTokens.$inferInsert;
 
 export enum ActivityType {
   SIGN_UP = 'SIGN_UP',

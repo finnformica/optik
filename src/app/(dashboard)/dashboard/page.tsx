@@ -3,7 +3,7 @@ import CurrentPositions from "@/components/dashboard/current-positions";
 import PortfolioDistribution from "@/components/dashboard/portfolio-distribution";
 import SummaryStats from "@/components/dashboard/summary-stats";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
-import { getSession } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import {
   viewPortfolioDistribution,
@@ -14,8 +14,7 @@ import {
 import { and, eq } from "drizzle-orm";
 
 export default async function DashboardPage() {
-  const session = await getSession();
-  const accountKey = session.accountKey;
+  const accountKey = await getAccountKey();
 
   // Fetch all analytics data in parallel
   const [

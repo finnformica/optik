@@ -1,24 +1,26 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSession } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
-import { userAccessTokens } from "@/lib/db/schema";
+import { dimAccountAccessTokens } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { CheckCircle, ExternalLink, XCircle } from "lucide-react";
 import { connectSchwab, disconnectSchwab } from "./actions";
 
-async function getSchwabConnectionStatus(userId: number) {
+async function getSchwabConnectionStatus() {
+  const accountKey = await getAccountKey();
+
   try {
     const token = await db
       .select({
-        expiresAt: userAccessTokens.expiresAt,
+        expiresAt: dimAccountAccessTokens.expiresAt,
       })
-      .from(userAccessTokens)
+      .from(dimAccountAccessTokens)
       .where(
         and(
-          eq(userAccessTokens.userId, userId),
-          eq(userAccessTokens.brokerCode, "schwab")
+          eq(dimAccountAccessTokens.accountKey, accountKey),
+          eq(dimAccountAccessTokens.brokerCode, "schwab")
         )
       )
       .limit(1);
@@ -48,11 +50,9 @@ export default async function ConnectionsPage({
     provider?: string;
   }>;
 }) {
-  const session = await getSession();
   const params = await searchParams;
 
-  const userId = session.user.id;
-  const { connected, expiresAt } = await getSchwabConnectionStatus(userId);
+  const { connected, expiresAt } = await getSchwabConnectionStatus();
 
   const errorMessages = {
     oauth_error: "OAuth authentication was cancelled or failed",
