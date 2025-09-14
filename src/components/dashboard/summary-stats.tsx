@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { getUserId } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import { viewPortfolioSummary, ViewPortfolioSummary } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -24,22 +24,19 @@ interface SummaryCard {
   trendLabel?: string;
 }
 
-export async function getSummary(userId: number) {
+export async function getSummary(accountKey: number) {
   const [row] = await db
     .select()
     .from(viewPortfolioSummary)
-    .where(eq(viewPortfolioSummary.userId, userId))
+    .where(eq(viewPortfolioSummary.accountKey, accountKey))
     .limit(1);
 
   return row;
 }
 
 const SummaryStats = async () => {
-  const userId = await getUserId();
-
-  if (!userId) return null;
-
-  const summary = await getSummary(userId);
+  const accountKey = await getAccountKey();
+  const summary = await getSummary(accountKey);
 
   // Format currency
   const formatCurrency = (amount: number) => {

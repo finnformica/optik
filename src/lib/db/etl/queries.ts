@@ -60,12 +60,12 @@ export interface SchwabActivity {
  * Insert API data in raw transactions table
 */
 
-export async function insertRawTransactions(data: SchwabActivity[], userId: number, tx?: any) {
+export async function insertRawTransactions(data: SchwabActivity[], accountKey: number, tx?: any) {
     const database = tx || db;
 
     // Convert SchwabActivity to expected raw_transactions format
     const formattedData = data.map(activity => ({
-      userId,
+      accountKey,
       brokerCode: 'schwab', // hard-coded from the dim_broker table
       brokerTransactionId: activity.activityId.toString(),
       rawData: activity,
@@ -84,15 +84,15 @@ export async function insertRawTransactions(data: SchwabActivity[], userId: numb
  * Process raw transactions into dimensional model
  * Handles Schwab data transformation
  */
-export async function processRawTransactions(userId: number, tx?: any) {
+export async function processRawTransactions(accountKey: number, tx?: any) {
     const database = tx || db;
-    
-    // Get pending transactions for user
+
+    // Get pending transactions for account
     const pendingTransactions = await database.select()
       .from(rawTransactions)
       .where(
         and(
-          eq(rawTransactions.userId, userId),
+          eq(rawTransactions.accountKey, accountKey),
         //   eq(rawTransactions.status, 'PENDING'),
         inArray(rawTransactions.status, ['PENDING', 'ERROR'])
         )

@@ -88,13 +88,13 @@ export const switchAccount = validatedActionWithUser(
     const { accountKey } = data;
 
     // Verify the account belongs to the user
-    const account = await db
+    const [account] = await db
       .select()
       .from(dimAccount)
       .where(eq(dimAccount.accountKey, accountKey))
       .limit(1);
 
-    if (account.length === 0 || account[0].userId !== user.id) {
+    if (!account || account.userId !== user.id) {
       return { error: 'Account not found or access denied.' };
     }
 

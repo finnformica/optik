@@ -87,7 +87,7 @@ export enum ActivityType {
 
 export const rawTransactions = pgTable('raw_transactions', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id),
+  accountKey: integer('account_key').notNull().references(() => dimAccount.accountKey),
   brokerCode: varchar('broker_code', { length: 20 }).notNull(),
   brokerTransactionId: varchar('broker_transaction_id', { length: 50 }).notNull(),
   
@@ -105,7 +105,7 @@ export const rawTransactions = pgTable('raw_transactions', {
   updatedAt: timestamp('updated_at').notNull().defaultNow() // When record was last modified
 }, (table) => [
   unique('unique_broker_transaction').on(table.brokerTransactionId, table.brokerCode),
-  index('idx_raw_transactions_user_status').on(table.userId, table.status),
+  index('idx_raw_transactions_account_status').on(table.accountKey, table.status),
   index('idx_raw_transactions_broker_id').on(table.brokerTransactionId)
 ]);
 
@@ -275,7 +275,7 @@ export const factTransactions = pgTable('fact_transactions', {
 
 // Simplified positions view based purely on transaction aggregation
 export const viewPositions = pgView('view_positions', {
-  userId: integer('user_id'),
+  accountKey: integer('account_key'),
   symbol: varchar('symbol', { length: 50 }),
   underlyingSymbol: varchar('underlying_symbol', { length: 50 }),
   securityType: varchar('security_type', { length: 20 }),
@@ -292,8 +292,8 @@ export const viewPositions = pgView('view_positions', {
   lastTransactionDate: date('last_transaction_date'),
   transactionCount: integer('transaction_count')
 }).as(sql`
-  SELECT 
-    a.user_id,
+  SELECT
+    a.account_key,
     s.symbol,
     s.underlying_symbol,
     MAX(s.security_type) as security_type,
@@ -353,34 +353,34 @@ export const viewPositions = pgView('view_positions', {
   JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
   JOIN ${dimDate} d ON ft.date_key = d.date_key
   WHERE tt.action_category IN ('TRADE', 'CORPORATE')
-  GROUP BY a.user_id, s.symbol, s.underlying_symbol, s.strike_price
+  GROUP BY a.account_key, s.symbol, s.underlying_symbol, s.strike_price
 `);
 
 
 // Portfolio Distribution (Your dashboard pie chart)
 export const viewPortfolioDistribution = pgView('view_portfolio_distribution', {
-  userId: integer('user_id'),
+  accountKey: integer('account_key'),
   symbol: varchar('symbol', { length: 50 }),
   positionValue: decimal('position_value', { precision: 18, scale: 8 }),
   instrumentCount: integer('instrument_count'),
   portfolioPercentage: decimal('portfolio_percentage', { precision: 10, scale: 4 })
 }).as(sql`
-  SELECT 
-    user_id,
+  SELECT
+    account_key,
     underlying_symbol as symbol,
     SUM(position_value) as position_value,
     COUNT(*)::integer as instrument_count,
-    (ABS(SUM(position_value)) / SUM(ABS(SUM(position_value))) OVER (PARTITION BY user_id)) * 100 as portfolio_percentage
-    
+    (ABS(SUM(position_value)) / SUM(ABS(SUM(position_value))) OVER (PARTITION BY account_key)) * 100 as portfolio_percentage
+
   FROM view_positions
   WHERE position_status = 'OPEN'
-  GROUP BY user_id, underlying_symbol
+  GROUP BY account_key, underlying_symbol
   ORDER BY ABS(SUM(position_value)) DESC
 `);
 
 // Weekly Returns Chart
 export const viewWeeklyReturns = pgView('view_weekly_returns', {
-  userId: integer('user_id'),
+  accountKey: integer('account_key'),
   weekStart: date('week_start'),
   cumulativePortfolioValue: decimal('cumulative_portfolio_value', { precision: 18, scale: 8 }),
   cumulativeTransfers: decimal('cumulative_transfers', { precision: 18, scale: 8 }),
@@ -388,8 +388,8 @@ export const viewWeeklyReturns = pgView('view_weekly_returns', {
   weeklyReturnAbsolute: decimal('weekly_return_absolute', { precision: 18, scale: 8 })
 }).as(sql`
   WITH weekly_data AS (
-      SELECT 
-          a.user_id,
+      SELECT
+          a.account_key,
           d.week_ending_date as week_start,
           -- Weekly transfers (money wire in/out)
           SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
@@ -400,37 +400,37 @@ export const viewWeeklyReturns = pgView('view_weekly_returns', {
       JOIN ${dimAccount} a ON ft.account_key = a.account_key
       JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
       WHERE d.full_date <= CURRENT_DATE
-      GROUP BY a.user_id, d.week_ending_date
+      GROUP BY a.account_key, d.week_ending_date
   ),
 
   cumulative_data AS (
-      SELECT 
-          user_id,
+      SELECT
+          account_key,
           week_start,
           weekly_transfers,
           weekly_gains,
           -- Cumulative calculations
-          SUM(weekly_transfers) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_transfers,
-          SUM(weekly_transfers + weekly_gains) OVER (PARTITION BY user_id ORDER BY week_start) as cumulative_portfolio_value
+          SUM(weekly_transfers) OVER (PARTITION BY account_key ORDER BY week_start) as cumulative_transfers,
+          SUM(weekly_transfers + weekly_gains) OVER (PARTITION BY account_key ORDER BY week_start) as cumulative_portfolio_value
       FROM weekly_data
   ),
 
   lagged_data AS (
-      SELECT 
-          user_id,
+      SELECT
+          account_key,
           week_start,
           weekly_gains,
           weekly_transfers,
           cumulative_portfolio_value,
           cumulative_transfers,
           -- LAG calculation for previous week's portfolio value
-          LAG(cumulative_portfolio_value, 1) OVER (PARTITION BY user_id ORDER BY week_start) as prev_week_portfolio_value
+          LAG(cumulative_portfolio_value, 1) OVER (PARTITION BY account_key ORDER BY week_start) as prev_week_portfolio_value
       FROM cumulative_data
   ),
 
   returns_calculation AS (
-      SELECT 
-          user_id,
+      SELECT
+          account_key,
           week_start,
           weekly_transfers,
           cumulative_portfolio_value,
@@ -448,20 +448,20 @@ export const viewWeeklyReturns = pgView('view_weekly_returns', {
       WHERE prev_week_portfolio_value IS NOT NULL
   )
 
-  SELECT 
-      user_id,
+  SELECT
+      account_key,
       week_start,
       cumulative_portfolio_value,
       cumulative_transfers,
       weekly_return_percent,
       weekly_return_absolute
   FROM returns_calculation
-  ORDER BY user_id, week_start
+  ORDER BY account_key, week_start
 `);
 
 // Portfolio Summary View - Aggregates key portfolio metrics for dashboard
 export const viewPortfolioSummary = pgView('view_portfolio_summary', {
-  userId: integer('user_id'),
+  accountKey: integer('account_key'),
   portfolioValue: decimal('portfolio_value', { precision: 18, scale: 8 }).default('0'),
   cashBalance: decimal('cash_balance', { precision: 18, scale: 8 }).default('0'),
   monthlyPnl: decimal('monthly_pnl', { precision: 18, scale: 8 }).default('0'),
@@ -473,29 +473,29 @@ export const viewPortfolioSummary = pgView('view_portfolio_summary', {
   WITH portfolio_value_calc AS (
     -- Calculate total portfolio value from all transaction flows
     SELECT
-      a.user_id,
+      a.account_key,
       SUM(ft.net_amount) as total_portfolio_value
     FROM ${factTransactions} ft
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    GROUP BY a.user_id
+    GROUP BY a.account_key
   ),
 
   position_values_calc AS (
     -- Current invested amount (position value of held positions)
     -- Note: position_value can be negative for short positions, positive for long positions
     SELECT
-      user_id,
+      account_key,
       SUM(position_value) as total_position_value
     FROM ${viewPositions}
     WHERE position_status = 'OPEN'
-    GROUP BY user_id
+    GROUP BY account_key
   ),
 
   realised_monthly_pnl AS (
     -- Realised P/L for current month
     SELECT
-      a.user_id,
+      a.account_key,
       SUM(ft.net_amount) as monthly_realised_pnl
     FROM ${factTransactions} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
@@ -505,13 +505,13 @@ export const viewPortfolioSummary = pgView('view_portfolio_summary', {
       tt.action_category IN ('TRADE', 'INCOME')
       AND d.year = EXTRACT(YEAR FROM CURRENT_DATE)
       AND d.month_number = EXTRACT(MONTH FROM CURRENT_DATE)
-    GROUP BY a.user_id
+    GROUP BY a.account_key
   ),
 
   realised_yearly_pnl AS (
     -- Realised P/L for current year
     SELECT
-      a.user_id,
+      a.account_key,
       SUM(ft.net_amount) as yearly_realised_pnl
     FROM ${factTransactions} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
@@ -520,13 +520,13 @@ export const viewPortfolioSummary = pgView('view_portfolio_summary', {
     WHERE
       tt.action_category IN ('TRADE', 'INCOME')
       AND d.year = EXTRACT(YEAR FROM CURRENT_DATE)
-    GROUP BY a.user_id
+    GROUP BY a.account_key
   ),
 
   realised_weekly_pnl AS (
     -- Realised P/L for current week
     SELECT
-      a.user_id,
+      a.account_key,
       SUM(ft.net_amount) as weekly_realised_pnl
     FROM ${factTransactions} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
@@ -536,12 +536,12 @@ export const viewPortfolioSummary = pgView('view_portfolio_summary', {
       tt.action_category IN ('TRADE', 'INCOME')
       AND d.full_date >= DATE_TRUNC('week', CURRENT_DATE)
       AND d.full_date <= CURRENT_DATE
-    GROUP BY a.user_id
+    GROUP BY a.account_key
   )
 
   -- Final summary query
   SELECT
-    u.id as user_id,
+    a.account_key,
     COALESCE(pv.total_portfolio_value, 0) as portfolio_value,
     COALESCE(pv.total_portfolio_value - COALESCE(pvs.total_position_value, 0), pv.total_portfolio_value, 0) as cash_balance,
     COALESCE(mp.monthly_realised_pnl, 0) as monthly_pnl,
@@ -566,13 +566,13 @@ export const viewPortfolioSummary = pgView('view_portfolio_summary', {
       ELSE 0
     END as weekly_pnl_percent
 
-  FROM ${users} u
-  LEFT JOIN portfolio_value_calc pv ON u.id = pv.user_id
-  LEFT JOIN position_values_calc pvs ON u.id = pvs.user_id
-  LEFT JOIN realised_monthly_pnl mp ON u.id = mp.user_id
-  LEFT JOIN realised_yearly_pnl yp ON u.id = yp.user_id
-  LEFT JOIN realised_weekly_pnl wp ON u.id = wp.user_id
-  WHERE u.deleted_at IS NULL
+  FROM ${dimAccount} a
+  LEFT JOIN portfolio_value_calc pv ON a.account_key = pv.account_key
+  LEFT JOIN position_values_calc pvs ON a.account_key = pvs.account_key
+  LEFT JOIN realised_monthly_pnl mp ON a.account_key = mp.account_key
+  LEFT JOIN realised_yearly_pnl yp ON a.account_key = yp.account_key
+  LEFT JOIN realised_weekly_pnl wp ON a.account_key = wp.account_key
+  WHERE a.is_active = true
 `);
 
 // =============================================
@@ -580,9 +580,9 @@ export const viewPortfolioSummary = pgView('view_portfolio_summary', {
 // =============================================
 
 export const rawTransactionsRelations = relations(rawTransactions, ({ one }) => ({
-  user: one(users, {
-    fields: [rawTransactions.userId],
-    references: [users.id]
+  account: one(dimAccount, {
+    fields: [rawTransactions.accountKey],
+    references: [dimAccount.accountKey]
   })
 }));
 
@@ -593,7 +593,8 @@ export const dimAccountRelations = relations(dimAccount, ({ one, many }) => ({
     references: [users.id]
   }),
   transactions: many(factTransactions),
-  brokerAccounts: many(dimBrokerAccounts)
+  brokerAccounts: many(dimBrokerAccounts),
+  accessTokens: many(dimAccountAccessTokens)
 }));
 
 export const dimBrokerRelations = relations(dimBroker, ({ many }) => ({

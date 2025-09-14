@@ -15,7 +15,7 @@ import { and, eq } from "drizzle-orm";
 
 export default async function DashboardPage() {
   const session = await getSession();
-  const userId = session.user.id;
+  const accountKey = session.accountKey;
 
   // Fetch all analytics data in parallel
   const [
@@ -30,7 +30,7 @@ export default async function DashboardPage() {
       .from(viewPositions)
       .where(
         and(
-          eq(viewPositions.userId, userId),
+          eq(viewPositions.accountKey, accountKey),
           eq(viewPositions.positionStatus, "OPEN")
         )
       )
@@ -38,22 +38,22 @@ export default async function DashboardPage() {
     db
       .select()
       .from(viewPortfolioDistribution)
-      .where(eq(viewPortfolioDistribution.userId, userId))
+      .where(eq(viewPortfolioDistribution.accountKey, accountKey))
       .limit(20),
     db
       .select({ cashBalance: viewPortfolioSummary.cashBalance })
       .from(viewPortfolioSummary)
-      .where(eq(viewPortfolioSummary.userId, userId))
+      .where(eq(viewPortfolioSummary.accountKey, accountKey))
       .limit(1),
     db
       .select()
       .from(viewWeeklyReturns)
-      .where(eq(viewWeeklyReturns.userId, userId))
+      .where(eq(viewWeeklyReturns.accountKey, accountKey))
       .limit(52),
     db
       .select()
       .from(viewWeeklyReturns)
-      .where(eq(viewWeeklyReturns.userId, userId))
+      .where(eq(viewWeeklyReturns.accountKey, accountKey))
       .limit(52),
   ]);
 
