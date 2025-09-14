@@ -16,6 +16,7 @@ export class SchwabAuth {
   private appKey: string
   private appSecret: string
   private baseUrl: string = 'https://api.schwabapi.com'
+  private redirectUri: string
 
   constructor() {
     if (!process.env.SCHWAB_APP_KEY) {
@@ -27,6 +28,8 @@ export class SchwabAuth {
 
     this.appKey = process.env.SCHWAB_APP_KEY
     this.appSecret = process.env.SCHWAB_APP_SECRET
+    this.redirectUri = process.env.BASE_URL + '/api/auth/schwab/callback' // DELETE THIS LINE ONCE NEW CALLBACK URL IS APPROVED
+    // this.redirectUri = process.env.BASE_URL + endpoints.schwab.callback
   }
 
   // Store tokens
@@ -50,10 +53,10 @@ export class SchwabAuth {
           expiresAt,
           tokenType: tokens.token_type,
           scope: tokens.scope,
-          broker: 'schwab',
+          brokerCode: 'schwab',
         })
         .onConflictDoUpdate({
-          target: [userAccessTokens.userId, userAccessTokens.broker],
+          target: [userAccessTokens.userId, userAccessTokens.brokerCode],
           set: {
             encryptedTokens,
             expiresAt,
@@ -75,7 +78,7 @@ export class SchwabAuth {
         .from(userAccessTokens)
         .where(and(
           eq(userAccessTokens.userId, userId),
-          eq(userAccessTokens.broker, 'schwab')
+          eq(userAccessTokens.brokerCode, 'schwab')
         ))
 
       if (!data || data.length === 0) {
@@ -137,7 +140,7 @@ export class SchwabAuth {
         .delete(userAccessTokens)
         .where(and(
           eq(userAccessTokens.userId, userId),
-          eq(userAccessTokens.broker, 'schwab')
+          eq(userAccessTokens.brokerCode, 'schwab')
         ))
     } catch (error) {
       console.error('Failed to clear tokens:', error)
@@ -146,11 +149,11 @@ export class SchwabAuth {
   }
 
   // Generate OAuth authorization URL
-  getAuthorizationUrl(redirectUri: string): string {
+  getAuthorizationUrl(): string {
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.appKey,
-      redirect_uri: redirectUri,
+      redirect_uri: this.redirectUri,
     })
 
     const authUrl = `${this.baseUrl}/v1/oauth/authorize?${params.toString()}`

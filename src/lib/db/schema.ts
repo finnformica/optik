@@ -40,11 +40,11 @@ export const userAccessTokens = pgTable('user_access_tokens', {
   expiresAt: timestamp('expires_at').notNull(),
   tokenType: varchar('token_type', { length: 50 }).notNull(),
   scope: varchar('scope', { length: 255 }).notNull(),
-  broker: varchar('broker', { length: 50 }).notNull(),
+  brokerCode: varchar('broker_code', { length: 20 }).notNull().references(() => dimBroker.brokerCode),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
-  unique('unique_user_broker_token').on(table.userId, table.broker)
+  unique('unique_user_broker_token').on(table.userId, table.brokerCode)
 ]);
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -56,6 +56,10 @@ export const userAccessTokensRelations = relations(userAccessTokens, ({ one }) =
   user: one(users, {
     fields: [userAccessTokens.userId],
     references: [users.id],
+  }),
+  broker: one(dimBroker, {
+    fields: [userAccessTokens.brokerCode],
+    references: [dimBroker.brokerCode],
   }),
 }));
 

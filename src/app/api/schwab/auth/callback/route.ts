@@ -1,3 +1,5 @@
+// DELETE FILE ONCE NEW CALLBACK URL IS APPROVED
+
 import { getSession } from '@/lib/auth/session'
 import { SchwabAuth } from '@/lib/connections/schwab/oauth'
 import { syncSchwabBrokerAccounts } from '@/lib/db/etl/broker-accounts'

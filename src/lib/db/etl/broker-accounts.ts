@@ -1,7 +1,8 @@
-import { SchwabAuth } from '@/lib/connections/schwab/schwab-oauth';
+import { getAccountKey } from '@/lib/auth/session';
+import { SchwabAuth } from '@/lib/connections/schwab/oauth';
 import { db } from '@/lib/db/config';
 import { dimAccount, dimBroker, dimBrokerAccounts, NewDimBrokerAccounts, rawTransactions } from '@/lib/db/schema';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, notInArray } from 'drizzle-orm';
 
 /**
  * Sync Schwab broker accounts during OAuth flow
@@ -9,36 +10,18 @@ import { and, desc, eq } from 'drizzle-orm';
  */
 export async function syncSchwabBrokerAccounts(userId: number): Promise<void> {
   const schwabAuth = new SchwabAuth();
+  const accountKey = await getAccountKey();  
   
   try {
     // Get account info from Schwab API
     const accountsFromAPI = await schwabAuth.getAccountNumbers(userId);
-    
-    // Get user's account key (assumes one account per user for now)
-    const userAccount = await db
-      .select()
-      .from(dimAccount)
-      .where(eq(dimAccount.userId, userId))
-      .limit(1);
-
-    if (!userAccount.length) {
-      throw new Error('User account not found');
-    }
-
-    const accountKey = userAccount[0].accountKey;
 
     // Get Schwab broker key
-    const schwabBroker = await db
+    const [{ brokerKey }] = await db
       .select()
       .from(dimBroker)
       .where(eq(dimBroker.brokerCode, 'schwab'))
       .limit(1);
-
-    if (!schwabBroker.length) {
-      throw new Error('Schwab broker not found in dim_broker table');
-    }
-
-    const brokerKey = schwabBroker[0].brokerKey;
 
     // Sync each account
     for (const apiAccount of accountsFromAPI) {
@@ -106,8 +89,7 @@ async function markMissingAccountsInactive(
       and(
         eq(dimBrokerAccounts.accountKey, accountKey),
         eq(dimBrokerAccounts.brokerKey, brokerKey),
-        // NOT IN equivalent using Drizzle
-        // This will mark inactive any accounts not in the active list
+        notInArray(dimBrokerAccounts.brokerAccountNumber, activeAccountNumbers)
       )
     );
   

@@ -11,12 +11,14 @@ import { connectSchwab, disconnectSchwab } from "./actions";
 async function getSchwabConnectionStatus(userId: number) {
   try {
     const token = await db
-      .select()
+      .select({
+        expiresAt: userAccessTokens.expiresAt,
+      })
       .from(userAccessTokens)
       .where(
         and(
           eq(userAccessTokens.userId, userId),
-          eq(userAccessTokens.broker, "schwab")
+          eq(userAccessTokens.brokerCode, "schwab")
         )
       )
       .limit(1);

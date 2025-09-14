@@ -1,5 +1,5 @@
 import { getUserId } from '@/lib/auth/session';
-import { SchwabAuth } from '@/lib/connections/schwab/schwab-oauth';
+import { SchwabAuth } from '@/lib/connections/schwab/oauth';
 import { db } from '@/lib/db/config';
 import { getActiveBrokerAccounts, getLastTransactionDate } from '@/lib/db/etl/broker-accounts';
 import { insertRawTransactions, processRawTransactions, SchwabActivity } from '@/lib/db/etl/queries';
