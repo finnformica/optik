@@ -3,7 +3,7 @@ import { db } from "@/lib/db/config";
 import { dimAccount, dimUser } from "@/lib/db/schema";
 import { stripe } from "@/lib/payments/stripe";
 import { paths } from "@/lib/utils";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     const user = await db
       .select({
         id: dimUser.id,
-        name: dimUser.name,
+        name: sql`${dimUser.firstName} ${dimUser.lastName}`,
         email: dimUser.email,
         passwordHash: dimUser.passwordHash,
         role: dimUser.role,
