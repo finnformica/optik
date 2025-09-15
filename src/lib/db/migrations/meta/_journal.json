@@ -246,6 +246,13 @@
       "when": 1757863971111,
       "tag": "0034_wet_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1757920543506,
+      "tag": "0035_fine_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }

@@ -39,6 +39,55 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
           <input type="hidden" name="redirect" value={redirect || ""} />
           <input type="hidden" name="priceId" value={priceId || ""} />
           <input type="hidden" name="inviteId" value={inviteId || ""} />
+
+          {mode === "signup" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label
+                  htmlFor="firstName"
+                  className="block text-sm font-medium text-gray-300"
+                >
+                  First Name
+                </Label>
+                <div className="mt-1">
+                  <Input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    autoComplete="given-name"
+                    defaultValue={state.firstName}
+                    required
+                    maxLength={50}
+                    className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-500 text-white bg-[#1a2236] focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    placeholder="Enter your first name"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label
+                  htmlFor="lastName"
+                  className="block text-sm font-medium text-gray-300"
+                >
+                  Last Name
+                </Label>
+                <div className="mt-1">
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    autoComplete="family-name"
+                    defaultValue={state.lastName}
+                    required
+                    maxLength={50}
+                    className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-500 text-white bg-[#1a2236] focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    placeholder="Enter your last name"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label
               htmlFor="email"

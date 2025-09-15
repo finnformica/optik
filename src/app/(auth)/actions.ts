@@ -14,7 +14,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 const signInSchema = z.object({
-  email: z.string().email().min(3).max(255),
+  email: z.email().min(3).max(255),
   password: z.string().min(8).max(100),
 });
 
@@ -24,13 +24,8 @@ export const signIn = validatedAction(signInSchema, async (data) => {
   const [foundUser] = await db
     .select({
       id: dimUser.id,
-      name: dimUser.name,
       email: dimUser.email,
       passwordHash: dimUser.passwordHash,
-      role: dimUser.role,
-      createdAt: dimUser.createdAt,
-      updatedAt: dimUser.updatedAt,
-      deletedAt: dimUser.deletedAt,
       accountKey: dimAccount.accountKey,
     })
     .from(dimUser)
@@ -48,7 +43,7 @@ export const signIn = validatedAction(signInSchema, async (data) => {
 
   const isPasswordValid = await comparePasswords(
     password,
-    foundUser.passwordHash,
+    foundUser.passwordHash
   );
 
   if (!isPasswordValid) {
@@ -65,12 +60,14 @@ export const signIn = validatedAction(signInSchema, async (data) => {
 });
 
 const signUpSchema = z.object({
-  email: z.string().email(),
+  firstName: z.string().min(1, "First name is required").max(50),
+  lastName: z.string().min(1, "Last name is required").max(50),
+  email: z.email("Invalid email address"),
   password: z.string().min(8),
 });
 
 export const signUp = validatedAction(signUpSchema, async (data) => {
-  const { email, password } = data;
+  const { firstName, lastName, email, password } = data;
 
   const [existingUser] = await db
     .select()
@@ -82,6 +79,8 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     return {
       error:
         "An account with this email already exists. Please sign in instead.",
+      firstName,
+      lastName,
       email,
       password,
     };
@@ -90,6 +89,8 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
   const passwordHash = await hashPassword(password);
 
   const newUser: NewDimUser = {
+    firstName,
+    lastName,
     email,
     passwordHash,
     role: "member",
@@ -100,17 +101,19 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
   if (!createdUser) {
     return {
       error: "Failed to create user. Please try again.",
+      firstName,
+      lastName,
       email,
       password,
     };
   }
 
-  // Create a default account for the new user
+  // Create a default account for the new user using first name
   const [createdAccount] = await db
     .insert(dimAccount)
     .values({
       userId: createdUser.id,
-      accountName: "Primary Account",
+      accountName: `${firstName}'s Account`,
       accountType: "INDIVIDUAL",
       currency: "USD",
     })
@@ -139,7 +142,7 @@ export const updatePassword = validatedActionWithUser(
 
     const isPasswordValid = await comparePasswords(
       currentPassword,
-      user.passwordHash,
+      user.passwordHash
     );
 
     if (!isPasswordValid) {
@@ -179,7 +182,7 @@ export const updatePassword = validatedActionWithUser(
     return {
       success: "Password updated successfully.",
     };
-  },
+  }
 );
 
 const deleteAccountSchema = z.object({
@@ -210,24 +213,25 @@ export const deleteAccount = validatedActionWithUser(
 
     (await cookies()).delete("session");
     redirect(paths.auth.signIn);
-  },
+  }
 );
 
 const updateAccountSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100),
-  email: z.string().email("Invalid email address"),
+  firstName: z.string().min(1, "First name is required").max(50),
+  lastName: z.string().min(1, "Last name is required").max(50),
+  email: z.email("Invalid email address"),
 });
 
 export const updateAccount = validatedActionWithUser(
   updateAccountSchema,
   async (data, _, user) => {
-    const { name, email } = data;
+    const { firstName, lastName, email } = data;
 
     await db
       .update(dimUser)
-      .set({ name, email })
+      .set({ firstName, lastName, email })
       .where(eq(dimUser.id, user.id));
 
-    return { name, success: "Account updated successfully." };
-  },
+    return { firstName, lastName, success: "Account updated successfully." };
+  }
 );

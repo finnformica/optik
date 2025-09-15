@@ -67,7 +67,8 @@ export const stgTransaction = pgTable(
 // User Dimension - Represents a user of the application
 export const dimUser = pgTable("dim_user", {
   id: serial("id").primaryKey(),
-  name: varchar("name", { length: 100 }),
+  firstName: varchar("first_name", { length: 50 }),
+  lastName: varchar("last_name", { length: 50 }),
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: varchar("role", { length: 20 }).notNull().default("member"),

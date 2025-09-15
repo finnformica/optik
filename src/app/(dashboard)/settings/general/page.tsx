@@ -1,45 +1,58 @@
 "use client";
 
+import { useUser } from "@/api/user";
 import { updateAccount } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DimUser } from "@/lib/db/schema";
 import { Loader2 } from "lucide-react";
 import { Suspense, useActionState } from "react";
-import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 type ActionState = {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   error?: string;
   success?: string;
 };
 
 type AccountFormProps = {
   state: ActionState;
-  nameValue?: string;
+  firstNameValue?: string;
+  lastNameValue?: string;
   emailValue?: string;
 };
 
 function AccountForm({
   state,
-  nameValue = "",
+  firstNameValue = "",
+  lastNameValue = "",
   emailValue = "",
 }: AccountFormProps) {
   return (
     <>
       <div>
-        <Label htmlFor="name" className="mb-2 text-white">
-          Name
+        <Label htmlFor="firstName" className="mb-2 text-white">
+          First Name
         </Label>
         <Input
-          id="name"
-          name="name"
-          placeholder="Enter your name"
-          defaultValue={state.name || nameValue}
+          id="firstName"
+          name="firstName"
+          placeholder="Enter your first name"
+          defaultValue={state.firstName || firstNameValue}
+          required
+          className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400"
+        />
+      </div>
+      <div>
+        <Label htmlFor="lastName" className="mb-2 text-white">
+          Last Name
+        </Label>
+        <Input
+          id="lastName"
+          name="lastName"
+          placeholder="Enter your last name"
+          defaultValue={state.lastName || lastNameValue}
           required
           className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400"
         />
@@ -63,11 +76,13 @@ function AccountForm({
 }
 
 function AccountFormWithData({ state }: { state: ActionState }) {
-  const { data: user } = useSWR<DimUser>("/api/user", fetcher);
+  const { user } = useUser();
+
   return (
     <AccountForm
       state={state}
-      nameValue={user?.name ?? ""}
+      firstNameValue={user?.firstName ?? ""}
+      lastNameValue={user?.lastName ?? ""}
       emailValue={user?.email ?? ""}
     />
   );
@@ -76,7 +91,7 @@ function AccountFormWithData({ state }: { state: ActionState }) {
 export default function GeneralPage() {
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     updateAccount,
-    {},
+    {}
   );
 
   return (

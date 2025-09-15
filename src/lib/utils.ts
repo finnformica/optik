@@ -6,6 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const endpoints = {
+  user: "/api/user",
   accounts: "/api/accounts",
   transactions: "/api/transactions",
   schwab: { data: "/api/schwab/data", callback: "/api/schwab/auth/callback" },

@@ -17,7 +17,7 @@ export async function hashPassword(password: string) {
 
 export async function comparePasswords(
   plainTextPassword: string,
-  hashedPassword: string,
+  hashedPassword: string
 ) {
   return compare(plainTextPassword, hashedPassword);
 }
@@ -50,9 +50,11 @@ export async function getSession() {
 }
 
 export async function setSession(user: NewDimUser, accountKey: number) {
+  if (!user.id) throw new Error("User ID is required");
+
   const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const session: SessionData = {
-    user: { id: user.id! },
+    user: { id: user.id },
     expires: expiresInOneDay.toISOString(),
     accountKey,
   };
