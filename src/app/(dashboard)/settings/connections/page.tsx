@@ -13,31 +13,25 @@ async function getSchwabConnectionStatus() {
 
   try {
     const token = await db
-      .select({
-        expiresAt: dimAccountAccessToken.expiresAt,
-      })
+      .select()
       .from(dimAccountAccessToken)
       .where(
         and(
           eq(dimAccountAccessToken.accountKey, accountKey),
-          eq(dimAccountAccessToken.brokerCode, "schwab"),
-        ),
+          eq(dimAccountAccessToken.brokerCode, "schwab")
+        )
       )
       .limit(1);
 
     if (token.length === 0) {
-      return { connected: false, expiresAt: null };
+      return { connected: false };
     }
 
-    const tokenRecord = token[0];
-    const isExpired = tokenRecord.expiresAt < new Date();
-
     return {
-      connected: !isExpired,
-      expiresAt: tokenRecord.expiresAt,
+      connected: true,
     };
   } catch (error) {
-    return { connected: false, expiresAt: null };
+    return { connected: false };
   }
 }
 
@@ -52,7 +46,7 @@ export default async function ConnectionsPage({
 }) {
   const params = await searchParams;
 
-  const { connected, expiresAt } = await getSchwabConnectionStatus();
+  const { connected } = await getSchwabConnectionStatus();
 
   const errorMessages = {
     oauth_error: "OAuth authentication was cancelled or failed",
@@ -150,15 +144,6 @@ export default async function ConnectionsPage({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {connected && expiresAt && (
-                <div className="text-sm text-gray-400">
-                  <p>
-                    Token expires: {expiresAt.toLocaleDateString()} at{" "}
-                    {expiresAt.toLocaleTimeString()}
-                  </p>
-                </div>
-              )}
-
               <div className="flex space-x-3">
                 {connected ? (
                   <form action={disconnectSchwab}>
