@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/etl/queries";
 import { NextResponse } from "next/server";
 
+// TODO: Update this to work with all broker accounts
 export async function POST() {
   try {
     const schwabAuth = new SchwabAuth();
@@ -42,7 +43,7 @@ export async function POST() {
         const accountTransactions = await schwabAuth.getTransactionHistory(
           account.brokerAccountHash,
           lastTransactionDate,
-          new Date(),
+          new Date()
         );
 
         if (accountTransactions.length > 0) {
@@ -51,7 +52,7 @@ export async function POST() {
       } catch (accountError) {
         console.error(
           `Failed to fetch transactions for account ${account.brokerAccountNumber}:`,
-          accountError,
+          accountError
         );
         // Continue with other accounts even if one fails
       }
@@ -88,7 +89,11 @@ export async function POST() {
     } else if (results.processed === 0 && results.failed > 0) {
       alert = {
         variant: "destructive",
-        message: `Failed to process ${results.failed} transactions. ${results.errors.length > 0 ? results.errors.join(", ") : "Check logs for details."}`,
+        message: `Failed to process ${results.failed} transactions. ${
+          results.errors.length > 0
+            ? results.errors.join(", ")
+            : "Check logs for details."
+        }`,
       };
     } else if (results.errors && results.errors.length > 0) {
       alert = {
@@ -119,10 +124,12 @@ export async function POST() {
         transactionsFetched: 0,
         alert: {
           variant: "destructive",
-          message: `Sync failed: ${error instanceof Error ? error.message : "Unknown error occurred"}`,
+          message: `Sync failed: ${
+            error instanceof Error ? error.message : "Unknown error occurred"
+          }`,
         },
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
