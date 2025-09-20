@@ -706,6 +706,34 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     WHERE
       tt.action_category = 'TRANSFER'
     GROUP BY a.account_key
+  ),
+
+  portfolio_value_start_of_month AS (
+    -- Calculate portfolio value at the start of current month
+    SELECT
+      a.account_key,
+      SUM(ft.net_amount) as portfolio_value_start_month
+    FROM ${factTransaction} ft
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE
+      d.full_date < DATE_TRUNC('month', CURRENT_DATE)
+    GROUP BY a.account_key
+  ),
+
+  portfolio_value_start_of_year AS (
+    -- Calculate portfolio value at the start of current year
+    SELECT
+      a.account_key,
+      SUM(ft.net_amount) as portfolio_value_start_year
+    FROM ${factTransaction} ft
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE
+      d.full_date < DATE_TRUNC('year', CURRENT_DATE)
+    GROUP BY a.account_key
   )
 
   -- Final summary query
@@ -717,16 +745,22 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     COALESCE(yp.yearly_realised_pnl, 0) as yearly_pnl,
     COALESCE(tt.total_transfers, 0) as total_transfers,
 
-    -- Calculate percentage changes
+    -- Calculate percentage changes based on portfolio value at start of period
+    -- For monthly: if no portfolio value at start of month (started trading this month), use overall return logic
     CASE
-      WHEN COALESCE(pv.total_portfolio_value, 0) != 0
-      THEN (COALESCE(mp.monthly_realised_pnl, 0) / pv.total_portfolio_value * 100)
+      WHEN COALESCE(pvsm.portfolio_value_start_month, 0) > 0
+      THEN (COALESCE(mp.monthly_realised_pnl, 0) / pvsm.portfolio_value_start_month * 100)
+      WHEN COALESCE(tt.total_transfers, 0) > 0
+      THEN ((COALESCE(pv.total_portfolio_value, 0) - COALESCE(tt.total_transfers, 0)) / tt.total_transfers * 100)
       ELSE 0
     END as monthly_pnl_percent,
 
+    -- For yearly: if no portfolio value at start of year (started trading this year), use overall return logic
     CASE
-      WHEN COALESCE(pv.total_portfolio_value, 0) != 0
-      THEN (COALESCE(yp.yearly_realised_pnl, 0) / pv.total_portfolio_value * 100)
+      WHEN COALESCE(pvsy.portfolio_value_start_year, 0) > 0
+      THEN (COALESCE(yp.yearly_realised_pnl, 0) / pvsy.portfolio_value_start_year * 100)
+      WHEN COALESCE(tt.total_transfers, 0) > 0
+      THEN ((COALESCE(pv.total_portfolio_value, 0) - COALESCE(tt.total_transfers, 0)) / tt.total_transfers * 100)
       ELSE 0
     END as yearly_pnl_percent,
 
@@ -742,6 +776,8 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   LEFT JOIN realised_monthly_pnl mp ON a.account_key = mp.account_key
   LEFT JOIN realised_yearly_pnl yp ON a.account_key = yp.account_key
   LEFT JOIN total_transfers_calc tt ON a.account_key = tt.account_key
+  LEFT JOIN portfolio_value_start_of_month pvsm ON a.account_key = pvsm.account_key
+  LEFT JOIN portfolio_value_start_of_year pvsy ON a.account_key = pvsy.account_key
   WHERE a.is_active = true
 `);
 
