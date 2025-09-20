@@ -3,6 +3,7 @@ import { SchwabAuth } from "@/lib/connections/schwab/oauth";
 import { db } from "@/lib/db/config";
 import {
   dimAccount,
+  dimAccountAccessToken,
   dimBroker,
   dimBrokerAccount,
   NewDimBrokerAccount,
@@ -44,7 +45,7 @@ export async function syncSchwabBrokerAccounts(): Promise<void> {
     // Mark any accounts not returned by API as inactive
     await markMissingAccountsInactive(
       brokerKey,
-      accountsFromAPI.map((a) => a.accountNumber),
+      accountsFromAPI.map((a) => a.accountNumber)
     );
   } catch (error) {
     console.error("Failed to sync Schwab broker accounts:", error);
@@ -59,7 +60,7 @@ async function upsertBrokerAccount(
   accountData: Omit<
     NewDimBrokerAccount,
     "brokerAccountKey" | "createdAt" | "updatedAt"
-  >,
+  >
 ): Promise<void> {
   await db
     .insert(dimBrokerAccount)
@@ -87,7 +88,7 @@ async function upsertBrokerAccount(
  */
 async function markMissingAccountsInactive(
   brokerKey: number,
-  activeAccountNumbers: string[],
+  activeAccountNumbers: string[]
 ): Promise<void> {
   if (activeAccountNumbers.length === 0) return;
 
@@ -103,8 +104,8 @@ async function markMissingAccountsInactive(
       and(
         eq(dimBrokerAccount.accountKey, accountKey),
         eq(dimBrokerAccount.brokerKey, brokerKey),
-        notInArray(dimBrokerAccount.brokerAccountNumber, activeAccountNumbers),
-      ),
+        notInArray(dimBrokerAccount.brokerAccountNumber, activeAccountNumbers)
+      )
     );
 
   // TODO: Implement NOT IN logic when needed
@@ -112,7 +113,7 @@ async function markMissingAccountsInactive(
 }
 
 /**
- * Get all active broker accounts for a user
+ * Get all active broker accounts for a user that have valid access tokens
  */
 export async function getActiveBrokerAccounts(brokerCode: string) {
   const accountKey = await getAccountKey();
@@ -127,15 +128,22 @@ export async function getActiveBrokerAccounts(brokerCode: string) {
     .from(dimBrokerAccount)
     .innerJoin(
       dimAccount,
-      eq(dimBrokerAccount.accountKey, dimAccount.accountKey),
+      eq(dimBrokerAccount.accountKey, dimAccount.accountKey)
     )
     .innerJoin(dimBroker, eq(dimBrokerAccount.brokerKey, dimBroker.brokerKey))
+    .innerJoin(
+      dimAccountAccessToken,
+      and(
+        eq(dimAccountAccessToken.accountKey, dimAccount.accountKey),
+        eq(dimAccountAccessToken.brokerCode, dimBroker.brokerCode)
+      )
+    )
     .where(
       and(
         eq(dimAccount.accountKey, accountKey),
         eq(dimBroker.brokerCode, brokerCode),
-        eq(dimBrokerAccount.isActive, true),
-      ),
+        eq(dimBrokerAccount.isActive, true)
+      )
     );
 }
 
@@ -144,7 +152,7 @@ export async function getActiveBrokerAccounts(brokerCode: string) {
  * Used to determine the start date for incremental sync
  */
 export async function getLastTransactionDate(
-  brokerCode: string,
+  brokerCode: string
 ): Promise<Date> {
   const accountKey = await getAccountKey();
 
@@ -156,8 +164,8 @@ export async function getLastTransactionDate(
     .where(
       and(
         eq(stgTransaction.accountKey, accountKey),
-        eq(stgTransaction.brokerCode, brokerCode),
-      ),
+        eq(stgTransaction.brokerCode, brokerCode)
+      )
     )
     .orderBy(desc(stgTransaction.brokerTimestamp))
     .limit(1);

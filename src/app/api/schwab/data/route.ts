@@ -1,4 +1,8 @@
-import { SchwabAuth } from "@/lib/connections/schwab/oauth";
+import {
+  SchwabAuth,
+  SchwabAuthenticationError,
+  SchwabTokenRefreshError,
+} from "@/lib/connections/schwab/oauth";
 import { db } from "@/lib/db/config";
 import {
   getActiveBrokerAccounts,
@@ -50,6 +54,22 @@ export async function POST() {
           allTransactions.push(...accountTransactions);
         }
       } catch (accountError) {
+        // Handle authentication errors specially - these require user action
+        if (
+          accountError instanceof SchwabAuthenticationError ||
+          accountError instanceof SchwabTokenRefreshError
+        ) {
+          return NextResponse.json({
+            success: false,
+            processed: 0,
+            failed: 0,
+            alert: {
+              variant: "destructive",
+              message: accountError.message,
+            },
+          });
+        }
+
         console.error(
           `Failed to fetch transactions for account ${account.brokerAccountNumber}:`,
           accountError
@@ -79,7 +99,7 @@ export async function POST() {
     } else if (results.processed > 0 && results.failed === 0) {
       alert = {
         variant: "success",
-        message: `Successfully loaded ${allTransactions.length} transactions and processed ${results.processed} into the database.`,
+        message: `Successfully processed ${allTransactions.length} transactions.`,
       };
     } else if (results.processed > 0 && results.failed > 0) {
       alert = {
