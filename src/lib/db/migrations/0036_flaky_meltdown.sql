@@ -1,0 +1,1 @@
+ALTER TABLE "dim_date" ADD COLUMN "week_starting_date" date;

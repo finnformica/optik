@@ -50,14 +50,14 @@ export const stgTransaction = pgTable(
     unique("unique_account_broker_transaction").on(
       table.accountKey,
       table.brokerTransactionId,
-      table.brokerCode,
+      table.brokerCode
     ),
     index("idx_stg_transaction_account_status").on(
       table.accountKey,
-      table.status,
+      table.status
     ),
     index("idx_stg_transaction_broker_id").on(table.brokerTransactionId),
-  ],
+  ]
 );
 
 // =============================================
@@ -84,7 +84,7 @@ export const dimAccount = pgTable("dim_account", {
     .notNull()
     .references(() => dimUser.id),
   accountName: varchar("account_name", { length: 100 }).default(
-    "Primary Account",
+    "Primary Account"
   ),
   accountType: varchar("account_type", { length: 50 }).default("INDIVIDUAL"), // INDIVIDUAL, JOINT, CORPORATE, IRA, ROTH, 401K, 403B, 529, OTHER
   currency: varchar("currency", { length: 3 }).default("USD"),
@@ -114,9 +114,9 @@ export const dimAccountAccessToken = pgTable(
   (table) => [
     unique("unique_account_broker_token").on(
       table.accountKey,
-      table.brokerCode,
+      table.brokerCode
     ),
-  ],
+  ]
 );
 
 // Date Dimension
@@ -135,13 +135,14 @@ export const dimDate = pgTable(
     isWeekend: boolean("is_weekend"),
     isTradingDay: boolean("is_trading_day"),
     weekEndingDate: date("week_ending_date"),
+    weekStartingDate: date("week_starting_date"),
     monthEndingDate: date("month_ending_date"),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [
     index("idx_dim_date_full_date").on(table.fullDate),
     index("idx_dim_date_year_month").on(table.year, table.monthNumber),
-  ],
+  ]
 );
 
 // Security Dimension - Handles stocks and options with company grouping
@@ -177,9 +178,9 @@ export const dimSecurity = pgTable(
     (security_type = 'STOCK' AND underlying_symbol = symbol AND option_type IS NULL AND strike_price IS NULL AND expiry_date IS NULL)
     OR
     (security_type = 'OPTION' AND underlying_symbol != symbol AND option_type IS NOT NULL AND strike_price IS NOT NULL AND expiry_date IS NOT NULL)
-  `,
+  `
     ),
-  ],
+  ]
 );
 
 // Transaction Type Dimension
@@ -232,14 +233,14 @@ export const dimBrokerAccount = pgTable(
     unique("unique_broker_account").on(
       table.accountKey,
       table.brokerKey,
-      table.brokerAccountNumber,
+      table.brokerAccountNumber
     ),
     index("idx_broker_account_account_broker").on(
       table.accountKey,
-      table.brokerKey,
+      table.brokerKey
     ),
     index("idx_broker_account_hash").on(table.brokerAccountHash),
-  ],
+  ]
 );
 
 // =============================================
@@ -261,7 +262,7 @@ export const factTransaction = pgTable(
       .notNull()
       .references(() => dimAccount.accountKey),
     securityKey: integer("security_key").references(
-      () => dimSecurity.securityKey,
+      () => dimSecurity.securityKey
     ),
     transactionTypeKey: integer("transaction_type_key")
       .notNull()
@@ -301,14 +302,14 @@ export const factTransaction = pgTable(
     unique("unique_account_transaction").on(
       table.accountKey,
       table.brokerTransactionId,
-      table.originalTransactionId,
+      table.originalTransactionId
     ),
 
     // Performance indexes
     index("idx_fact_transaction_date").on(table.dateKey),
     index("idx_fact_transaction_account").on(table.accountKey),
     index("idx_fact_transaction_security").on(table.securityKey),
-  ],
+  ]
 );
 
 // =============================================
@@ -454,7 +455,7 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
   WITH weekly_data AS (
       SELECT
           a.account_key,
-          d.week_ending_date as week_start,
+          d.week_starting_date as week_start,
           -- Weekly transfers (money wire in/out)
           SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
           -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
@@ -464,7 +465,7 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
       JOIN ${dimAccount} a ON ft.account_key = a.account_key
       JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
       WHERE d.full_date <= CURRENT_DATE
-      GROUP BY a.account_key, d.week_ending_date
+      GROUP BY a.account_key, d.week_starting_date
   ),
 
   cumulative_data AS (
@@ -531,7 +532,7 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     scale: 8,
   }).default("0"),
   cashBalance: decimal("cash_balance", { precision: 18, scale: 8 }).default(
-    "0",
+    "0"
   ),
   monthlyPnl: decimal("monthly_pnl", { precision: 18, scale: 8 }).default("0"),
   yearlyPnl: decimal("yearly_pnl", { precision: 18, scale: 8 }).default("0"),
@@ -679,7 +680,7 @@ export const dimAccountAccessTokenRelations = relations(
       fields: [dimAccountAccessToken.brokerCode],
       references: [dimBroker.brokerCode],
     }),
-  }),
+  })
 );
 
 export const dimAccountRelations = relations(dimAccount, ({ one, many }) => ({
@@ -708,7 +709,7 @@ export const dimBrokerAccountRelations = relations(
       fields: [dimBrokerAccount.brokerKey],
       references: [dimBroker.brokerKey],
     }),
-  }),
+  })
 );
 
 export const factTransactionRelations = relations(
@@ -734,7 +735,7 @@ export const factTransactionRelations = relations(
       fields: [factTransaction.securityKey],
       references: [dimSecurity.securityKey],
     }),
-  }),
+  })
 );
 
 // =============================================
