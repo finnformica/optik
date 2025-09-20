@@ -288,6 +288,20 @@
       "when": 1758367147486,
       "tag": "0040_free_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1758391187181,
+      "tag": "0041_numerous_black_bolt",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1758391823610,
+      "tag": "0042_green_master_mold",
+      "breakpoints": true
     }
   ]
 }

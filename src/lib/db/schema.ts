@@ -8,6 +8,7 @@ import {
   index,
   integer,
   json,
+  pgPolicy,
   pgTable,
   pgView,
   serial,
@@ -57,6 +58,14 @@ export const stgTransaction = pgTable(
       table.status
     ),
     index("idx_stg_transaction_broker_id").on(table.brokerTransactionId),
+    pgPolicy("users_own_staging_transactions", {
+      for: "all",
+      to: "authenticated",
+      using: sql`${table.accountKey} IN (
+        SELECT account_key FROM dim_account
+        WHERE user_id = current_setting('app.current_user_id')::int
+      )`,
+    }),
   ]
 );
 
@@ -65,33 +74,53 @@ export const stgTransaction = pgTable(
 // =============================================
 
 // User Dimension - Represents a user of the application
-export const dimUser = pgTable("dim_user", {
-  id: serial("id").primaryKey(),
-  firstName: varchar("first_name", { length: 50 }),
-  lastName: varchar("last_name", { length: 50 }),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
-  role: varchar("role", { length: 20 }).notNull().default("member"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  deletedAt: timestamp("deleted_at"),
-});
+export const dimUser = pgTable(
+  "dim_user",
+  {
+    id: serial("id").primaryKey(),
+    firstName: varchar("first_name", { length: 50 }),
+    lastName: varchar("last_name", { length: 50 }),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    role: varchar("role", { length: 20 }).notNull().default("member"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [
+    pgPolicy("users_own_data", {
+      for: "all",
+      to: "authenticated",
+      using: sql`${table.id} = current_setting('app.current_user_id')::int`,
+    }),
+  ]
+);
 
 // Account Dimension - Represents an account of a user
-export const dimAccount = pgTable("dim_account", {
-  accountKey: serial("account_key").primaryKey(),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => dimUser.id),
-  accountName: varchar("account_name", { length: 100 }).default(
-    "Primary Account"
-  ),
-  accountType: varchar("account_type", { length: 50 }).default("INDIVIDUAL"), // INDIVIDUAL, JOINT, CORPORATE, IRA, ROTH, 401K, 403B, 529, OTHER
-  currency: varchar("currency", { length: 3 }).default("USD"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const dimAccount = pgTable(
+  "dim_account",
+  {
+    accountKey: serial("account_key").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => dimUser.id),
+    accountName: varchar("account_name", { length: 100 }).default(
+      "Primary Account"
+    ),
+    accountType: varchar("account_type", { length: 50 }).default("INDIVIDUAL"), // INDIVIDUAL, JOINT, CORPORATE, IRA, ROTH, 401K, 403B, 529, OTHER
+    currency: varchar("currency", { length: 3 }).default("USD"),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    pgPolicy("users_own_accounts", {
+      for: "all",
+      to: "authenticated",
+      using: sql`${table.userId} = current_setting('app.current_user_id')::int`,
+    }),
+  ]
+);
 
 // Account Access Token Dimension
 export const dimAccountAccessToken = pgTable(
@@ -116,6 +145,14 @@ export const dimAccountAccessToken = pgTable(
       table.accountKey,
       table.brokerCode
     ),
+    pgPolicy("users_own_account_tokens", {
+      for: "all",
+      to: "authenticated",
+      using: sql`${table.accountKey} IN (
+        SELECT account_key FROM dim_account
+        WHERE user_id = current_setting('app.current_user_id')::int
+      )`,
+    }),
   ]
 );
 
@@ -142,6 +179,11 @@ export const dimDate = pgTable(
   (table) => [
     index("idx_dim_date_full_date").on(table.fullDate),
     index("idx_dim_date_year_month").on(table.year, table.monthNumber),
+    pgPolicy("authenticated_can_read_dates", {
+      for: "select",
+      to: "authenticated",
+      using: sql`true`,
+    }),
   ]
 );
 
@@ -180,31 +222,56 @@ export const dimSecurity = pgTable(
     (security_type = 'OPTION' AND underlying_symbol != symbol AND option_type IS NOT NULL AND strike_price IS NOT NULL AND expiry_date IS NOT NULL)
   `
     ),
+    pgPolicy("authenticated_can_read_securities", {
+      for: "select",
+      to: "authenticated",
+      using: sql`true`,
+    }),
   ]
 );
 
 // Transaction Type Dimension
-export const dimTransactionType = pgTable("dim_transaction_type", {
-  transactionTypeKey: serial("transaction_type_key").primaryKey(),
-  actionCode: varchar("action_code", { length: 20 }).notNull().unique(),
-  actionDescription: varchar("action_description", { length: 100 }),
-  actionCategory: varchar("action_category", { length: 50 }), // 'TRADE', 'INCOME', 'TRANSFER', 'CORPORATE'
-  affectsPosition: boolean("affects_position"),
-  direction: integer("direction"), // +1 for inflows, -1 for outflows, 0 for neutral
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const dimTransactionType = pgTable(
+  "dim_transaction_type",
+  {
+    transactionTypeKey: serial("transaction_type_key").primaryKey(),
+    actionCode: varchar("action_code", { length: 20 }).notNull().unique(),
+    actionDescription: varchar("action_description", { length: 100 }),
+    actionCategory: varchar("action_category", { length: 50 }), // 'TRADE', 'INCOME', 'TRANSFER', 'CORPORATE'
+    affectsPosition: boolean("affects_position"),
+    direction: integer("direction"), // +1 for inflows, -1 for outflows, 0 for neutral
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    pgPolicy("authenticated_can_read_transaction_types", {
+      for: "select",
+      to: "authenticated",
+      using: sql`true`,
+    }),
+  ]
+);
 
 // Broker Dimension
-export const dimBroker = pgTable("dim_broker", {
-  brokerKey: serial("broker_key").primaryKey(),
-  brokerCode: varchar("broker_code", { length: 20 }).notNull().unique(),
-  brokerName: varchar("broker_name", { length: 100 }),
-  commissionStructure: varchar("commission_structure", { length: 100 }),
-  apiProvider: varchar("api_provider", { length: 50 }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const dimBroker = pgTable(
+  "dim_broker",
+  {
+    brokerKey: serial("broker_key").primaryKey(),
+    brokerCode: varchar("broker_code", { length: 20 }).notNull().unique(),
+    brokerName: varchar("broker_name", { length: 100 }),
+    commissionStructure: varchar("commission_structure", { length: 100 }),
+    apiProvider: varchar("api_provider", { length: 50 }),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  () => [
+    pgPolicy("authenticated_can_read_brokers", {
+      for: "select",
+      to: "authenticated",
+      using: sql`true`,
+    }),
+  ]
+);
 
 // Broker Account Dimension - Maps broker accounts to user accounts
 export const dimBrokerAccount = pgTable(
@@ -240,6 +307,14 @@ export const dimBrokerAccount = pgTable(
       table.brokerKey
     ),
     index("idx_broker_account_hash").on(table.brokerAccountHash),
+    pgPolicy("users_own_broker_accounts", {
+      for: "all",
+      to: "authenticated",
+      using: sql`${table.accountKey} IN (
+        SELECT account_key FROM dim_account
+        WHERE user_id = current_setting('app.current_user_id')::int
+      )`,
+    }),
   ]
 );
 
@@ -309,6 +384,16 @@ export const factTransaction = pgTable(
     index("idx_fact_transaction_date").on(table.dateKey),
     index("idx_fact_transaction_account").on(table.accountKey),
     index("idx_fact_transaction_security").on(table.securityKey),
+
+    // RLS Policy
+    pgPolicy("users_own_transactions", {
+      for: "all",
+      to: "authenticated",
+      using: sql`${table.accountKey} IN (
+        SELECT account_key FROM dim_account
+        WHERE user_id = current_setting('app.current_user_id')::int
+      )`,
+    }),
   ]
 );
 
@@ -335,6 +420,8 @@ export const viewPosition = pgView("view_position", {
   lastTransactionDate: date("last_transaction_date"),
   transactionCount: integer("transaction_count"),
   expiryDate: date("expiry_date"),
+}).with({
+  securityInvoker: true,
 }).as(sql`
   SELECT
     a.account_key,
@@ -417,6 +504,8 @@ export const viewPortfolioDistribution = pgView("view_portfolio_distribution", {
     precision: 10,
     scale: 4,
   }),
+}).with({
+  securityInvoker: true,
 }).as(sql`
   SELECT
     account_key,
@@ -451,6 +540,8 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
     precision: 18,
     scale: 8,
   }),
+}).with({
+  securityInvoker: true,
 }).as(sql`
   WITH weekly_data AS (
       SELECT
@@ -548,6 +639,8 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     precision: 10,
     scale: 4,
   }).default("0"),
+}).with({
+  securityInvoker: true,
 }).as(sql`
   WITH portfolio_value_calc AS (
     -- Calculate total portfolio value from all transaction flows
