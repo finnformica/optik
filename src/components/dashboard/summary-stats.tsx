@@ -74,8 +74,8 @@ const SummaryStats = async () => {
       value: (summary) =>
         formatCurrency(Math.abs(parseFloat(summary.portfolioValue || "0"))),
       showTrend: true,
-      trendValue: () => parseFloat(summary.weeklyPnlPercent || "0"),
-      trendLabel: "this week",
+      trendValue: () => parseFloat(summary.overallPercentIncrease || "0"),
+      trendLabel: "overall",
     },
     {
       id: "cash-balance",
