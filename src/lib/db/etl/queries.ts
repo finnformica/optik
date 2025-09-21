@@ -24,7 +24,7 @@ export interface SchwabActivity {
   transferItems: TransferItem[];
 }
 
-export interface TransferItem {
+interface TransferItem {
   instrument: Instrument;
   amount: number;
   cost: number;
@@ -33,7 +33,7 @@ export interface TransferItem {
   feeType?: string;
 }
 
-export interface Instrument {
+interface Instrument {
   assetType: "CURRENCY" | "OPTION" | "EQUITY" | "COLLECTIVE_INVESTMENT";
   status: string;
   symbol: string;
@@ -51,7 +51,7 @@ export interface Instrument {
   underlyingCusip?: string;
 }
 
-export interface OptionDeliverable {
+interface OptionDeliverable {
   rootSymbol: string;
   strikePercent: number;
   deliverableNumber: number;

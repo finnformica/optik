@@ -116,7 +116,7 @@ export async function getSyncProgressFromDB(sessionId: string) {
 }
 
 // Helper functions to manage sync sessions
-export async function startSyncSession(sessionId: string) {
+async function startSyncSession(sessionId: string) {
   const accountKey = await getAccountKey();
 
   // Set expiry to 1 hour from now

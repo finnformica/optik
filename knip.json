@@ -1,0 +1,9 @@
+{
+  "ignore": [
+    "src/components/ui/**",
+    "src/api/fetchers.ts",
+    "src/lib/db/reset.ts"
+  ],
+  "ignoreDependencies": ["drizzle-seed", "tw-animate-css"],
+  "ignoreBinaries": ["ngrok", "supabase"]
+}

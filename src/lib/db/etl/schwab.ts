@@ -1,18 +1,14 @@
-import {
-  dimTransactionType,
-  factTransaction,
-  StgTransaction,
-} from "@/lib/db/schema";
+import { dimTransactionType, StgTransaction } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getBrokerKey, getDate, getOrCreateSecurity } from "./utils";
 
-export async function getSchwabTransactionType(
+async function getSchwabTransactionType(
   schwabType: string,
   positionEffect: string | undefined,
   database: any,
   assetType: string,
   amount: number,
-  description: string,
+  description: string
 ) {
   let actionCode: string;
 
@@ -72,7 +68,7 @@ export async function getSchwabTransactionType(
 
   if (!transactionType) {
     throw new Error(
-      `Transaction type not found for action code: ${actionCode}`,
+      `Transaction type not found for action code: ${actionCode}`
     );
   }
 
@@ -85,14 +81,14 @@ export async function getSchwabTransactionType(
 export async function prepareSchwabTransaction(
   rawTx: StgTransaction,
   data: any,
-  database: any,
+  database: any
 ) {
   // Extract main security transaction from transferItems
   const securityItem = data.transferItems?.find(
     (item: any) =>
       item.instrument?.assetType === "OPTION" ||
       item.instrument?.assetType === "EQUITY" ||
-      item.instrument?.assetType === "COLLECTIVE_INVESTMENT",
+      item.instrument?.assetType === "COLLECTIVE_INVESTMENT"
   );
 
   // Calculate total fees
@@ -114,7 +110,7 @@ export async function prepareSchwabTransaction(
 
     if (!securityKey) {
       throw new Error(
-        `Security data not found for transaction ${data.activityId}`,
+        `Security data not found for transaction ${data.activityId}`
       );
     }
   }
@@ -132,7 +128,7 @@ export async function prepareSchwabTransaction(
     database,
     assetType,
     amount,
-    description,
+    description
   );
 
   // Calculate facts
@@ -157,97 +153,4 @@ export async function prepareSchwabTransaction(
     fees: totalFees,
     netAmount,
   };
-}
-
-/**
- * Process Schwab-specific transaction format
- */
-export async function processSchwabTransaction(
-  rawTx: StgTransaction,
-  data: any,
-  database: any,
-) {
-  // Extract main security transaction from transferItems
-  const securityItem = data.transferItems?.find(
-    (item: any) =>
-      item.instrument?.assetType === "OPTION" ||
-      item.instrument?.assetType === "EQUITY" ||
-      item.instrument?.assetType === "COLLECTIVE_INVESTMENT",
-  );
-
-  // Calculate total fees
-  const totalFees =
-    data.transferItems
-      ?.filter((item: any) => item.feeType)
-      .reduce((sum: number, item: any) => sum + Math.abs(item.cost || 0), 0) ||
-    0;
-
-  // Get pre-populated dimensions
-  const accountKey = rawTx.accountKey;
-  const brokerKey = await getBrokerKey("schwab", database);
-  const date = await getDate(data.tradeDate, database);
-
-  // Get or create security (only thing that needs dynamic creation)
-  let securityKey = null;
-  if (securityItem?.instrument) {
-    securityKey = await getOrCreateSecurity(securityItem.instrument, database);
-
-    if (!securityKey) {
-      throw new Error(
-        `Security data not found for transaction ${data.activityId}`,
-      );
-    }
-  }
-
-  // For cash-only transactions, use a default security or allow null
-
-  // For cash transactions, we need to determine assetType differently
-  const assetType = securityItem?.instrument?.assetType || "CURRENCY";
-  const amount = securityItem?.amount || data.netAmount || 0;
-  const description =
-    data?.description ?? securityItem?.instrument?.description ?? "";
-
-  // Get transaction type (lookup from pre-populated mapping)
-  const transactionType = await getSchwabTransactionType(
-    data.type,
-    securityItem?.positionEffect,
-    database,
-    assetType,
-    amount,
-    description,
-  );
-
-  // Calculate facts
-  const quantity = securityItem?.amount || 0;
-  const pricePerUnit = securityItem?.price || null;
-  const grossAmount = securityItem?.cost ?? data.netAmount ?? 0;
-  const netAmount = data.netAmount || 0;
-
-  // Insert into fact_transaction
-  await database
-    .insert(factTransaction)
-    .values({
-      dateKey: date.dateKey,
-      accountKey,
-      securityKey,
-      transactionTypeKey: transactionType.transactionTypeKey,
-      brokerKey,
-      brokerTransactionId: data.activityId?.toString(),
-      orderId: data.orderId?.toString(),
-      description,
-      quantity,
-      pricePerUnit,
-      grossAmount,
-      fees: totalFees,
-      netAmount,
-    })
-    .onConflictDoNothing({
-      target: [
-        factTransaction.accountKey,
-        factTransaction.brokerTransactionId,
-        factTransaction.originalTransactionId,
-      ],
-    });
-
-  // Note: Positions are now calculated from transactions via viewPositions - no separate position maintenance needed
 }
