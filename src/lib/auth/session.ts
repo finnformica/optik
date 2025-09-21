@@ -88,7 +88,7 @@ export async function updateSessionAccountKey(accountKey: number) {
   });
 }
 
-export async function getAccountKey() {
+export async function getAccountKey(): Promise<number> {
   const session = await getSession();
   return session.accountKey;
 }

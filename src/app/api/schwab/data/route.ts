@@ -13,11 +13,37 @@ import {
   processRawTransactions,
   SchwabActivity,
 } from "@/lib/db/etl/queries";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { startSyncSession, updateSyncStatus, endSyncSession, getActiveSyncSession, getOrCreateSyncSession } from "@/lib/sync-progress";
+import { getAccountKey } from "@/lib/auth/session";
 
 // TODO: Update this to work with all broker accounts
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Get session ID for progress tracking
+  const sessionId = request.nextUrl.searchParams.get('sessionId') || `sync-${Date.now()}`;
+  const accountKey = await getAccountKey();
+
   try {
+    // Check for existing active sync session to prevent concurrent syncs
+    const activeSession = await getActiveSyncSession(accountKey, 'schwab');
+
+    if (activeSession && activeSession.sessionId !== sessionId) {
+      return NextResponse.json({
+        success: false,
+        processed: 0,
+        failed: 0,
+        transactionsFetched: 0,
+        sessionId: activeSession.sessionId, // Return the active session ID
+        alert: {
+          variant: "warning",
+          message: `Sync already in progress. Use session ID: ${activeSession.sessionId}`,
+        },
+      });
+    }
+
+    // Start or resume sync session
+    await getOrCreateSyncSession(sessionId, 'schwab');
+
     const schwabAuth = new SchwabAuth();
     let allTransactions: SchwabActivity[] = [];
 
@@ -78,16 +104,23 @@ export async function POST() {
       }
     }
 
-    // Process all fetched transactions
-    const results = await db.transaction(async (tx) => {
-      if (allTransactions.length > 0) {
-        // 1. Insert raw broker data
-        await insertRawTransactions(allTransactions, tx);
-      }
+    // Update status to processing
+    updateSyncStatus(sessionId, 'PROCESSING');
 
-      // 2. Process pending transactions
-      return await processRawTransactions(tx);
-    });
+    // Process all fetched transactions in optimized chunks
+    let results;
+    if (allTransactions.length > 0) {
+      // 1. Insert raw broker data in its own transaction
+      await db.transaction(async (tx) => {
+        await insertRawTransactions(allTransactions, tx);
+      });
+    }
+
+    // 2. Process pending transactions without transaction for real-time progress
+    results = await processRawTransactions();
+
+    // Mark sync as completed
+    endSyncSession(sessionId);
 
     // Determine alert based on results
     let alert;
@@ -132,16 +165,21 @@ export async function POST() {
       processed: results.processed,
       failed: results.failed,
       transactionsFetched: allTransactions.length,
+      sessionId,
       alert,
     });
   } catch (error) {
     console.error("Schwab data ingestion error:", error);
+    // Mark sync as failed
+    updateSyncStatus(sessionId, 'FAILED');
+
     return NextResponse.json(
       {
         success: false,
         processed: 0,
         failed: 0,
         transactionsFetched: 0,
+        sessionId,
         alert: {
           variant: "destructive",
           message: `Sync failed: ${

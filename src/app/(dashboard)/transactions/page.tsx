@@ -2,9 +2,11 @@
 
 import _ from "lodash";
 import { ArrowDown, ArrowUp, Filter, RefreshCw, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import { syncTransactions, useTransactions } from "@/api/transactions";
+import { recoverSyncSession } from "@/api/sync";
+import { endpoints } from "@/lib/utils";
 
 import { Loading } from "@/components/global/loading";
 import ActionBadge from "@/components/global/trade-action-badge";
@@ -60,6 +62,15 @@ interface AlertData {
 export default function TransactionsPage() {
   const [syncing, setSyncing] = useState(false);
   const [alert, setAlert] = useState<AlertData | null>(null);
+  const [syncProgress, setSyncProgress] = useState<{
+    status: string;
+    progress: number;
+    message: string;
+    total?: number;
+    processed?: number;
+    failed?: number;
+    remaining?: number;
+  } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAction, setSelectedAction] = useState<string>("all");
   const [selectedBroker, setSelectedBroker] = useState<string>("all");
@@ -73,11 +84,63 @@ export default function TransactionsPage() {
     mutate: refreshData,
   } = useTransactions();
 
+  // Reusable function to start SSE monitoring
+  const startSSEMonitoring = (sessionId: string) => {
+    const eventSource = new EventSource(`${endpoints.sync.progress}?sessionId=${sessionId}`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const progress = JSON.parse(event.data);
+        setSyncProgress(progress);
+
+        // Close SSE when sync is completed or failed
+        if (progress.status === 'completed' || progress.status === 'failed') {
+          eventSource.close();
+          setSyncing(false);
+          refreshData(); // Refresh data when sync completes
+        }
+      } catch (error) {
+        console.error('Error parsing SSE data:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error);
+      eventSource.close();
+      setSyncing(false);
+    };
+
+    return eventSource;
+  };
+
+  // Check for existing sync session on component mount
+  useEffect(() => {
+    const checkExistingSync = async () => {
+      const existingSessionId = await recoverSyncSession('schwab');
+      if (existingSessionId) {
+        // Resume monitoring existing sync
+        setSyncing(true);
+        setSyncProgress(null);
+        startSSEMonitoring(existingSessionId);
+      }
+    };
+
+    checkExistingSync();
+  }, [refreshData]);
+
   const syncData = () => {
     setSyncing(true);
     setAlert(null);
+    setSyncProgress(null);
 
-    syncTransactions()
+    // Generate a unique session ID for this sync
+    const sessionId = `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Start SSE monitoring for this session
+    const eventSource = startSSEMonitoring(sessionId);
+
+    // Start the actual sync process
+    syncTransactions(sessionId)
       .then((result) => {
         refreshData();
         setAlert(result.alert);
@@ -90,6 +153,7 @@ export default function TransactionsPage() {
       })
       .finally(() => {
         setSyncing(false);
+        eventSource.close();
       });
   };
 
@@ -228,14 +292,35 @@ export default function TransactionsPage() {
           </Typography>
         </div>
 
-        <Button
-          onClick={syncData}
-          disabled={syncing}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-        >
-          <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Syncing..." : "Sync Data"}
-        </Button>
+        <div className="flex flex-col items-end gap-2">
+          <Button
+            onClick={syncData}
+            disabled={syncing}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Sync Data"}
+          </Button>
+
+          {syncProgress && syncing && (
+            <div className="text-sm text-gray-400 text-right">
+              <div>{syncProgress.message}</div>
+              {syncProgress.total && syncProgress.total > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-32 bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${syncProgress.progress}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-xs">
+                    {syncProgress.processed}/{syncProgress.total}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {alert && (
