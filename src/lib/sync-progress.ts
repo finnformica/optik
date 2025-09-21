@@ -1,7 +1,7 @@
-import { db } from "@/lib/db/config";
-import { stgTransaction, stgSyncSession } from "@/lib/db/schema";
-import { eq, sql, and } from "drizzle-orm";
 import { getAccountKey } from "@/lib/auth/session";
+import { db } from "@/lib/db/config";
+import { stgSyncSession, stgTransaction } from "@/lib/db/schema";
+import { and, eq, sql } from "drizzle-orm";
 
 // Get real-time progress from database
 export async function getSyncProgressFromDB(sessionId: string) {
@@ -15,9 +15,9 @@ export async function getSyncProgressFromDB(sessionId: string) {
 
     if (!syncSession) {
       return {
-        status: 'idle',
+        status: "idle",
         progress: 0,
-        message: 'Ready to sync',
+        message: "Ready to sync",
         total: 0,
         processed: 0,
         failed: 0,
@@ -27,7 +27,7 @@ export async function getSyncProgressFromDB(sessionId: string) {
     const statusCounts = await db
       .select({
         status: stgTransaction.status,
-        count: sql<number>`count(*)`.as('count'),
+        count: sql<number>`count(*)`.as("count"),
       })
       .from(stgTransaction)
       .where(eq(stgTransaction.accountKey, syncSession.accountKey))
@@ -39,7 +39,7 @@ export async function getSyncProgressFromDB(sessionId: string) {
       ERROR: 0,
     };
 
-    statusCounts.forEach(row => {
+    statusCounts.forEach((row) => {
       if (row.status in counts) {
         counts[row.status as keyof typeof counts] = Number(row.count);
       }
@@ -51,7 +51,7 @@ export async function getSyncProgressFromDB(sessionId: string) {
     const remaining = counts.PENDING;
 
     let progress = 0;
-    let message = 'Ready to sync';
+    let message = "Ready to sync";
     let status = syncSession.status.toLowerCase();
 
     if (total > 0) {
@@ -63,13 +63,13 @@ export async function getSyncProgressFromDB(sessionId: string) {
         if (failed > 0) {
           message = `Completed with ${failed} failures`;
         } else {
-          message = 'All transactions processed successfully';
+          message = "All transactions processed successfully";
         }
       }
-    } else if (syncSession.status === 'FETCHING') {
-      message = 'Fetching transactions from broker...';
-    } else if (syncSession.status === 'PENDING') {
-      message = 'Starting sync...';
+    } else if (syncSession.status === "FETCHING") {
+      message = "Fetching transactions from broker...";
+    } else if (syncSession.status === "PENDING") {
+      message = "Starting sync...";
     }
 
     return {
@@ -82,11 +82,11 @@ export async function getSyncProgressFromDB(sessionId: string) {
       remaining,
     };
   } catch (error) {
-    console.error('Database error in getSyncProgressFromDB:', error);
+    console.error("Database error in getSyncProgressFromDB:", error);
     return {
-      status: 'failed',
+      status: "failed",
       progress: 0,
-      message: 'Error retrieving progress',
+      message: "Error retrieving progress",
       total: 0,
       processed: 0,
       failed: 0,
@@ -95,7 +95,7 @@ export async function getSyncProgressFromDB(sessionId: string) {
 }
 
 // Helper functions to manage sync sessions
-export async function startSyncSession(sessionId: string, brokerCode: string = 'schwab') {
+export async function startSyncSession(sessionId: string) {
   const accountKey = await getAccountKey();
 
   // Set expiry to 1 hour from now
@@ -107,35 +107,42 @@ export async function startSyncSession(sessionId: string, brokerCode: string = '
     .values({
       sessionId,
       accountKey,
-      brokerCode,
-      status: 'FETCHING',
+      status: "FETCHING",
       expiresAt,
     })
     .onConflictDoUpdate({
       target: stgSyncSession.sessionId,
       set: {
-        status: 'FETCHING',
+        status: "FETCHING",
         updatedAt: new Date(),
       },
     });
 }
 
-export async function updateSyncStatus(sessionId: string, status: 'PENDING' | 'FETCHING' | 'PROCESSING' | 'COMPLETED' | 'FAILED') {
+export async function updateSyncStatus(
+  sessionId: string,
+  status: "PENDING" | "FETCHING" | "PROCESSING" | "COMPLETED" | "FAILED"
+) {
   await db
     .update(stgSyncSession)
     .set({
       status,
       updatedAt: new Date(),
-      ...(status === 'COMPLETED' || status === 'FAILED' ? { completedAt: new Date() } : {}),
+      ...(status === "COMPLETED" || status === "FAILED"
+        ? { completedAt: new Date() }
+        : {}),
     })
     .where(eq(stgSyncSession.sessionId, sessionId));
 }
 
 export async function endSyncSession(sessionId: string) {
-  await updateSyncStatus(sessionId, 'COMPLETED');
+  await updateSyncStatus(sessionId, "COMPLETED");
 }
 
-export async function getOrCreateSyncSession(sessionId: string, brokerCode: string = 'schwab') {
+export async function getOrCreateSyncSession(
+  sessionId: string,
+  brokerCode: string = "ALL"
+) {
   // Check if session exists and is not expired
   const [existingSession] = await db
     .select()
@@ -153,7 +160,7 @@ export async function getOrCreateSyncSession(sessionId: string, brokerCode: stri
   }
 
   // Create new session if doesn't exist or expired
-  await startSyncSession(sessionId, brokerCode);
+  await startSyncSession(sessionId);
 
   const [newSession] = await db
     .select()
@@ -165,14 +172,14 @@ export async function getOrCreateSyncSession(sessionId: string, brokerCode: stri
 }
 
 // Get active sync session for account (to prevent multiple concurrent syncs)
-export async function getActiveSyncSession(accountKey: number, brokerCode: string) {
+// Now checks for ANY active sync regardless of broker
+export async function getActiveSyncSession(accountKey: number) {
   const [activeSession] = await db
     .select()
     .from(stgSyncSession)
     .where(
       and(
         eq(stgSyncSession.accountKey, accountKey),
-        eq(stgSyncSession.brokerCode, brokerCode),
         sql`${stgSyncSession.status} IN ('PENDING', 'FETCHING', 'PROCESSING')`,
         sql`${stgSyncSession.expiresAt} > NOW()`
       )

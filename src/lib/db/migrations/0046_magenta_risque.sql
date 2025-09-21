@@ -1,0 +1,1 @@
+ALTER TABLE "stg_sync_session" DROP COLUMN "broker_code";

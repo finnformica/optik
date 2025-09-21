@@ -1,3 +1,4 @@
+import { getAccountKey } from "@/lib/auth/session";
 import {
   SchwabAuth,
   SchwabAuthenticationError,
@@ -13,19 +14,24 @@ import {
   processRawTransactions,
   SchwabActivity,
 } from "@/lib/db/etl/queries";
+import {
+  endSyncSession,
+  getActiveSyncSession,
+  getOrCreateSyncSession,
+  updateSyncStatus,
+} from "@/lib/sync-progress";
 import { NextRequest, NextResponse } from "next/server";
-import { startSyncSession, updateSyncStatus, endSyncSession, getActiveSyncSession, getOrCreateSyncSession } from "@/lib/sync-progress";
-import { getAccountKey } from "@/lib/auth/session";
 
 // TODO: Update this to work with all broker accounts
 export async function POST(request: NextRequest) {
   // Get session ID for progress tracking
-  const sessionId = request.nextUrl.searchParams.get('sessionId') || `sync-${Date.now()}`;
+  const sessionId =
+    request.nextUrl.searchParams.get("sessionId") || `sync-${Date.now()}`;
   const accountKey = await getAccountKey();
 
   try {
     // Check for existing active sync session to prevent concurrent syncs
-    const activeSession = await getActiveSyncSession(accountKey, 'schwab');
+    const activeSession = await getActiveSyncSession(accountKey);
 
     if (activeSession && activeSession.sessionId !== sessionId) {
       return NextResponse.json({
@@ -42,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Start or resume sync session
-    await getOrCreateSyncSession(sessionId, 'schwab');
+    await getOrCreateSyncSession(sessionId, "ALL");
 
     const schwabAuth = new SchwabAuth();
     let allTransactions: SchwabActivity[] = [];
@@ -105,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update status to processing
-    updateSyncStatus(sessionId, 'PROCESSING');
+    updateSyncStatus(sessionId, "PROCESSING");
 
     // Process all fetched transactions in optimized chunks
     let results;
@@ -171,7 +177,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Schwab data ingestion error:", error);
     // Mark sync as failed
-    updateSyncStatus(sessionId, 'FAILED');
+    updateSyncStatus(sessionId, "FAILED");
 
     return NextResponse.json(
       {

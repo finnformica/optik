@@ -2,10 +2,10 @@
 
 import _ from "lodash";
 import { ArrowDown, ArrowUp, Filter, RefreshCw, Search } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { syncTransactions, useTransactions } from "@/api/transactions";
 import { recoverSyncSession } from "@/api/sync";
+import { syncTransactions, useTransactions } from "@/api/transactions";
 import { endpoints } from "@/lib/utils";
 
 import { Loading } from "@/components/global/loading";
@@ -18,6 +18,19 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Typography } from "@/components/ui/typography";
 import { ITransactionAction } from "@/lib/db/schema";
+
+const formatCurrency = (amount: string) => {
+  const num = parseFloat(amount);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(num);
+};
+
+const formatQuantity = (quantity: string) => {
+  const num = parseFloat(quantity);
+  return num.toLocaleString();
+};
 
 interface Transaction {
   // Transaction facts
@@ -86,7 +99,9 @@ export default function TransactionsPage() {
 
   // Reusable function to start SSE monitoring
   const startSSEMonitoring = (sessionId: string) => {
-    const eventSource = new EventSource(`${endpoints.sync.progress}?sessionId=${sessionId}`);
+    const eventSource = new EventSource(
+      `${endpoints.sync.progress}?sessionId=${sessionId}`
+    );
 
     eventSource.onmessage = (event) => {
       try {
@@ -94,18 +109,18 @@ export default function TransactionsPage() {
         setSyncProgress(progress);
 
         // Close SSE when sync is completed or failed
-        if (progress.status === 'completed' || progress.status === 'failed') {
+        if (progress.status === "completed" || progress.status === "failed") {
           eventSource.close();
           setSyncing(false);
           refreshData(); // Refresh data when sync completes
         }
       } catch (error) {
-        console.error('Error parsing SSE data:', error);
+        console.error("Error parsing SSE data:", error);
       }
     };
 
     eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error);
+      console.error("SSE connection error:", error);
       eventSource.close();
       setSyncing(false);
     };
@@ -116,7 +131,7 @@ export default function TransactionsPage() {
   // Check for existing sync session on component mount
   useEffect(() => {
     const checkExistingSync = async () => {
-      const existingSessionId = await recoverSyncSession('schwab');
+      const existingSessionId = await recoverSyncSession();
       if (existingSessionId) {
         // Resume monitoring existing sync
         setSyncing(true);
@@ -134,7 +149,9 @@ export default function TransactionsPage() {
     setSyncProgress(null);
 
     // Generate a unique session ID for this sync
-    const sessionId = `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = `sync-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
 
     // Start SSE monitoring for this session
     const eventSource = startSSEMonitoring(sessionId);
@@ -155,19 +172,6 @@ export default function TransactionsPage() {
         setSyncing(false);
         eventSource.close();
       });
-  };
-
-  const formatCurrency = (amount: string) => {
-    const num = parseFloat(amount);
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(num);
-  };
-
-  const formatQuantity = (quantity: string) => {
-    const num = parseFloat(quantity);
-    return num.toLocaleString();
   };
 
   // Get unique actions and brokers for filters
@@ -507,8 +511,8 @@ export default function TransactionsPage() {
                               parseFloat(transaction.netAmount) > 0
                                 ? "text-green-400"
                                 : parseFloat(transaction.netAmount) < 0
-                                  ? "text-red-400"
-                                  : ""
+                                ? "text-red-400"
+                                : ""
                             }`}
                           >
                             {formatCurrency(transaction.netAmount)}
@@ -526,7 +530,7 @@ export default function TransactionsPage() {
                           </span>
                         </td>
                       </tr>
-                    ),
+                    )
                   )}
                 </tbody>
               </table>

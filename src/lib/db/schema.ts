@@ -78,7 +78,6 @@ export const stgSyncSession = pgTable(
     accountKey: integer("account_key")
       .notNull()
       .references(() => dimAccount.accountKey),
-    brokerCode: varchar("broker_code", { length: 20 }).notNull(),
     status: varchar("status", { length: 20 }).notNull().default("PENDING"), // PENDING, FETCHING, PROCESSING, COMPLETED, FAILED
 
     // Progress tracking

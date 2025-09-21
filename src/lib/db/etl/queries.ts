@@ -131,7 +131,7 @@ export async function processRawTransactions(tx?: any) {
     results.errors.push(...batchResults.errors);
 
     // Simulate processing time for demo purposes
-    await new Promise((resolve) => setTimeout(resolve, 8000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 
   return results;
