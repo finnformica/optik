@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { getSyncProgressFromDB } from "@/lib/sync-progress";
 
+export const runtime = 'edge';
+
 export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get('sessionId');
 
