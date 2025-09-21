@@ -69,6 +69,47 @@ export const stgTransaction = pgTable(
   ]
 );
 
+// Sync Session - Tracks background sync operations
+export const stgSyncSession = pgTable(
+  "stg_sync_session",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: varchar("session_id", { length: 100 }).notNull().unique(),
+    accountKey: integer("account_key")
+      .notNull()
+      .references(() => dimAccount.accountKey),
+    status: varchar("status", { length: 20 }).notNull().default("PENDING"), // PENDING, FETCHING, PROCESSING, COMPLETED, FAILED
+
+    // Progress tracking
+    totalTransactions: integer("total_transactions").default(0),
+    processedTransactions: integer("processed_transactions").default(0),
+    failedTransactions: integer("failed_transactions").default(0),
+
+    // Metadata
+    metadata: json("metadata"), // Can store additional sync info
+    errorMessage: text("error_message"),
+
+    // Timestamps
+    startedAt: timestamp("started_at").notNull().defaultNow(),
+    completedAt: timestamp("completed_at"),
+    expiresAt: timestamp("expires_at"), // Auto-cleanup old sessions
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_sync_session_account").on(table.accountKey, table.status),
+    index("idx_sync_session_expires").on(table.expiresAt),
+    pgPolicy("users_own_sync_sessions", {
+      for: "all",
+      to: "authenticated",
+      using: sql`${table.accountKey} IN (
+        SELECT account_key FROM dim_account
+        WHERE user_id = current_setting('app.current_user_id')::int
+      )`,
+    }),
+  ]
+);
+
 // =============================================
 // DIMENSIONAL TABLES
 // =============================================

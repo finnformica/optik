@@ -1,3 +1,4 @@
+import { getAccountKey } from "@/lib/auth/session";
 import {
   SchwabAuth,
   SchwabAuthenticationError,
@@ -13,11 +14,38 @@ import {
   processRawTransactions,
   SchwabActivity,
 } from "@/lib/db/etl/queries";
-import { NextResponse } from "next/server";
+import { stgTransaction } from "@/lib/db/schema";
+import {
+  endSyncSession,
+  getActiveSyncSession,
+  getOrCreateSyncSession,
+  updateSyncStatus,
+  updateSyncTransactionCounts,
+} from "@/lib/sync-progress";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 
 // TODO: Update this to work with all broker accounts
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Get session ID for progress tracking
+  const sessionId =
+    request.nextUrl.searchParams.get("sessionId") || `sync-${Date.now()}`;
+  const accountKey = await getAccountKey();
+
   try {
+    // Check for existing active sync session to prevent concurrent syncs
+    const activeSession = await getActiveSyncSession(accountKey);
+
+    if (activeSession && activeSession.sessionId !== sessionId) {
+      return NextResponse.json({
+        success: false,
+        processed: 0,
+        failed: 0,
+        transactionsFetched: 0,
+        sessionId: activeSession.sessionId, // Return the active session ID
+      });
+    }
+
     const schwabAuth = new SchwabAuth();
     let allTransactions: SchwabActivity[] = [];
 
@@ -29,13 +57,11 @@ export async function POST() {
         success: false,
         processed: 0,
         failed: 0,
-        alert: {
-          variant: "destructive",
-          message:
-            "No active Schwab accounts found. Please re-authenticate with Schwab.",
-        },
       });
     }
+
+    // Start or resume sync session
+    await getOrCreateSyncSession(sessionId);
 
     // Fetch transactions for each broker account
     for (const account of brokerAccounts) {
@@ -63,10 +89,6 @@ export async function POST() {
             success: false,
             processed: 0,
             failed: 0,
-            alert: {
-              variant: "destructive",
-              message: accountError.message,
-            },
           });
         }
 
@@ -78,76 +100,65 @@ export async function POST() {
       }
     }
 
-    // Process all fetched transactions
-    const results = await db.transaction(async (tx) => {
-      if (allTransactions.length > 0) {
-        // 1. Insert raw broker data
+    // Insert new transactions into staging table
+    if (allTransactions.length > 0) {
+      await db.transaction(async (tx) => {
         await insertRawTransactions(allTransactions, tx);
-      }
+      });
+    }
 
-      // 2. Process pending transactions
-      return await processRawTransactions(tx);
+    // Get the count of pending transactions to process
+    const [pendingCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(stgTransaction)
+      .where(
+        and(
+          eq(stgTransaction.accountKey, accountKey),
+          inArray(stgTransaction.status, ["PENDING", "ERROR"])
+        )
+      )
+      .limit(1);
+
+    // Update session with transaction count to be processed
+    const total = pendingCount.count;
+    await updateSyncTransactionCounts(sessionId, { totalTransactions: total });
+    await updateSyncStatus(sessionId, "PROCESSING");
+
+    // Process all pending transactions (includes any newly inserted ones)
+    let results = { processed: 0, failed: 0 };
+
+    if (total > 0) {
+      results = await processRawTransactions();
+    }
+
+    // Update final processing counts
+    await updateSyncTransactionCounts(sessionId, {
+      processedTransactions: results.processed,
+      failedTransactions: results.failed,
     });
 
-    // Determine alert based on results
-    let alert;
-    if (allTransactions.length === 0) {
-      alert = {
-        variant: "info",
-        message: "Sync completed - no new transactions found.",
-      };
-    } else if (results.processed > 0 && results.failed === 0) {
-      alert = {
-        variant: "success",
-        message: `Successfully processed ${allTransactions.length} transactions.`,
-      };
-    } else if (results.processed > 0 && results.failed > 0) {
-      alert = {
-        variant: "warning",
-        message: `Successfully processed ${results.processed} transactions, but ${results.failed} failed. Check logs for details.`,
-      };
-    } else if (results.processed === 0 && results.failed > 0) {
-      alert = {
-        variant: "destructive",
-        message: `Failed to process ${results.failed} transactions. ${
-          results.errors.length > 0
-            ? results.errors.join(", ")
-            : "Check logs for details."
-        }`,
-      };
-    } else if (results.errors && results.errors.length > 0) {
-      alert = {
-        variant: "warning",
-        message: `Sync completed with issues: ${results.errors.join(", ")}`,
-      };
-    } else {
-      alert = {
-        variant: "success",
-        message: "Sync completed successfully.",
-      };
-    }
+    // Mark sync as completed
+    endSyncSession(sessionId);
 
     return NextResponse.json({
       success: results.processed > 0,
       processed: results.processed,
       failed: results.failed,
       transactionsFetched: allTransactions.length,
-      alert,
+      sessionId,
     });
   } catch (error) {
     console.error("Schwab data ingestion error:", error);
+    // Mark sync as failed
+    updateSyncStatus(sessionId, "FAILED");
+
     return NextResponse.json(
       {
         success: false,
         processed: 0,
         failed: 0,
         transactionsFetched: 0,
-        alert: {
-          variant: "destructive",
-          message: `Sync failed: ${
-            error instanceof Error ? error.message : "Unknown error occurred"
-          }`,
-        },
+        sessionId,
       },
       { status: 500 }
     );

@@ -1,9 +1,13 @@
 import { db } from "@/lib/db/config";
-import { StgTransaction, stgTransaction } from "@/lib/db/schema";
+import {
+  factTransaction,
+  StgTransaction,
+  stgTransaction,
+} from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { getAccountKey } from "@/lib/auth/session";
-import { processSchwabTransaction } from "./schwab";
+import { prepareSchwabTransaction } from "./schwab";
 
 export interface SchwabActivity {
   activityId: number; // Unique identifier for each transaction/activity (maps to transactionId in DB)
@@ -89,7 +93,7 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
 
 /**
  * Process raw transactions into dimensional model
- * Handles Schwab data transformation
+ * Handles Schwab data transformation with batch processing
  */
 export async function processRawTransactions(tx?: any) {
   const accountKey = await getAccountKey();
@@ -102,9 +106,8 @@ export async function processRawTransactions(tx?: any) {
     .where(
       and(
         eq(stgTransaction.accountKey, accountKey),
-        //   eq(stgTransaction.status, 'PENDING'),
-        inArray(stgTransaction.status, ["PENDING", "ERROR"]),
-      ),
+        inArray(stgTransaction.status, ["PENDING", "ERROR"])
+      )
     );
 
   const results = {
@@ -113,40 +116,102 @@ export async function processRawTransactions(tx?: any) {
     errors: [] as string[],
   };
 
-  for (const rawTx of pendingTransactions) {
+  // Process transactions in batches to optimize performance
+  const BATCH_SIZE = 10;
+
+  for (let i = 0; i < pendingTransactions.length; i += BATCH_SIZE) {
+    const batch = pendingTransactions.slice(i, i + BATCH_SIZE);
+
+    const { processed, failed, errors } = await processBatchTransactions(
+      batch,
+      database
+    );
+
+    results.processed += processed;
+    results.failed += failed;
+    results.errors.push(...errors);
+  }
+
+  return results;
+}
+
+/**
+ * Process a batch of transactions efficiently
+ */
+async function processBatchTransactions(batch: any[], database: any) {
+  const results = {
+    processed: 0,
+    failed: 0,
+    errors: [] as string[],
+  };
+
+  const processedIds: number[] = [];
+  const failedTransactions: { id: number; error: string }[] = [];
+  const factTransactionInserts: any[] = [];
+
+  // Process each transaction in the batch
+  for (const rawTx of batch) {
     try {
-      await processSingleTransaction(rawTx, database);
+      const factTransactionData = await prepareSingleTransaction(
+        rawTx,
+        database
+      );
 
-      // Mark as processed
-      await database
-        .update(stgTransaction)
-        .set({
-          status: "PROCESSED",
-          processedAt: new Date(),
-        })
-        .where(eq(stgTransaction.id, rawTx.id));
+      if (factTransactionData) {
+        factTransactionInserts.push(factTransactionData);
 
-      results.processed++;
+        processedIds.push(rawTx.id);
+        results.processed++;
+      }
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error
           ? `Transaction ${rawTx.brokerTransactionId}: ${error.message}`
           : `Transaction ${rawTx.brokerTransactionId}: Unknown error`;
 
-      console.error(errorMessage);
+      failedTransactions.push({ id: rawTx.id, error: errorMessage });
 
-      // Mark as failed
+      results.failed++;
+      results.errors.push(errorMessage);
+    }
+  }
+
+  // Batch insert successful transactions
+  if (factTransactionInserts.length > 0) {
+    await database
+      .insert(factTransaction)
+      .values(factTransactionInserts)
+      .onConflictDoNothing({
+        target: [
+          factTransaction.accountKey,
+          factTransaction.brokerTransactionId,
+          factTransaction.originalTransactionId,
+        ],
+      });
+  }
+
+  // Update processed transactions immediately for real-time progress
+  if (processedIds.length > 0) {
+    await database
+      .update(stgTransaction)
+      .set({
+        status: "PROCESSED",
+        processedAt: new Date(),
+      })
+      .where(inArray(stgTransaction.id, processedIds));
+  }
+
+  // Update failed transactions immediately for real-time progress
+  if (failedTransactions.length > 0) {
+    for (const failed of failedTransactions) {
       await database
         .update(stgTransaction)
         .set({
           status: "ERROR",
-          errorMessage: `Failed to process ${errorMessage}`,
+          errorMessage: failed.error,
           processedAt: new Date(),
         })
-        .where(eq(stgTransaction.id, rawTx.id));
-
-      results.failed++;
-      results.errors.push(errorMessage);
+        .where(eq(stgTransaction.id, failed.id));
     }
   }
 
@@ -154,15 +219,16 @@ export async function processRawTransactions(tx?: any) {
 }
 
 /**
- * Process a single raw transaction into dimensional model
+ * Prepare transaction data without inserting to database
+ * Returns the data object ready for batch insertion
  */
-async function processSingleTransaction(rawTx: StgTransaction, database: any) {
+async function prepareSingleTransaction(rawTx: StgTransaction, database: any) {
   const data = rawTx.rawData as any;
 
   // Route to broker-specific processor
   switch (rawTx.brokerCode) {
     case "schwab":
-      return await processSchwabTransaction(rawTx, data, database);
+      return await prepareSchwabTransaction(rawTx, data, database);
     default:
       throw new Error(`Unsupported broker: ${rawTx.brokerCode}`);
   }

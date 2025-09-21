@@ -9,6 +9,7 @@ export const endpoints = {
   user: "/api/user",
   accounts: "/api/accounts",
   transactions: "/api/transactions",
+  sync: { progress: "/api/sync/progress", active: "/api/sync/active" },
   schwab: { data: "/api/schwab/data", callback: "/api/schwab/auth/callback" },
   stripe: { webhook: "/api/stripe/webhook", checkout: "/api/stripe/checkout" },
 };
