@@ -1,11 +1,11 @@
 import { dimTransactionType, StgTransaction } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { db } from "../config";
 import { getBrokerKey, getDate, getOrCreateSecurity } from "./utils";
 
 async function getSchwabTransactionType(
   schwabType: string,
   positionEffect: string | undefined,
-  database: any,
   assetType: string,
   amount: number,
   description: string
@@ -60,7 +60,7 @@ async function getSchwabTransactionType(
   }
 
   // DB lookup
-  const [transactionType] = await database
+  const [transactionType] = await db
     .select()
     .from(dimTransactionType)
     .where(eq(dimTransactionType.actionCode, actionCode))
@@ -80,8 +80,7 @@ async function getSchwabTransactionType(
  */
 export async function prepareSchwabTransaction(
   rawTx: StgTransaction,
-  data: any,
-  database: any
+  data: any
 ) {
   // Extract main security transaction from transferItems
   const securityItem = data.transferItems?.find(
@@ -100,13 +99,13 @@ export async function prepareSchwabTransaction(
 
   // Get pre-populated dimensions
   const accountKey = rawTx.accountKey;
-  const brokerKey = await getBrokerKey("schwab", database);
-  const date = await getDate(data.tradeDate, database);
+  const brokerKey = await getBrokerKey("schwab");
+  const date = await getDate(data.tradeDate);
 
   // Get or create security (only thing that needs dynamic creation)
   let securityKey = null;
   if (securityItem?.instrument) {
-    securityKey = await getOrCreateSecurity(securityItem.instrument, database);
+    securityKey = await getOrCreateSecurity(securityItem.instrument);
 
     if (!securityKey) {
       throw new Error(
@@ -125,7 +124,6 @@ export async function prepareSchwabTransaction(
   const transactionType = await getSchwabTransactionType(
     data.type,
     securityItem?.positionEffect,
-    database,
     assetType,
     amount,
     description

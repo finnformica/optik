@@ -7,6 +7,7 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 
 import { getAccountKey } from "@/lib/auth/session";
+import { updateSyncTransactionCounts } from "@/lib/sync-progress";
 import { prepareSchwabTransaction } from "./schwab";
 
 export interface SchwabActivity {
@@ -95,12 +96,11 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
  * Process raw transactions into dimensional model
  * Handles Schwab data transformation with batch processing
  */
-export async function processRawTransactions(tx?: any) {
+export async function processRawTransactions(sessionId?: string) {
   const accountKey = await getAccountKey();
-  const database = tx || db;
 
   // Get pending transactions for account
-  const pendingTransactions = await database
+  const pendingTransactions = await db
     .select()
     .from(stgTransaction)
     .where(
@@ -122,14 +122,19 @@ export async function processRawTransactions(tx?: any) {
   for (let i = 0; i < pendingTransactions.length; i += BATCH_SIZE) {
     const batch = pendingTransactions.slice(i, i + BATCH_SIZE);
 
-    const { processed, failed, errors } = await processBatchTransactions(
-      batch,
-      database
-    );
+    const { processed, failed, errors } = await processBatchTransactions(batch);
 
     results.processed += processed;
     results.failed += failed;
     results.errors.push(...errors);
+
+    // Update progress after each batch if sessionId is provided
+    if (sessionId) {
+      await updateSyncTransactionCounts(sessionId, {
+        processedTransactions: results.processed,
+        failedTransactions: results.failed,
+      });
+    }
   }
 
   return results;
@@ -138,7 +143,7 @@ export async function processRawTransactions(tx?: any) {
 /**
  * Process a batch of transactions efficiently
  */
-async function processBatchTransactions(batch: any[], database: any) {
+async function processBatchTransactions(batch: any[]) {
   const results = {
     processed: 0,
     failed: 0,
@@ -152,10 +157,7 @@ async function processBatchTransactions(batch: any[], database: any) {
   // Process each transaction in the batch
   for (const rawTx of batch) {
     try {
-      const factTransactionData = await prepareSingleTransaction(
-        rawTx,
-        database
-      );
+      const factTransactionData = await prepareSingleTransaction(rawTx);
 
       if (factTransactionData) {
         factTransactionInserts.push(factTransactionData);
@@ -178,7 +180,7 @@ async function processBatchTransactions(batch: any[], database: any) {
 
   // Batch insert successful transactions
   if (factTransactionInserts.length > 0) {
-    await database
+    await db
       .insert(factTransaction)
       .values(factTransactionInserts)
       .onConflictDoNothing({
@@ -192,7 +194,7 @@ async function processBatchTransactions(batch: any[], database: any) {
 
   // Update processed transactions immediately for real-time progress
   if (processedIds.length > 0) {
-    await database
+    await db
       .update(stgTransaction)
       .set({
         status: "PROCESSED",
@@ -204,7 +206,7 @@ async function processBatchTransactions(batch: any[], database: any) {
   // Update failed transactions immediately for real-time progress
   if (failedTransactions.length > 0) {
     for (const failed of failedTransactions) {
-      await database
+      await db
         .update(stgTransaction)
         .set({
           status: "ERROR",
@@ -222,13 +224,13 @@ async function processBatchTransactions(batch: any[], database: any) {
  * Prepare transaction data without inserting to database
  * Returns the data object ready for batch insertion
  */
-async function prepareSingleTransaction(rawTx: StgTransaction, database: any) {
+async function prepareSingleTransaction(rawTx: StgTransaction) {
   const data = rawTx.rawData as any;
 
   // Route to broker-specific processor
   switch (rawTx.brokerCode) {
     case "schwab":
-      return await prepareSchwabTransaction(rawTx, data, database);
+      return await prepareSchwabTransaction(rawTx, data);
     default:
       throw new Error(`Unsupported broker: ${rawTx.brokerCode}`);
   }

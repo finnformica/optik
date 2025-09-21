@@ -3,6 +3,7 @@
 import { CheckCircle, Clock, Database, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { recoverSyncSession } from "@/api/sync";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { endpoints } from "@/lib/utils";
@@ -88,55 +89,70 @@ export function TransactionSyncProgress({
     null
   );
 
-  // Manage EventSource connection
+  // Manage polling connection with active session recovery
   useEffect(() => {
-    if (!sessionId) {
-      setSyncProgress(null);
-      return;
-    }
+    let interval: NodeJS.Timeout | null = null;
 
-    setSyncProgress(null);
-
-    const eventSource = new EventSource(
-      `${endpoints.sync.progress}?sessionId=${sessionId}`
-    );
-
-    eventSource.onmessage = (event) => {
+    const pollProgress = async () => {
       try {
-        const progress = JSON.parse(event.data);
+        // Use provided sessionId or check for active session
+        let currentSessionId = sessionId;
+
+        if (!sessionId) {
+          const existingSessionId = await recoverSyncSession();
+
+          if (!existingSessionId) {
+            setSyncProgress(null);
+            if (interval) clearInterval(interval);
+            return;
+          }
+
+          currentSessionId = existingSessionId;
+        }
+
+        // Get progress for the current session
+        const progressResponse = await fetch(
+          `${endpoints.sync.progress}?sessionId=${currentSessionId}`
+        );
+
+        if (!progressResponse.ok) {
+          throw new Error(`HTTP ${progressResponse.status}`);
+        }
+
+        const progress = await progressResponse.json();
         setSyncProgress(progress);
 
         // Handle completion
         if (progress.status === "completed" || progress.status === "failed") {
-          eventSource.close();
+          if (interval) clearInterval(interval);
           onSyncComplete();
         }
       } catch (error) {
-        console.error("Error parsing SSE data:", error);
+        console.error("Error fetching sync progress:", error);
+        if (interval) clearInterval(interval);
+        setSyncProgress({
+          status: "failed",
+          progress: 0,
+          message: "Connection error during sync",
+          total: 0,
+          processed: 0,
+          failed: 0,
+          remaining: 0,
+          startTime: Date.now(),
+          alert: {
+            variant: "destructive",
+            message: "Connection error during sync. Please try again.",
+          },
+        });
       }
     };
 
-    eventSource.onerror = (error) => {
-      console.error("SSE connection error:", error);
-      eventSource.close();
-      setSyncProgress({
-        status: "failed",
-        progress: 0,
-        message: "Connection error during sync",
-        total: 0,
-        processed: 0,
-        failed: 0,
-        remaining: 0,
-        startTime: Date.now(),
-        alert: {
-          variant: "destructive",
-          message: "Connection error during sync. Please try again.",
-        },
-      });
-    };
+    // Start polling immediately, then every second
+    pollProgress();
+    interval = setInterval(pollProgress, 1000);
 
     return () => {
-      eventSource.close();
+      if (interval) clearInterval(interval);
     };
   }, [sessionId, onSyncComplete]);
 

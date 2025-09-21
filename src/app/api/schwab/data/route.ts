@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     let results = { processed: 0, failed: 0 };
 
     if (total > 0) {
-      results = await processRawTransactions();
+      results = await processRawTransactions(sessionId);
     }
 
     // Update final processing counts

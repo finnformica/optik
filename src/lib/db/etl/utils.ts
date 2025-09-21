@@ -1,9 +1,10 @@
 import { dimBroker, dimDate, dimSecurity } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { db } from "../config";
 
-export async function getDate(date: string, database: any) {
+export async function getDate(date: string) {
   const isoDate = new Date(date).toISOString().split("T")[0];
-  const dimDateRecord = await database
+  const dimDateRecord = await db
     .select()
     .from(dimDate)
     .where(eq(dimDate.fullDate, isoDate))
@@ -16,7 +17,7 @@ export async function getDate(date: string, database: any) {
   return dimDateRecord[0];
 }
 
-export async function getOrCreateSecurity(instrument: any, database: any) {
+export async function getOrCreateSecurity(instrument: any) {
   // Parse Schwab instrument data
   const symbol = instrument.symbol;
   const securityType = instrument.assetType === "OPTION" ? "OPTION" : "STOCK";
@@ -29,7 +30,7 @@ export async function getOrCreateSecurity(instrument: any, database: any) {
   const securityName = instrument.description;
 
   // First try to find existing security
-  const existingSecurity = await database
+  const existingSecurity = await db
     .select({ securityKey: dimSecurity.securityKey })
     .from(dimSecurity)
     .where(eq(dimSecurity.symbol, symbol))
@@ -40,7 +41,7 @@ export async function getOrCreateSecurity(instrument: any, database: any) {
   }
 
   // If not found, create new security
-  const result = await database
+  const result = await db
     .insert(dimSecurity)
     .values({
       symbol,
@@ -56,8 +57,8 @@ export async function getOrCreateSecurity(instrument: any, database: any) {
   return result[0].securityKey;
 }
 
-export async function getBrokerKey(brokerCode: string, database: any) {
-  const brokerResult = await database
+export async function getBrokerKey(brokerCode: string) {
+  const brokerResult = await db
     .select({ brokerKey: dimBroker.brokerKey })
     .from(dimBroker)
     .where(eq(dimBroker.brokerCode, brokerCode))
