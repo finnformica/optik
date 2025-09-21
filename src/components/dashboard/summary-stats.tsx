@@ -24,7 +24,7 @@ interface SummaryCard {
   trendLabel?: string;
 }
 
-export async function getSummary() {
+async function getSummary() {
   const accountKey = await getAccountKey();
 
   const [row] = await db

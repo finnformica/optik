@@ -18,7 +18,7 @@ export interface PositionTransaction {
   unrealizedPnl: number;
 }
 
-export interface Position {
+interface Position {
   positionKey: string;
   ticker: string;
   optionType?: string;
@@ -55,27 +55,3 @@ export interface PositionsStats {
   totalPnl: number;
   expiringSoonTotal?: number;
 }
-
-export interface PositionFilters {
-  ticker: string;
-  strategy: string;
-  tags?: string;
-  notes?: string;
-}
-
-// Strategy types for filtering and display
-export type PositionStrategy =
-  | "Short Put"
-  | "Long Put"
-  | "Short Call"
-  | "Long Call"
-  | "Long Stock"
-  | "Short Stock"
-  | "Put Trade"
-  | "Call Trade"
-  | "Stock Trade"
-  | "Unknown";
-
-export type PositionEffect = "OPENING" | "CLOSING" | "OTHER";
-export type DisplayAction = "BUY" | "SELL";
-export type CreditDebitType = "CR" | "DB";

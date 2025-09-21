@@ -5,7 +5,7 @@ import { SchwabActivity } from "@/lib/db/etl/queries";
 import { dimAccountAccessToken } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 
-export interface SchwabTokens {
+interface SchwabTokens {
   access_token: string;
   refresh_token: string;
   expires_in: number;
@@ -399,7 +399,7 @@ export class SchwabAuth {
   }
 }
 
-export interface SchwabAccountInfo {
+interface SchwabAccountInfo {
   accountNumber: string;
   hashValue: string;
 }

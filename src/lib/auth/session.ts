@@ -1,11 +1,9 @@
 import { compare, hash } from "bcryptjs";
-import { eq } from "drizzle-orm";
 import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { db } from "@/lib/db/config";
-import { dimAccount, NewDimUser } from "@/lib/db/schema";
+import { NewDimUser } from "@/lib/db/schema";
 import { paths } from "@/lib/utils";
 
 const key = new TextEncoder().encode(process.env.AUTH_SECRET);
@@ -91,20 +89,4 @@ export async function updateSessionAccountKey(accountKey: number) {
 export async function getAccountKey(): Promise<number> {
   const session = await getSession();
   return session.accountKey;
-}
-
-export async function getAccount() {
-  const session = await getSession();
-
-  const [account] = await db
-    .select()
-    .from(dimAccount)
-    .where(eq(dimAccount.accountKey, session.accountKey))
-    .limit(1);
-  return account;
-}
-
-export async function getUserId() {
-  const session = await getSession();
-  return session.user.id;
 }

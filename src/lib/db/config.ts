@@ -17,9 +17,7 @@ export const adminDb: PostgresJsDatabase<typeof schema> = drizzle(adminClient, {
 });
 
 // ---- User-scoped DB factory (RLS enforced) ----
-export function getUserDb(
-  userId: string | number
-): PostgresJsDatabase<typeof schema> {
+function getUserDb(userId: string | number): PostgresJsDatabase<typeof schema> {
   const userClient: Sql = postgres(process.env.SUPABASE_DB_URL!, {
     // Intercept every connection and set role + user id
     onnotice: () => {}, // silence "SET" notices
