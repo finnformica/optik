@@ -118,17 +118,18 @@ export async function processRawTransactions(tx?: any) {
 
   // Process transactions in batches to optimize performance
   const BATCH_SIZE = 10;
-  const batches = [];
 
   for (let i = 0; i < pendingTransactions.length; i += BATCH_SIZE) {
-    batches.push(pendingTransactions.slice(i, i + BATCH_SIZE));
-  }
+    const batch = pendingTransactions.slice(i, i + BATCH_SIZE);
 
-  for (const batch of batches) {
-    const batchResults = await processBatchTransactions(batch, database);
-    results.processed += batchResults.processed;
-    results.failed += batchResults.failed;
-    results.errors.push(...batchResults.errors);
+    const { processed, failed, errors } = await processBatchTransactions(
+      batch,
+      database
+    );
+
+    results.processed += processed;
+    results.failed += failed;
+    results.errors.push(...errors);
   }
 
   return results;
@@ -155,8 +156,10 @@ async function processBatchTransactions(batch: any[], database: any) {
         rawTx,
         database
       );
+
       if (factTransactionData) {
         factTransactionInserts.push(factTransactionData);
+
         processedIds.push(rawTx.id);
         results.processed++;
       }
@@ -166,11 +169,8 @@ async function processBatchTransactions(batch: any[], database: any) {
           ? `Transaction ${rawTx.brokerTransactionId}: ${error.message}`
           : `Transaction ${rawTx.brokerTransactionId}: Unknown error`;
 
-      console.error(errorMessage);
-      failedTransactions.push({
-        id: rawTx.id,
-        error: errorMessage,
-      });
+      failedTransactions.push({ id: rawTx.id, error: errorMessage });
+
       results.failed++;
       results.errors.push(errorMessage);
     }

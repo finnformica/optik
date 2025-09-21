@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the count of pending transactions to process
-    const pendingCount = await db
+    const [pendingCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(stgTransaction)
       .where(
@@ -116,20 +116,18 @@ export async function POST(request: NextRequest) {
           eq(stgTransaction.accountKey, accountKey),
           inArray(stgTransaction.status, ["PENDING", "ERROR"])
         )
-      );
-
-    const totalToProcess = Number(pendingCount[0]?.count || 0);
+      )
+      .limit(1);
 
     // Update session with transaction count to be processed
-    await updateSyncTransactionCounts(sessionId, {
-      totalTransactions: totalToProcess,
-    });
+    const total = pendingCount.count;
+    await updateSyncTransactionCounts(sessionId, { totalTransactions: total });
     await updateSyncStatus(sessionId, "PROCESSING");
 
     // Process all pending transactions (includes any newly inserted ones)
     let results = { processed: 0, failed: 0 };
 
-    if (totalToProcess > 0) {
+    if (total > 0) {
       results = await processRawTransactions();
     }
 

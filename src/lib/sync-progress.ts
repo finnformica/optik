@@ -104,11 +104,10 @@ export async function getSyncProgressFromDB(sessionId: string) {
       alert,
     };
   } catch (error) {
-    console.error("Database error in getSyncProgressFromDB:", error);
     return {
       status: "failed",
       progress: 0,
-      message: "Error retrieving progress",
+      message: `Error retrieving progress: ${error}`,
       total: 0,
       processed: 0,
       failed: 0,

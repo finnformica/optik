@@ -1,9 +1,10 @@
 import { endpoints } from "@/lib/utils";
+import { fetcher } from "./fetchers";
 
 // Check if there's an active sync session and return its ID
 export async function recoverSyncSession(): Promise<string | null> {
   try {
-    const response = await fetch(endpoints.sync.active);
+    const response = await fetcher(endpoints.sync.active);
 
     if (!response.ok) return null;
 

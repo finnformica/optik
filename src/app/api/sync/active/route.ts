@@ -17,7 +17,9 @@ export async function GET(request: NextRequest) {
       startedAt: activeSession.startedAt,
     });
   } catch (error) {
-    console.error("Error getting active sync session:", error);
-    return NextResponse.json(null, { status: 500 });
+    return NextResponse.json(
+      { error: `Error getting active sync session: ${error}` },
+      { status: 500 }
+    );
   }
 }

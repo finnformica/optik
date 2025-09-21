@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = pathname.startsWith(protectedRoutes);
   const isApiRoute = pathname.startsWith("/api");
   const isPublicApiRoute = publicApiRoutes.some((route) =>
-    pathname.startsWith(route),
+    pathname.startsWith(route)
   );
   const isProtectedApiRoute = isApiRoute && !isPublicApiRoute;
   const isAuthRoute =
@@ -51,14 +51,20 @@ export async function middleware(request: NextRequest) {
         expires: expiresInOneDay,
       });
     } catch (error) {
-      console.error("Error updating session:", error);
       res.cookies.delete("session");
+
       if (isProtectedRoute) {
         return NextResponse.redirect(new URL(paths.auth.signIn, request.url));
       }
+
       if (isProtectedApiRoute) {
         return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
       }
+
+      return NextResponse.json(
+        { error: `Error updating session: ${error}` },
+        { status: 500 }
+      );
     }
   }
 
