@@ -4,6 +4,6 @@
     "src/api/fetchers.ts",
     "src/lib/db/reset.ts"
   ],
-  "ignoreDependencies": ["drizzle-seed"],
+  "ignoreDependencies": ["drizzle-seed", "tw-animate-css"],
   "ignoreBinaries": ["ngrok", "supabase"]
 }
