@@ -6,7 +6,7 @@ export async function recoverSyncSession(): Promise<string | null> {
   try {
     const response = await fetcher(endpoints.sync.active);
 
-    if (!response.ok) return null;
+    if (!response || !response.ok) return null;
 
     const activeSession = await response.json();
     return activeSession?.sessionId || null;
