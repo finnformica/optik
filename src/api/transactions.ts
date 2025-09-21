@@ -5,7 +5,7 @@ import { fetcher, postFetcher } from "./fetchers";
 export function useTransactions() {
   const { data, error, isLoading, mutate } = useSWR(
     endpoints.transactions,
-    fetcher,
+    fetcher
   );
 
   return {

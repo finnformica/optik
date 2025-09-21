@@ -30,10 +30,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSWRConfig } from "swr";
 import AccountForm from "./account-form";
 import { deleteAccount, switchAccount } from "./actions";
 
 export function AccountMenu() {
+  const { mutate: globalMutate } = useSWRConfig();
   const { accounts, mutate } = useGetUserAccounts();
   const { session } = useSession();
 
@@ -44,7 +46,10 @@ export function AccountMenu() {
     const formData = new FormData();
     formData.append("accountKey", accountKey.toString());
 
-    await switchAccount({}, formData);
+    switchAccount({}, formData).then(() => {
+      // Invalidate all API routes
+      globalMutate((key) => typeof key === "string" && key.startsWith("/api/"));
+    });
   };
 
   const handleDeleteConfirm = async () => {
