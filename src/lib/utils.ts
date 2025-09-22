@@ -5,6 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const channels = {
+  syncSessionProgress: (accountKey: number | string) =>
+    `sync-sessions:${accountKey}:progress`,
+};
+
 export const endpoints = {
   user: "/api/user",
   accounts: "/api/accounts",
