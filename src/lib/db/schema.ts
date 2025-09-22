@@ -15,6 +15,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -42,6 +43,7 @@ export const rtmSyncProgress = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
+    uniqueIndex("rtm_sync_progress_account_key_unique").on(table.accountKey),
     pgPolicy("users_own_sync_progress", {
       for: "all",
       to: "authenticated",
@@ -917,6 +919,9 @@ export type ITransactionAction =
   | "interest"
   | "transfer"
   | "other";
+
+export type RtmSyncProgress = typeof rtmSyncProgress.$inferSelect;
+export type NewRtmSyncProgress = typeof rtmSyncProgress.$inferInsert;
 
 export type StgTransaction = typeof stgTransaction.$inferSelect;
 export type NewStgTransaction = typeof stgTransaction.$inferInsert;

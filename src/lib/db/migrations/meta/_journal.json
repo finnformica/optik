@@ -344,6 +344,13 @@
       "when": 1758567711090,
       "tag": "0048_closed_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1758570213835,
+      "tag": "0049_crazy_firedrake",
+      "breakpoints": true
     }
   ]
 }
