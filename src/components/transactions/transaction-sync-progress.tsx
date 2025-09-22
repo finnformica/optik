@@ -1,34 +1,8 @@
-"use client";
-
 import { CheckCircle, Clock, Database, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
 
-import { recoverSyncSession } from "@/api/sync";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
-import { endpoints } from "@/lib/utils";
-
-interface SyncProgressData {
-  status:
-    | "connecting"
-    | "fetching"
-    | "processing"
-    | "saving"
-    | "completed"
-    | "failed";
-  progress: number;
-  message: string;
-  total: number;
-  processed: number;
-  failed: number;
-  remaining: number;
-  startTime: number; // Backend provides start timestamp
-  endTime?: number; // Backend provides end timestamp
-  alert: {
-    variant: "default" | "destructive" | "success" | "warning" | "info";
-    message: string;
-  } | null;
-}
+import { SyncProgressData } from "@/types/sync-progress";
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -47,14 +21,62 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-const formatElapsedTime = (startTime: number, endTime?: number) => {
+const formatElapsedTime = (startTime: string, endTime: string | null) => {
+  if (!endTime) return null;
+
   const elapsed = Math.floor(
-    (endTime ? endTime - startTime : Date.now() - startTime) / 1000
+    new Date(endTime).getTime() - new Date(startTime).getTime() / 1000
   );
 
   const minutes = Math.floor(elapsed / 60);
   const seconds = elapsed % 60;
   return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+};
+
+const getSyncCompletionAlert = (
+  status: string,
+  total: number,
+  processed: number,
+  failed: number
+): {
+  variant: "default" | "destructive" | "success" | "warning" | "info";
+  message: string;
+} | null => {
+  if (status === "completed") {
+    if (total === 0) {
+      return {
+        variant: "info",
+        message: "Sync completed - no new transactions found.",
+      };
+    } else if (processed > 0 && failed === 0) {
+      return {
+        variant: "success",
+        message: `Successfully processed ${total} transactions.`,
+      };
+    } else if (processed > 0 && failed > 0) {
+      return {
+        variant: "warning",
+        message: `Successfully processed ${processed} transactions, but ${failed} failed. Check logs for details.`,
+      };
+    } else if (processed === 0 && failed > 0) {
+      return {
+        variant: "destructive",
+        message: `Failed to process ${failed} transactions. Check logs for details.`,
+      };
+    } else {
+      return {
+        variant: "success",
+        message: "Sync completed successfully.",
+      };
+    }
+  } else if (status === "failed") {
+    return {
+      variant: "destructive",
+      message: "Sync failed: Unknown error occurred",
+    };
+  }
+
+  return null;
 };
 
 const getStatusLabel = (status: string) => {
@@ -76,91 +98,17 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-interface TransactionSyncProgressProps {
-  sessionId: string | null;
-  onSyncComplete: () => void;
-}
-
-export function TransactionSyncProgress({
-  sessionId,
-  onSyncComplete,
-}: TransactionSyncProgressProps) {
-  const [syncProgress, setSyncProgress] = useState<SyncProgressData | null>(
-    null
-  );
-
-  // Manage polling connection with active session recovery
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-
-    const pollProgress = async () => {
-      try {
-        // Use provided sessionId or check for active session
-        let currentSessionId = sessionId;
-
-        if (!sessionId) {
-          const existingSessionId = await recoverSyncSession();
-
-          if (!existingSessionId) {
-            setSyncProgress(null);
-            if (interval) clearInterval(interval);
-            return;
-          }
-
-          currentSessionId = existingSessionId;
-        }
-
-        // Get progress for the current session
-        const progressResponse = await fetch(
-          `${endpoints.sync.progress}?sessionId=${currentSessionId}`
-        );
-
-        if (!progressResponse.ok) {
-          throw new Error(`HTTP ${progressResponse.status}`);
-        }
-
-        const progress = await progressResponse.json();
-        setSyncProgress(progress);
-
-        // Handle completion
-        if (progress.status === "completed" || progress.status === "failed") {
-          if (interval) clearInterval(interval);
-          onSyncComplete();
-        }
-      } catch (error) {
-        console.error("Error fetching sync progress:", error);
-        if (interval) clearInterval(interval);
-        setSyncProgress({
-          status: "failed",
-          progress: 0,
-          message: "Connection error during sync",
-          total: 0,
-          processed: 0,
-          failed: 0,
-          remaining: 0,
-          startTime: Date.now(),
-          alert: {
-            variant: "destructive",
-            message: "Connection error during sync. Please try again.",
-          },
-        });
-      }
-    };
-
-    // Start polling immediately, then every second
-    pollProgress();
-    interval = setInterval(pollProgress, 1000);
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [sessionId, onSyncComplete]);
-
+const TransactionSyncProgress = ({
+  showAlert,
+  syncProgress,
+}: {
+  showAlert: boolean;
+  syncProgress: SyncProgressData | null;
+}) => {
   if (!syncProgress) return null;
 
   const {
     status,
-    progress,
     message,
     total,
     processed,
@@ -168,12 +116,13 @@ export function TransactionSyncProgress({
     remaining,
     startTime,
     endTime,
-    alert,
   } = syncProgress;
 
-  const isCompleted = status === "completed";
+  const isCompleted = status === "completed" || status === "failed";
   const elapsedTime = formatElapsedTime(startTime, endTime);
-  const showProgress = total > 20;
+  const showProgress = total > 20 && !isCompleted;
+  const alert = getSyncCompletionAlert(status, total, processed, failed);
+  const progress = Math.round((processed / total) * 100);
 
   return (
     <div className="mb-6 space-y-4">
@@ -194,10 +143,12 @@ export function TransactionSyncProgress({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 text-gray-400 text-sm">
-                  <Clock className="w-4 h-4" />
-                  {elapsedTime}
-                </div>
+                {elapsedTime && (
+                  <div className="flex items-center gap-1 text-gray-400 text-sm">
+                    <Clock className="w-4 h-4" />
+                    {elapsedTime}
+                  </div>
+                )}
               </div>
 
               {/* Statistics Grid */}
@@ -260,11 +211,13 @@ export function TransactionSyncProgress({
         </div>
       )}
 
-      {alert && (
+      {showAlert && alert && (
         <Alert variant={alert.variant}>
           <AlertDescription>{alert.message}</AlertDescription>
         </Alert>
       )}
     </div>
   );
-}
+};
+
+export default TransactionSyncProgress;

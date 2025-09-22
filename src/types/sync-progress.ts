@@ -12,10 +12,8 @@ export interface SyncProgressData {
   processed: number;
   failed: number;
   remaining: number;
-  startTime: number; // Backend provides start timestamp
-  endTime?: number; // Backend provides end timestamp
-  alert: {
-    variant: "default" | "destructive" | "success" | "warning" | "info";
-    message: string;
-  } | null;
+  startTime: string; // Backend provides start timestamp
+  endTime: string | null; // Backend provides end timestamp
+  createdAt: string;
+  updatedAt: string;
 }
