@@ -337,6 +337,13 @@
       "when": 1758564995776,
       "tag": "0047_nostalgic_pride",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1758567711090,
+      "tag": "0048_closed_sentinel",
+      "breakpoints": true
     }
   ]
 }

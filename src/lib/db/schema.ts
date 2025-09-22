@@ -19,6 +19,41 @@ import {
 } from "drizzle-orm/pg-core";
 
 // =============================================
+// REALTIME TABLES
+// =============================================
+
+export const rtmSyncProgress = pgTable(
+  "rtm_sync_progress",
+  {
+    id: serial("id").primaryKey(),
+    accountKey: integer("account_key")
+      .notNull()
+      .references(() => dimAccount.accountKey),
+    status: varchar("status", { length: 20 }).notNull(),
+    progress: integer("progress").notNull().default(0),
+    message: text("message").notNull(),
+    total: integer("total").notNull().default(0),
+    processed: integer("processed").notNull().default(0),
+    failed: integer("failed").notNull().default(0),
+    remaining: integer("remaining").notNull().default(0),
+    startTime: timestamp("start_time").notNull(),
+    endTime: timestamp("end_time"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    pgPolicy("users_own_sync_progress", {
+      for: "all",
+      to: "authenticated",
+      using: sql`${table.accountKey} IN (
+        SELECT account_key FROM dim_account
+        WHERE user_id = current_setting('app.current_user_id')::int
+      )`,
+    }),
+  ]
+);
+
+// =============================================
 // STAGING TABLES
 // =============================================
 
