@@ -117,7 +117,7 @@ export async function processRawTransactions() {
   };
 
   // Process transactions in batches to optimize performance
-  const BATCH_SIZE = 10;
+  const BATCH_SIZE = 5;
 
   for (let i = 0; i < pendingTransactions.length; i += BATCH_SIZE) {
     const batch = pendingTransactions.slice(i, i + BATCH_SIZE);
@@ -127,9 +127,6 @@ export async function processRawTransactions() {
     results.processed += processed;
     results.failed += failed;
     results.errors.push(...errors);
-
-    // Simulate waiting 5 seconds
-    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Update progress after each batch
     await updateSyncTransactionCounts({
