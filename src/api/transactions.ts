@@ -17,6 +17,6 @@ export function useTransactions() {
 }
 
 export async function syncTransactions() {
-  const URL = endpoints.schwab.data;
+  const URL = endpoints.data;
   return postFetcher(URL);
 }

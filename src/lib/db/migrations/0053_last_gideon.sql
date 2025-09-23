@@ -1,0 +1,1 @@
+ALTER TABLE "stg_transaction" ALTER COLUMN "raw_data" SET DATA TYPE jsonb;

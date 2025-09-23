@@ -7,7 +7,7 @@ import {
   foreignKey,
   index,
   integer,
-  json,
+  jsonb,
   pgPolicy,
   pgTable,
   pgView,
@@ -63,7 +63,7 @@ export const stgTransaction = pgTable(
     }).notNull(),
 
     // Raw broker data
-    rawData: json("raw_data").notNull(),
+    rawData: jsonb("raw_data").notNull(),
 
     // Processing status
     status: varchar("status", { length: 20 }).notNull().default("PENDING"),

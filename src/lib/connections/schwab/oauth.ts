@@ -1,9 +1,11 @@
+import { and, eq } from "drizzle-orm";
+
 import { getAccountKey } from "@/lib/auth/session";
 import { TokenEncryption } from "@/lib/auth/token-encryption";
 import { db } from "@/lib/db/config";
-import { SchwabActivity } from "@/lib/db/etl/queries";
+import { SchwabActivity } from "@/lib/db/etl/schwab";
 import { dimAccountAccessToken } from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
+import { endpoints } from "@/lib/utils";
 
 interface SchwabTokens {
   access_token: string;
@@ -43,8 +45,7 @@ export class SchwabAuth {
 
     this.appKey = process.env.SCHWAB_APP_KEY;
     this.appSecret = process.env.SCHWAB_APP_SECRET;
-    this.redirectUri = process.env.BASE_URL + "/api/auth/schwab/callback"; // DELETE THIS LINE ONCE NEW CALLBACK URL IS APPROVED
-    // this.redirectUri = process.env.BASE_URL + endpoints.schwab.callback
+    this.redirectUri = process.env.BASE_URL + endpoints.auth.schwab.callback;
   }
 
   // Store tokens
