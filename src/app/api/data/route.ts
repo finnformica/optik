@@ -15,8 +15,8 @@ import {
 import {
   insertRawTransactions,
   processRawTransactionsWithProgress,
-  SchwabActivity,
 } from "@/lib/db/etl/queries";
+import { SchwabActivity } from "@/lib/db/etl/schwab";
 import { stgTransaction } from "@/lib/db/schema";
 import {
   getActiveSyncSession,

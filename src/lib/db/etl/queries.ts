@@ -4,57 +4,8 @@ import { getAccountKey } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import { stgTransaction } from "@/lib/db/schema";
 import { updateSyncProgress } from "@/lib/sync-progress";
-import { processSchwabTransactionsBatch } from "./schwab";
-
-export interface SchwabActivity {
-  activityId: number; // Unique identifier for each transaction/activity (maps to transactionId in DB)
-  time: string;
-  accountNumber: string;
-  type: string;
-  status: string;
-  subAccount: string;
-  tradeDate: string;
-  description?: string; // Optional description field for various activity types
-  positionId?: number;
-  orderId?: number; // May be shared across multiple transactions from the same order
-  netAmount: number;
-  transferItems: TransferItem[];
-}
-
-interface TransferItem {
-  instrument: Instrument;
-  amount: number;
-  cost: number;
-  price?: number;
-  positionEffect?: "OPENING" | "CLOSING";
-  feeType?: string;
-}
-
-interface Instrument {
-  assetType: "CURRENCY" | "OPTION" | "EQUITY" | "COLLECTIVE_INVESTMENT";
-  status: string;
-  symbol: string;
-  description: string;
-  instrumentId: number;
-  closingPrice: number;
-  // Option-specific fields
-  expirationDate?: string;
-  optionDeliverables?: OptionDeliverable[];
-  optionPremiumMultiplier?: number;
-  putCall?: "PUT" | "CALL";
-  strikePrice?: number;
-  type?: string;
-  underlyingSymbol?: string;
-  underlyingCusip?: string;
-}
-
-interface OptionDeliverable {
-  rootSymbol: string;
-  strikePercent: number;
-  deliverableNumber: number;
-  deliverableUnits: number;
-  deliverable?: any;
-}
+import { BrokerCode } from "@/types/broker";
+import { processSchwabTransactions, SchwabActivity } from "./schwab";
 
 /*
  * Insert API data in raw transactions table
@@ -63,7 +14,7 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
   const accountKey = await getAccountKey();
   const database = tx || db;
 
-  // Convert SchwabActivity to expected stg_transaction format
+  // Convert json to expected stg_transaction format
   const formattedData = data.map((activity) => ({
     accountKey,
     brokerCode: "schwab", // hard-coded from the dim_broker table
@@ -106,6 +57,48 @@ export async function getPendingTransactionIds(batchSize: number) {
   return pendingIds.map((row) => row.id);
 }
 
+// Updated helper to group pending transactions by broker
+export async function getPendingTransactionIdsByBroker(batchSize: number) {
+  const accountKey = await getAccountKey();
+
+  const pendingTransactions = await db
+    .select({
+      id: stgTransaction.id,
+      brokerCode: stgTransaction.brokerCode,
+    })
+    .from(stgTransaction)
+    .where(
+      and(
+        eq(stgTransaction.accountKey, accountKey),
+        inArray(stgTransaction.status, ["PENDING", "FAILED"])
+      )
+    )
+    .orderBy(stgTransaction.brokerCode, stgTransaction.id);
+
+  // Group by broker and split into batches
+  const brokerBatches: Record<string, number[][]> = {};
+
+  for (const tx of pendingTransactions) {
+    if (!brokerBatches[tx.brokerCode]) {
+      brokerBatches[tx.brokerCode] = [];
+    }
+
+    // Get the current batch for this broker
+    let currentBatch =
+      brokerBatches[tx.brokerCode][brokerBatches[tx.brokerCode].length - 1];
+
+    // If no batch exists or current batch is full, create new batch
+    if (!currentBatch || currentBatch.length >= batchSize) {
+      currentBatch = [];
+      brokerBatches[tx.brokerCode].push(currentBatch);
+    }
+
+    currentBatch.push(tx.id);
+  }
+
+  return brokerBatches;
+}
+
 export async function getPendingTransactionCount() {
   const accountKey = await getAccountKey();
 
@@ -128,33 +121,28 @@ export async function processRawTransactionsWithProgress(batchSize: number) {
   let totalFailed = 0;
   let allErrors: any[] = [];
 
+  const brokerBatches = await getPendingTransactionIdsByBroker(batchSize);
   const pendingTransactionCount = await getPendingTransactionCount();
 
-  while (true) {
-    // Get next batch of pending transaction IDs
-    const batchIds = await getPendingTransactionIds(batchSize);
+  // Process each broker's batches
+  for (const [brokerCode, batches] of Object.entries(brokerBatches)) {
+    for (const batchIds of batches) {
+      // Call broker-specific processing function
+      const batchResult = await processBrokerTransactionsBatch(
+        brokerCode,
+        batchIds
+      );
 
-    if (batchIds.length === 0) {
-      break; // No more transactions to process
-    }
+      totalProcessed += batchResult.processed;
+      totalFailed += batchResult.failed;
+      allErrors.push(...batchResult.errors);
 
-    // Process the batch
-    const batchResult = await processSchwabTransactionsBatch(batchIds);
-
-    totalProcessed += batchResult.processed;
-    totalFailed += batchResult.failed;
-    allErrors.push(...batchResult.errors);
-
-    // Update progress after each batch
-    await updateSyncProgress("processing", {
-      processed: totalProcessed,
-      failed: totalFailed,
-      remaining: pendingTransactionCount - totalProcessed - totalFailed,
-    });
-
-    // If batch size is smaller than requested, we're done
-    if (batchIds.length < batchSize) {
-      break;
+      // Update progress after each batch
+      await updateSyncProgress("processing", {
+        processed: totalProcessed,
+        failed: totalFailed,
+        remaining: pendingTransactionCount - totalProcessed - totalFailed,
+      });
     }
   }
 
@@ -163,4 +151,17 @@ export async function processRawTransactionsWithProgress(batchSize: number) {
     failed: totalFailed,
     errors: allErrors,
   };
+}
+
+// Broker dispatcher function
+async function processBrokerTransactionsBatch(
+  brokerCode: BrokerCode,
+  stgTransactionIds: number[]
+) {
+  switch (brokerCode) {
+    case "schwab":
+      return await processSchwabTransactions(stgTransactionIds);
+    default:
+      throw new Error(`Unsupported broker: ${brokerCode}`);
+  }
 }

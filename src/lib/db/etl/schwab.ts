@@ -1,9 +1,57 @@
 import { db } from "@/lib/db/config";
 import { sql } from "drizzle-orm";
 
-export async function processSchwabTransactionsBatch(
-  stgTransactionIds: number[]
-) {
+export interface SchwabActivity {
+  activityId: number; // Unique identifier for each transaction/activity (maps to transactionId in DB)
+  time: string;
+  accountNumber: string;
+  type: string;
+  status: string;
+  subAccount: string;
+  tradeDate: string;
+  description?: string; // Optional description field for various activity types
+  positionId?: number;
+  orderId?: number; // May be shared across multiple transactions from the same order
+  netAmount: number;
+  transferItems: TransferItem[];
+}
+
+interface TransferItem {
+  instrument: Instrument;
+  amount: number;
+  cost: number;
+  price?: number;
+  positionEffect?: "OPENING" | "CLOSING";
+  feeType?: string;
+}
+
+interface Instrument {
+  assetType: "CURRENCY" | "OPTION" | "EQUITY" | "COLLECTIVE_INVESTMENT";
+  status: string;
+  symbol: string;
+  description: string;
+  instrumentId: number;
+  closingPrice: number;
+  // Option-specific fields
+  expirationDate?: string;
+  optionDeliverables?: OptionDeliverable[];
+  optionPremiumMultiplier?: number;
+  putCall?: "PUT" | "CALL";
+  strikePrice?: number;
+  type?: string;
+  underlyingSymbol?: string;
+  underlyingCusip?: string;
+}
+
+interface OptionDeliverable {
+  rootSymbol: string;
+  strikePercent: number;
+  deliverableNumber: number;
+  deliverableUnits: number;
+  deliverable?: any;
+}
+
+export async function processSchwabTransactions(stgTransactionIds: number[]) {
   if (stgTransactionIds.length === 0) {
     return { processed: 0, failed: 0, errors: [] };
   }
