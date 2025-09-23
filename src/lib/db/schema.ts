@@ -643,6 +643,30 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
   ORDER BY account_key, week_start
 `);
 
+// Profit Distribution View - Shows profit/loss distribution by underlying symbol for pie chart
+export const viewProfitDistribution = pgView("view_profit_distribution", {
+  accountKey: integer("account_key"),
+  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
+  totalProfit: decimal("total_profit", { precision: 18, scale: 8 }),
+  tradeCount: integer("trade_count"),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  SELECT
+    a.account_key,
+    s.underlying_symbol,
+    SUM(ft.net_amount) as total_profit,
+    COUNT(*)::integer as trade_count
+  FROM ${factTransaction} ft
+  JOIN ${dimSecurity} s ON ft.security_key = s.security_key
+  JOIN ${dimAccount} a ON ft.account_key = a.account_key
+  JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+  WHERE tt.action_category = 'TRADE'
+  GROUP BY a.account_key, s.underlying_symbol
+  HAVING SUM(ft.net_amount) != 0
+  ORDER BY SUM(ft.net_amount) DESC
+`);
+
 // Portfolio Summary View - Aggregates key portfolio metrics for dashboard
 export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   accountKey: integer("account_key"),
@@ -940,4 +964,5 @@ export type ViewPosition = typeof viewPosition.$inferSelect;
 export type ViewPortfolioDistribution =
   typeof viewPortfolioDistribution.$inferSelect;
 export type ViewWeeklyReturn = typeof viewWeeklyReturn.$inferSelect;
+export type ViewProfitDistribution = typeof viewProfitDistribution.$inferSelect;
 export type ViewPortfolioSummary = typeof viewPortfolioSummary.$inferSelect;

@@ -9,6 +9,8 @@ interface PortfolioDistributionProps {
   cashBalance: number;
 }
 
+const CASH_COLOR = "#ff6b35";
+
 const COLORS = [
   "#3b82f6",
   "#8b5cf6",
@@ -33,7 +35,7 @@ const PortfolioDistribution = ({
 }: PortfolioDistributionProps) => {
   const totalValue = distribution.reduce(
     (sum, item) => sum + parseFloat(item.positionValue || "0"),
-    cashBalance,
+    cashBalance
   );
 
   // Check if there's no data to display
@@ -45,7 +47,7 @@ const PortfolioDistribution = ({
   ].map((item, index) => ({
     name: item.symbol,
     value: parseFloat(item.positionValue || "0"),
-    fill: getColor(index),
+    fill: item.symbol === "Cash" ? CASH_COLOR : getColor(index),
   }));
 
   // Calculate positions for labels extending from the pie chart
@@ -116,8 +118,8 @@ const PortfolioDistribution = ({
                   label={renderCustomisedLabel}
                   labelLine={false}
                 >
-                  {data.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={getColor(index)} />
+                  {data.map((item, index) => (
+                    <Cell key={`cell-${index}`} fill={item.fill} />
                   ))}
                 </Pie>
                 <Tooltip
