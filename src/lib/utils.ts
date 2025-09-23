@@ -15,7 +15,7 @@ export const endpoints = {
   data: "/api/data",
   accounts: "/api/accounts",
   transactions: "/api/transactions",
-  auth: { schwab: { callback: "/api/schwab/auth/callback" } },
+  auth: { schwab: { callback: "/api/auth/schwab/callback" } },
   stripe: { webhook: "/api/stripe/webhook", checkout: "/api/stripe/checkout" },
 };
 
