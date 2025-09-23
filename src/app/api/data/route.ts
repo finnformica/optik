@@ -1,3 +1,6 @@
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
+
 import { getAccountKey } from "@/lib/auth/session";
 import {
   SchwabAuth,
@@ -11,7 +14,7 @@ import {
 } from "@/lib/db/etl/broker-accounts";
 import {
   insertRawTransactions,
-  processRawTransactions,
+  processRawTransactionsWithProgress,
   SchwabActivity,
 } from "@/lib/db/etl/queries";
 import { stgTransaction } from "@/lib/db/schema";
@@ -20,10 +23,7 @@ import {
   startSyncSession,
   updateSyncProgress,
 } from "@/lib/sync-progress";
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
 
-// TODO: Update this to work with all broker accounts
 export async function POST(request: NextRequest) {
   try {
     // Check for existing active sync session to prevent concurrent syncs
@@ -123,11 +123,12 @@ export async function POST(request: NextRequest) {
     const total = pendingCount.count;
     await updateSyncProgress("processing", { total });
 
-    // Process all pending transactions (includes any newly inserted ones)
+    // Process all pending transactions with real-time progress updates
     let results = { processed: 0, failed: 0 };
 
     if (total > 0) {
-      results = await processRawTransactions();
+      const batchSize = 10;
+      results = await processRawTransactionsWithProgress(batchSize);
     }
 
     // Mark sync as completed

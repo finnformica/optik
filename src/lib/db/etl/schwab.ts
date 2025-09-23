@@ -1,154 +1,251 @@
-import { dimTransactionType, StgTransaction } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { db } from "../config";
-import { getBrokerKey, getDate, getOrCreateSecurity } from "./utils";
+import { db } from "@/lib/db/config";
+import { sql } from "drizzle-orm";
 
-async function getSchwabTransactionType(
-  schwabType: string,
-  positionEffect: string | undefined,
-  assetType: string,
-  amount: number,
-  description: string
+export async function processSchwabTransactionsBatch(
+  stgTransactionIds: number[]
 ) {
-  let actionCode: string;
-
-  switch (schwabType) {
-    case "TRADE":
-      if (assetType === "OPTION") {
-        if (positionEffect === "OPENING") {
-          actionCode = amount && amount < 0 ? "sell_to_open" : "buy_to_open";
-        } else if (positionEffect === "CLOSING") {
-          actionCode = amount && amount < 0 ? "sell_to_close" : "buy_to_close";
-        } else {
-          actionCode = "other";
-        }
-      } else {
-        actionCode = amount && amount < 0 ? "buy" : "sell";
-      }
-      break;
-
-    case "DIVIDEND_OR_INTEREST":
-      if (description?.toUpperCase().includes("DIV")) {
-        actionCode = "dividend";
-      } else if (description?.toUpperCase().includes("INT")) {
-        actionCode = "interest";
-      } else {
-        actionCode = "dividend_interest"; // fallback combined bucket
-      }
-      break;
-
-    case "WIRE_IN":
-    case "WIRE_OUT":
-      actionCode = "transfer";
-      break;
-
-    case "RECEIVE_AND_DELIVER":
-      if (description?.toUpperCase().includes("EXPIRATION")) {
-        actionCode = "expire";
-      } else if (
-        description?.toUpperCase().includes("ASSIGNMENT") ||
-        description?.toUpperCase().includes("EXERCISE")
-      ) {
-        actionCode = "assign";
-      } else {
-        actionCode = "expire"; // Default to expiration for RECEIVE_AND_DELIVER
-      }
-      break;
-
-    default:
-      actionCode = "other";
+  if (stgTransactionIds.length === 0) {
+    return { processed: 0, failed: 0, errors: [] };
   }
 
-  // DB lookup
-  const [transactionType] = await db
-    .select()
-    .from(dimTransactionType)
-    .where(eq(dimTransactionType.actionCode, actionCode))
-    .limit(1);
+  // Convert array to PostgreSQL array format
+  const idsArray = `{${stgTransactionIds.join(",")}}`;
 
-  if (!transactionType) {
-    throw new Error(
-      `Transaction type not found for action code: ${actionCode}`
-    );
-  }
+  const result = await db.execute(sql`
+    -- CTE 1: Extract and parse JSON data from staging table
+    WITH parsed_transactions AS (
+      SELECT 
+        stg.id,
+        stg.account_key,
+        stg.broker_code,
+        stg.broker_transaction_id,
+        stg.raw_data,
+        
+        -- Extract security item from transferItems array
+        (
+          SELECT item
+          FROM jsonb_array_elements(stg.raw_data->'transferItems') AS item
+          WHERE item->'instrument'->>'assetType' IN ('OPTION', 'EQUITY', 'COLLECTIVE_INVESTMENT')
+          LIMIT 1
+        ) AS security_item,
+        
+        -- Calculate total fees
+        COALESCE((
+          SELECT SUM(ABS((item->>'cost')::numeric))
+          FROM jsonb_array_elements(stg.raw_data->'transferItems') AS item
+          WHERE item->>'feeType' IS NOT NULL
+        ), 0) AS total_fees,
+        
+        -- Extract main transaction data
+        stg.raw_data->>'tradeDate' AS trade_date,
+        stg.raw_data->>'activityId' AS activity_id,
+        stg.raw_data->>'orderId' AS order_id,
+        stg.raw_data->>'type' AS schwab_type,
+        stg.raw_data->>'description' AS tx_description,
+        (stg.raw_data->>'netAmount')::numeric AS net_amount
+        
+      FROM stg_transaction stg
+      WHERE stg.id = ANY(${idsArray}::int[])
+    ),
+    
+    -- CTE 2: Determine action codes using the same logic as your helper function
+    transaction_types AS (
+      SELECT 
+        pt.*,
+        pt.security_item->'instrument'->>'assetType' AS asset_type,
+        pt.security_item->>'positionEffect' AS position_effect,
+        COALESCE((pt.security_item->>'amount')::numeric, pt.net_amount, 0) AS amount,
+        
+        -- Replicate getSchwabTransactionType logic
+        CASE 
+          WHEN pt.schwab_type = 'TRADE' THEN
+            CASE 
+              WHEN pt.security_item->'instrument'->>'assetType' = 'OPTION' THEN
+                CASE 
+                  WHEN pt.security_item->>'positionEffect' = 'OPENING' THEN
+                    CASE WHEN COALESCE((pt.security_item->>'amount')::numeric, 0) < 0 
+                        THEN 'sell_to_open' ELSE 'buy_to_open' END
+                  WHEN pt.security_item->>'positionEffect' = 'CLOSING' THEN
+                    CASE WHEN COALESCE((pt.security_item->>'amount')::numeric, 0) < 0 
+                        THEN 'sell_to_close' ELSE 'buy_to_close' END
+                  ELSE 'other'
+                END
+              ELSE 
+                CASE WHEN COALESCE((pt.security_item->>'amount')::numeric, pt.net_amount, 0) < 0 
+                    THEN 'buy' ELSE 'sell' END
+            END
+          
+          
+          WHEN pt.schwab_type = 'DIVIDEND_OR_INTEREST' THEN
+            CASE 
+              WHEN UPPER(COALESCE(pt.tx_description, '')) LIKE '%DIV%' THEN 'dividend'
+              WHEN UPPER(COALESCE(pt.tx_description, '')) LIKE '%INT%' THEN 'interest'
+              ELSE 'dividend_interest'
+            END
+            
+          WHEN pt.schwab_type IN ('WIRE_IN', 'WIRE_OUT') THEN 'transfer'
+          
+          WHEN pt.schwab_type = 'RECEIVE_AND_DELIVER' THEN
+            CASE 
+              WHEN UPPER(COALESCE(pt.tx_description, '')) LIKE '%EXPIRATION%' THEN 'expire'
+              WHEN UPPER(COALESCE(pt.tx_description, '')) LIKE '%ASSIGNMENT%' 
+                   OR UPPER(COALESCE(pt.tx_description, '')) LIKE '%EXERCISE%' THEN 'assign'
+              ELSE 'expire'
+            END
+            
+          ELSE 'other'
+        END AS action_code
+        
+      FROM parsed_transactions pt
+    ),
+    
+    -- CTE 3: Insert only securities that don't already exist
+    upserted_securities AS (
+      INSERT INTO dim_security (
+        symbol, security_type, option_type, strike_price, expiry_date, security_name, underlying_symbol
+      )
+      SELECT DISTINCT
+        tt.security_item->'instrument'->>'symbol' AS symbol,
+        CASE WHEN tt.security_item->'instrument'->>'assetType' = 'OPTION' 
+            THEN 'OPTION' ELSE 'STOCK' END AS security_type,
+        tt.security_item->'instrument'->>'putCall' AS option_type,
+        (tt.security_item->'instrument'->>'strikePrice')::numeric AS strike_price,
+        CASE WHEN tt.security_item->'instrument'->>'expirationDate' IS NOT NULL
+            THEN (tt.security_item->'instrument'->>'expirationDate')::date
+            ELSE NULL END AS expiry_date,
+        tt.security_item->'instrument'->>'description' AS security_name,
+        COALESCE(
+          tt.security_item->'instrument'->>'underlyingSymbol',
+          tt.security_item->'instrument'->>'symbol'
+        ) AS underlying_symbol
+      FROM transaction_types tt
+      WHERE tt.security_item IS NOT NULL
+        AND tt.security_item->'instrument'->>'symbol' IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM dim_security ds 
+          WHERE ds.symbol = tt.security_item->'instrument'->>'symbol'
+            AND ds.underlying_symbol = COALESCE(
+              tt.security_item->'instrument'->>'underlyingSymbol',
+              tt.security_item->'instrument'->>'symbol'
+            )
+            AND ds.security_type = CASE WHEN tt.security_item->'instrument'->>'assetType' = 'OPTION' 
+                                      THEN 'OPTION' ELSE 'STOCK' END
+            AND COALESCE(ds.option_type, '') = COALESCE(tt.security_item->'instrument'->>'putCall', '')
+            AND COALESCE(ds.strike_price, 0) = COALESCE((tt.security_item->'instrument'->>'strikePrice')::numeric, 0)
+            AND COALESCE(ds.expiry_date, '1900-01-01'::date) = COALESCE((tt.security_item->'instrument'->>'expirationDate')::date, '1900-01-01'::date)
+        )
+      RETURNING security_key, symbol, underlying_symbol, security_type, option_type, strike_price, expiry_date
+    ),
+    
+    -- CTE 4: Get all securities (existing + newly created) with full matching criteria
+    all_securities AS (
+      SELECT security_key, symbol, underlying_symbol, security_type, option_type, strike_price, expiry_date 
+      FROM upserted_securities
+      UNION ALL
+      SELECT ds.security_key, ds.symbol, ds.underlying_symbol, ds.security_type, ds.option_type, ds.strike_price, ds.expiry_date
+      FROM dim_security ds
+      WHERE EXISTS (
+        SELECT 1 FROM transaction_types tt
+        WHERE tt.security_item IS NOT NULL
+          AND ds.symbol = tt.security_item->'instrument'->>'symbol'
+          AND ds.underlying_symbol = COALESCE(
+            tt.security_item->'instrument'->>'underlyingSymbol',
+            tt.security_item->'instrument'->>'symbol'
+          )
+          AND ds.security_type = CASE WHEN tt.security_item->'instrument'->>'assetType' = 'OPTION' 
+                                    THEN 'OPTION' ELSE 'STOCK' END
+          AND COALESCE(ds.option_type, '') = COALESCE(tt.security_item->'instrument'->>'putCall', '')
+          AND COALESCE(ds.strike_price, 0) = COALESCE((tt.security_item->'instrument'->>'strikePrice')::numeric, 0)
+          AND COALESCE(ds.expiry_date, '1900-01-01'::date) = COALESCE((tt.security_item->'instrument'->>'expirationDate')::date, '1900-01-01'::date)
+      )
+    ),
+    
+    -- CTE 5: Final data preparation with all JOINs
+    final_data AS (
+      SELECT 
+        tt.id AS stg_id,
+        dd.date_key,
+        tt.account_key,
+        COALESCE(s.security_key, NULL) AS security_key,
+        dtt.transaction_type_key,
+        db.broker_key,
+        tt.activity_id AS broker_transaction_id,
+        tt.order_id,
+        COALESCE(tt.tx_description, tt.security_item->'instrument'->>'description', '') AS description,
+        COALESCE((tt.security_item->>'amount')::numeric, 0) AS quantity,
+        (tt.security_item->>'price')::numeric AS price_per_unit,
+        COALESCE((tt.security_item->>'cost')::numeric, tt.net_amount, 0) AS gross_amount,
+        tt.total_fees AS fees,
+        tt.net_amount
+        
+      FROM transaction_types tt
+      LEFT JOIN dim_date dd ON dd.full_date = tt.trade_date::date
+      LEFT JOIN dim_transaction_type dtt ON dtt.action_code = tt.action_code
+      LEFT JOIN dim_broker db ON db.broker_code = tt.broker_code
+      LEFT JOIN all_securities s ON (
+        s.symbol = tt.security_item->'instrument'->>'symbol'
+        AND s.underlying_symbol = COALESCE(
+          tt.security_item->'instrument'->>'underlyingSymbol',
+          tt.security_item->'instrument'->>'symbol'
+        )
+        AND s.security_type = CASE WHEN tt.security_item->'instrument'->>'assetType' = 'OPTION' 
+                                THEN 'OPTION' ELSE 'STOCK' END
+        AND COALESCE(s.option_type, '') = COALESCE(tt.security_item->'instrument'->>'putCall', '')
+        AND COALESCE(s.strike_price, 0) = COALESCE((tt.security_item->'instrument'->>'strikePrice')::numeric, 0)
+        AND COALESCE(s.expiry_date, '1900-01-01'::date) = COALESCE((tt.security_item->'instrument'->>'expirationDate')::date, '1900-01-01'::date)
+      )
+    ),
+    
+    -- Insert into fact table
+    inserted_facts AS (
+      INSERT INTO fact_transaction (
+        date_key, account_key, security_key, transaction_type_key, broker_key,
+        broker_transaction_id, order_id, description, quantity, price_per_unit,
+        gross_amount, fees, net_amount
+      )
+      SELECT 
+        date_key, account_key, security_key, transaction_type_key, broker_key,
+        broker_transaction_id, order_id, description, quantity, price_per_unit,
+        gross_amount, fees, net_amount
+      FROM final_data
+      WHERE transaction_type_key IS NOT NULL -- Only insert if we found valid transaction type
+      RETURNING broker_transaction_id
+    )
+    
+    -- Update staging table status for the processed batch
+    UPDATE stg_transaction 
+    SET 
+      status = CASE 
+        WHEN broker_transaction_id IN (SELECT broker_transaction_id FROM inserted_facts)
+        THEN 'COMPLETED'
+        ELSE 'FAILED'
+      END,
+      processed_at = NOW(),
+      error_message = CASE 
+        WHEN broker_transaction_id NOT IN (SELECT broker_transaction_id FROM inserted_facts)
+        THEN 'Failed to process transaction - invalid transaction type or missing dimensions'
+        ELSE NULL
+      END
+    WHERE id = ANY(${idsArray}::int[])
+    RETURNING 
+      id,
+      status,
+      error_message,
+      broker_transaction_id;
+  `);
 
-  return transactionType;
-}
+  // Process results to return summary
+  const processed = result.filter(
+    (row: any) => row.status === "COMPLETED"
+  ).length;
+  const failed = result.filter((row: any) => row.status === "FAILED").length;
+  const errors = result
+    .filter((row: any) => row.status === "FAILED")
+    .map((row: any) => ({
+      id: row.id,
+      brokerTransactionId: row.broker_transaction_id,
+      error: row.error_message,
+    }));
 
-/**
- * Prepare Schwab transaction data for batch insertion
- */
-export async function prepareSchwabTransaction(
-  rawTx: StgTransaction,
-  data: any
-) {
-  // Extract main security transaction from transferItems
-  const securityItem = data.transferItems?.find(
-    (item: any) =>
-      item.instrument?.assetType === "OPTION" ||
-      item.instrument?.assetType === "EQUITY" ||
-      item.instrument?.assetType === "COLLECTIVE_INVESTMENT"
-  );
-
-  // Calculate total fees
-  const totalFees =
-    data.transferItems
-      ?.filter((item: any) => item.feeType)
-      .reduce((sum: number, item: any) => sum + Math.abs(item.cost || 0), 0) ||
-    0;
-
-  // Get pre-populated dimensions
-  const accountKey = rawTx.accountKey;
-  const brokerKey = await getBrokerKey("schwab");
-  const date = await getDate(data.tradeDate);
-
-  // Get or create security (only thing that needs dynamic creation)
-  let securityKey = null;
-  if (securityItem?.instrument) {
-    securityKey = await getOrCreateSecurity(securityItem.instrument);
-
-    if (!securityKey) {
-      throw new Error(
-        `Security data not found for transaction ${data.activityId}`
-      );
-    }
-  }
-
-  // For cash transactions, we need to determine assetType differently
-  const assetType = securityItem?.instrument?.assetType || "CURRENCY";
-  const amount = securityItem?.amount || data.netAmount || 0;
-  const description =
-    data?.description ?? securityItem?.instrument?.description ?? "";
-
-  // Get transaction type (lookup from pre-populated mapping)
-  const transactionType = await getSchwabTransactionType(
-    data.type,
-    securityItem?.positionEffect,
-    assetType,
-    amount,
-    description
-  );
-
-  // Calculate facts
-  const quantity = securityItem?.amount || 0;
-  const pricePerUnit = securityItem?.price || null;
-  const grossAmount = securityItem?.cost ?? data.netAmount ?? 0;
-  const netAmount = data.netAmount || 0;
-
-  // Return data object for batch insertion
-  return {
-    dateKey: date.dateKey,
-    accountKey,
-    securityKey,
-    transactionTypeKey: transactionType.transactionTypeKey,
-    brokerKey,
-    brokerTransactionId: data.activityId?.toString(),
-    orderId: data.orderId?.toString(),
-    description,
-    quantity,
-    pricePerUnit,
-    grossAmount,
-    fees: totalFees,
-    netAmount,
-  };
+  return { processed, failed, errors };
 }
