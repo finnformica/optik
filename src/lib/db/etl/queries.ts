@@ -7,7 +7,7 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 
 import { getAccountKey } from "@/lib/auth/session";
-import { updateSyncTransactionCounts } from "@/lib/sync-progress";
+import { updateSyncProgress } from "@/lib/sync-progress";
 import { prepareSchwabTransaction } from "./schwab";
 
 export interface SchwabActivity {
@@ -117,7 +117,7 @@ export async function processRawTransactions() {
   };
 
   // Process transactions in batches to optimize performance
-  const BATCH_SIZE = 5;
+  const BATCH_SIZE = 1;
 
   for (let i = 0; i < pendingTransactions.length; i += BATCH_SIZE) {
     const batch = pendingTransactions.slice(i, i + BATCH_SIZE);
@@ -129,9 +129,11 @@ export async function processRawTransactions() {
     results.errors.push(...errors);
 
     // Update progress after each batch
-    await updateSyncTransactionCounts({
+    await updateSyncProgress("processing", {
       processed: results.processed,
       failed: results.failed,
+      remaining:
+        pendingTransactions.length - results.processed - results.failed,
     });
   }
 

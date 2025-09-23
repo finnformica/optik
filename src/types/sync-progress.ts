@@ -1,13 +1,13 @@
+export type SyncStatus =
+  | "pending"
+  | "fetching"
+  | "processing"
+  | "completed"
+  | "failed";
+
 export interface SyncProgressData {
-  status:
-    | "connecting"
-    | "fetching"
-    | "processing"
-    | "saving"
-    | "completed"
-    | "failed";
+  status: SyncStatus;
   progress: number;
-  message: string;
   total: number;
   processed: number;
   failed: number;

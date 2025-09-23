@@ -1,6 +1,7 @@
 import { getAccountKey } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import { NewRtmSyncProgress, rtmSyncProgress } from "@/lib/db/schema";
+import { SyncStatus } from "@/types/sync-progress";
 import { and, eq, sql } from "drizzle-orm";
 
 // Helper functions to manage sync sessions
@@ -10,8 +11,7 @@ export async function startSyncSession() {
   // Insert or update table
   const values: NewRtmSyncProgress = {
     accountKey,
-    status: "FETCHING",
-    message: "Fetching transactions from broker...",
+    status: "fetching",
     startTime: new Date(),
     total: 0,
     processed: 0,
@@ -26,8 +26,14 @@ export async function startSyncSession() {
   });
 }
 
-export async function updateSyncStatus(
-  status: "pending" | "fetching" | "processing" | "completed" | "failed"
+export async function updateSyncProgress(
+  status: SyncStatus,
+  counts?: {
+    total?: number;
+    processed?: number;
+    failed?: number;
+    remaining?: number;
+  }
 ) {
   const accountKey = await getAccountKey();
 
@@ -35,29 +41,13 @@ export async function updateSyncStatus(
     .update(rtmSyncProgress)
     .set({
       status,
+      ...counts,
       updatedAt: new Date(),
       ...(status === "completed" || status === "failed"
         ? { endTime: new Date() }
         : {}),
     })
     .where(eq(rtmSyncProgress.accountKey, accountKey));
-}
-
-export async function updateSyncTransactionCounts(counts: {
-  total?: number;
-  processed?: number;
-  failed?: number;
-}) {
-  const accountKey = await getAccountKey();
-
-  await db
-    .update(rtmSyncProgress)
-    .set({ ...counts, updatedAt: new Date() })
-    .where(eq(rtmSyncProgress.accountKey, accountKey));
-}
-
-export async function endSyncSession() {
-  await updateSyncStatus("completed");
 }
 
 // Get active sync session for account (to prevent multiple concurrent syncs)

@@ -32,7 +32,6 @@ export const rtmSyncProgress = pgTable(
       .references(() => dimAccount.accountKey),
     status: varchar("status", { length: 20 }).notNull(),
     progress: integer("progress").notNull().default(0),
-    message: text("message").notNull(),
     total: integer("total").notNull().default(0),
     processed: integer("processed").notNull().default(0),
     failed: integer("failed").notNull().default(0),

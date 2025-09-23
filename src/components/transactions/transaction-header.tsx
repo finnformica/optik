@@ -6,11 +6,14 @@ import { useEffect, useState } from "react";
 
 import { syncTransactions } from "@/api/transactions";
 import { useSession } from "@/components/providers/session-provider";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
 import { supabase } from "@/lib/supabase";
 import { channels } from "@/lib/utils";
 import { SyncProgressData } from "@/types/sync-progress";
+
+import { AxiosError } from "axios";
 import TransactionSyncProgress from "./transaction-sync-progress";
 
 interface TransactionHeaderProps {
@@ -29,6 +32,7 @@ export function TransactionHeader({
   const { session } = useSession();
 
   const [_syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showAlert, setShowAlert] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgressData | null>(
     null
@@ -39,10 +43,18 @@ export function TransactionHeader({
   } shown`;
 
   const syncData = () => {
+    setError(null);
+    setSyncing(true);
+
     // Start the sync process
     // Background session is started and persisted in the realtime table
-    syncTransactions();
-    setSyncing(true);
+    syncTransactions()
+      .catch((e: AxiosError<{ message: string }>) => {
+        setError(e.response?.data.message ?? "An error occurred");
+      })
+      .finally(() => {
+        setSyncing(false);
+      });
   };
 
   // Manage realtime subscription for sync progress
@@ -70,6 +82,7 @@ export function TransactionHeader({
           if (data.status === "completed" || data.status === "failed") {
             onSyncComplete();
             setShowAlert(true);
+            setSyncing(false);
           } else {
             setShowAlert(false);
             setSyncing(true);
@@ -81,7 +94,7 @@ export function TransactionHeader({
     return () => {
       channel.unsubscribe();
     };
-  }, [session?.accountKey, onSyncComplete, setShowAlert]);
+  }, [session?.accountKey, onSyncComplete, setShowAlert, syncProgress]);
 
   const syncing = loading || _syncing;
 
@@ -109,8 +122,14 @@ export function TransactionHeader({
 
       <TransactionSyncProgress
         syncProgress={syncProgress}
-        showAlert={showAlert}
+        showAlert={error ? false : showAlert}
       />
+
+      {error && (
+        <Alert variant="destructive" className="mb-2">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
     </>
   );
 }

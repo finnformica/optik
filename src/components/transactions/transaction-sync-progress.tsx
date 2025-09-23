@@ -2,7 +2,7 @@ import { CheckCircle, Clock, Database, RefreshCw } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
-import { SyncProgressData } from "@/types/sync-progress";
+import { SyncProgressData, SyncStatus } from "@/types/sync-progress";
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -46,53 +46,53 @@ const getSyncCompletionAlert = (
     if (total === 0) {
       return {
         variant: "info",
-        message: "Sync completed - no new transactions found.",
+        message: "Sync completed - no new transactions found",
       };
     } else if (processed > 0 && failed === 0) {
       return {
         variant: "success",
-        message: `Successfully processed ${total} transactions.`,
+        message: `Successfully processed ${total} transactions`,
       };
     } else if (processed > 0 && failed > 0) {
       return {
         variant: "warning",
-        message: `Successfully processed ${processed} transactions, but ${failed} failed. Check logs for details.`,
+        message: `Successfully processed ${processed} transactions, but ${failed} failed - check logs for details`,
       };
     } else if (processed === 0 && failed > 0) {
       return {
         variant: "destructive",
-        message: `Failed to process ${failed} transactions. Check logs for details.`,
+        message: `Failed to process ${failed} transactions - check logs for details`,
       };
     } else {
       return {
         variant: "success",
-        message: "Sync completed successfully.",
+        message: "Sync completed successfully",
       };
     }
   } else if (status === "failed") {
     return {
       variant: "destructive",
-      message: "Sync failed: Unknown error occurred",
+      message: "Sync failed - unknown error occurred",
     };
   }
 
   return null;
 };
 
-const getStatusLabel = (status: string) => {
+const getStatusLabel = (status: SyncStatus) => {
   switch (status) {
-    case "connecting":
-      return "Connecting to Broker";
     case "fetching":
       return "Fetching Data";
+
     case "processing":
       return "Processing Transactions";
-    case "saving":
-      return "Saving to Database";
+
     case "completed":
       return "Sync Complete";
+
     case "failed":
       return "Sync Failed";
+
     default:
       return "Syncing";
   }
@@ -107,22 +107,15 @@ const TransactionSyncProgress = ({
 }) => {
   if (!syncProgress) return null;
 
-  const {
-    status,
-    message,
-    total,
-    processed,
-    failed,
-    remaining,
-    startTime,
-    endTime,
-  } = syncProgress;
+  const { status, total, processed, failed, remaining, startTime, endTime } =
+    syncProgress;
 
   const isCompleted = status === "completed" || status === "failed";
   const elapsedTime = formatElapsedTime(startTime, endTime);
   const showProgress = total > 20 && !isCompleted;
   const alert = getSyncCompletionAlert(status, total, processed, failed);
   const progress = Math.round((processed / total) * 100);
+  const title = getStatusLabel(status);
 
   return (
     <div className="mb-6 space-y-4">
@@ -135,12 +128,7 @@ const TransactionSyncProgress = ({
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   {getStatusIcon(status)}
-                  <div>
-                    <h3 className="text-white font-semibold text-lg">
-                      {getStatusLabel(status)}
-                    </h3>
-                    <p className="text-sm text-gray-400">{message}</p>
-                  </div>
+                  <h3 className="text-white font-semibold text-lg">{title}</h3>
                 </div>
 
                 {elapsedTime && (
