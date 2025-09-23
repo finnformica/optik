@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { getAccountKey } from "@/lib/auth/session";
 import {
@@ -24,7 +24,7 @@ import {
   updateSyncProgress,
 } from "@/lib/sync-progress";
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Check for existing active sync session to prevent concurrent syncs
     const activeSession = await getActiveSyncSession();
