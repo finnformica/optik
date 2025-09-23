@@ -43,14 +43,6 @@ export const rtmSyncProgress = pgTable(
   },
   (table) => [
     uniqueIndex("rtm_sync_progress_account_key_unique").on(table.accountKey),
-    pgPolicy("users_own_sync_progress", {
-      for: "all",
-      to: "authenticated",
-      using: sql`${table.accountKey} IN (
-        SELECT account_key FROM dim_account
-        WHERE user_id = current_setting('app.current_user_id')::int
-      )`,
-    }),
   ]
 );
 
