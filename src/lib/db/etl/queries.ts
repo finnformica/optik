@@ -7,7 +7,7 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 
 import { getAccountKey } from "@/lib/auth/session";
-import { updateSyncTransactionCounts } from "@/lib/sync-progress";
+import { updateSyncProgress } from "@/lib/sync-progress";
 import { prepareSchwabTransaction } from "./schwab";
 
 export interface SchwabActivity {
@@ -96,7 +96,7 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
  * Process raw transactions into dimensional model
  * Handles Schwab data transformation with batch processing
  */
-export async function processRawTransactions(sessionId?: string) {
+export async function processRawTransactions() {
   const accountKey = await getAccountKey();
 
   // Get pending transactions for account
@@ -117,7 +117,7 @@ export async function processRawTransactions(sessionId?: string) {
   };
 
   // Process transactions in batches to optimize performance
-  const BATCH_SIZE = 10;
+  const BATCH_SIZE = 1;
 
   for (let i = 0; i < pendingTransactions.length; i += BATCH_SIZE) {
     const batch = pendingTransactions.slice(i, i + BATCH_SIZE);
@@ -128,13 +128,13 @@ export async function processRawTransactions(sessionId?: string) {
     results.failed += failed;
     results.errors.push(...errors);
 
-    // Update progress after each batch if sessionId is provided
-    if (sessionId) {
-      await updateSyncTransactionCounts(sessionId, {
-        processedTransactions: results.processed,
-        failedTransactions: results.failed,
-      });
-    }
+    // Update progress after each batch
+    await updateSyncProgress("processing", {
+      processed: results.processed,
+      failed: results.failed,
+      remaining:
+        pendingTransactions.length - results.processed - results.failed,
+    });
   }
 
   return results;

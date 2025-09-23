@@ -1,0 +1,1 @@
+ALTER TABLE "rtm_sync_progress" DROP COLUMN "message";

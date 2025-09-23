@@ -1,23 +1,17 @@
-import { NextRequest } from "next/server";
-import { getSyncProgressFromDB } from "@/lib/sync-progress";
+import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
-  const sessionId = request.nextUrl.searchParams.get('sessionId');
+import { getAccountKey } from "@/lib/auth/session";
+import { db } from "@/lib/db/config";
+import { rtmSyncProgress } from "@/lib/db/schema";
 
-  if (!sessionId) {
-    return new Response('Session ID required', { status: 400 });
-  }
+export async function GET() {
+  const accountKey = await getAccountKey();
 
-  try {
-    const progress = await getSyncProgressFromDB(sessionId);
-    return Response.json(progress);
-  } catch (error) {
-    console.error('Error getting sync progress:', error);
-    return Response.json({
-      status: 'failed',
-      progress: 0,
-      message: 'Error retrieving progress',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
-  }
+  const [data] = await db
+    .select()
+    .from(rtmSyncProgress)
+    .where(eq(rtmSyncProgress.accountKey, accountKey));
+
+  return NextResponse.json(data || null);
 }

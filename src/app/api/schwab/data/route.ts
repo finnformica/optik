@@ -16,35 +16,26 @@ import {
 } from "@/lib/db/etl/queries";
 import { stgTransaction } from "@/lib/db/schema";
 import {
-  endSyncSession,
   getActiveSyncSession,
-  getOrCreateSyncSession,
-  updateSyncStatus,
-  updateSyncTransactionCounts,
+  startSyncSession,
+  updateSyncProgress,
 } from "@/lib/sync-progress";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 // TODO: Update this to work with all broker accounts
 export async function POST(request: NextRequest) {
-  // Get session ID for progress tracking
-  const sessionId =
-    request.nextUrl.searchParams.get("sessionId") || `sync-${Date.now()}`;
-  const accountKey = await getAccountKey();
-
   try {
     // Check for existing active sync session to prevent concurrent syncs
-    const activeSession = await getActiveSyncSession(accountKey);
+    const activeSession = await getActiveSyncSession();
 
-    if (activeSession && activeSession.sessionId !== sessionId) {
-      return NextResponse.json({
-        success: false,
-        processed: 0,
-        failed: 0,
-        transactionsFetched: 0,
-        sessionId: activeSession.sessionId, // Return the active session ID
-      });
+    if (activeSession) {
+      // In progress, return 202
+      return NextResponse.json({ success: true }, { status: 202 });
     }
+
+    // Start sync session
+    await startSyncSession();
 
     const schwabAuth = new SchwabAuth();
     let allTransactions: SchwabActivity[] = [];
@@ -53,15 +44,20 @@ export async function POST(request: NextRequest) {
     const brokerAccounts = await getActiveBrokerAccounts("schwab");
 
     if (brokerAccounts.length === 0) {
-      return NextResponse.json({
-        success: false,
-        processed: 0,
-        failed: 0,
-      });
+      // End sync session
+      await updateSyncProgress("completed");
+
+      return NextResponse.json(
+        {
+          message:
+            "No connected Schwab accounts found, please connect your account",
+          success: false,
+        },
+        { status: 404 }
+      );
     }
 
-    // Start or resume sync session
-    await getOrCreateSyncSession(sessionId);
+    await updateSyncProgress("fetching");
 
     // Fetch transactions for each broker account
     for (const account of brokerAccounts) {
@@ -85,11 +81,14 @@ export async function POST(request: NextRequest) {
           accountError instanceof SchwabAuthenticationError ||
           accountError instanceof SchwabTokenRefreshError
         ) {
-          return NextResponse.json({
-            success: false,
-            processed: 0,
-            failed: 0,
-          });
+          return NextResponse.json(
+            {
+              message:
+                "Error fetching transactions, please re-authenticate with Schwab",
+              success: false,
+            },
+            { status: 400 }
+          );
         }
 
         console.error(
@@ -108,6 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the count of pending transactions to process
+    const accountKey = await getAccountKey();
     const [pendingCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(stgTransaction)
@@ -121,44 +121,32 @@ export async function POST(request: NextRequest) {
 
     // Update session with transaction count to be processed
     const total = pendingCount.count;
-    await updateSyncTransactionCounts(sessionId, { totalTransactions: total });
-    await updateSyncStatus(sessionId, "PROCESSING");
+    await updateSyncProgress("processing", { total });
 
     // Process all pending transactions (includes any newly inserted ones)
     let results = { processed: 0, failed: 0 };
 
     if (total > 0) {
-      results = await processRawTransactions(sessionId);
+      results = await processRawTransactions();
     }
 
-    // Update final processing counts
-    await updateSyncTransactionCounts(sessionId, {
-      processedTransactions: results.processed,
-      failedTransactions: results.failed,
-    });
-
     // Mark sync as completed
-    endSyncSession(sessionId);
-
-    return NextResponse.json({
-      success: results.processed > 0,
+    await updateSyncProgress("completed", {
       processed: results.processed,
       failed: results.failed,
-      transactionsFetched: allTransactions.length,
-      sessionId,
+      remaining: total - results.processed - results.failed,
     });
+
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Schwab data ingestion error:", error);
     // Mark sync as failed
-    updateSyncStatus(sessionId, "FAILED");
+    await updateSyncProgress("failed");
 
     return NextResponse.json(
       {
         success: false,
-        processed: 0,
-        failed: 0,
-        transactionsFetched: 0,
-        sessionId,
+        message: "Error syncing Schwab transactions",
       },
       { status: 500 }
     );

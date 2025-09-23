@@ -1,21 +1,19 @@
 "use client";
 
 import _ from "lodash";
-import { ArrowDown, ArrowUp, Filter, RefreshCw, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, Filter, Search } from "lucide-react";
+import { useMemo, useState } from "react";
 
-import { recoverSyncSession } from "@/api/sync";
-import { syncTransactions, useTransactions } from "@/api/transactions";
+import { useTransactions } from "@/api/transactions";
 
 import { Loading } from "@/components/global/loading";
 import ActionBadge from "@/components/global/trade-action-badge";
-import { TransactionSyncProgress } from "@/components/transactions/transaction-sync-progress";
+import { TransactionHeader } from "@/components/transactions/transaction-header";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Typography } from "@/components/ui/typography";
 import { ITransactionAction } from "@/lib/db/schema";
 
 const formatCurrency = (amount: string) => {
@@ -67,14 +65,12 @@ interface Transaction {
 }
 
 export default function TransactionsPage() {
-  const [syncing, setSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedAction, setSelectedAction] = useState<string>("all");
   const [selectedBroker, setSelectedBroker] = useState<string>("all");
   const [sortField, setSortField] = useState<keyof Transaction>("date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const {
     transactions,
@@ -82,37 +78,7 @@ export default function TransactionsPage() {
     mutate: refreshData,
   } = useTransactions();
 
-  // Check for existing sync session on component mount
-  useEffect(() => {
-    const checkExistingSync = async () => {
-      const existingSessionId = await recoverSyncSession();
-      if (existingSessionId) {
-        // Resume monitoring existing sync
-        setSyncing(true);
-        setCurrentSessionId(existingSessionId);
-      }
-    };
-
-    checkExistingSync();
-  }, []);
-
-  const syncData = () => {
-    setSyncing(true);
-
-    // Generate a unique session ID for this sync
-    const sessionId = `sync-${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 11)}`;
-
-    setCurrentSessionId(sessionId);
-
-    // Start the actual sync process
-    // Background session is started and persisted in the database
-    syncTransactions(sessionId);
-  };
-
   const handleSyncComplete = () => {
-    setSyncing(false);
     refreshData();
   };
 
@@ -220,30 +186,10 @@ export default function TransactionsPage() {
 
   return (
     <>
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <Typography variant="h2">Transactions</Typography>
-          <Typography variant="muted">
-            {filteredAndSortedTransactions.length} of {transactions.length}{" "}
-            transaction{transactions.length !== 1 ? "s" : ""} shown
-          </Typography>
-        </div>
-
-        <div className="flex flex-col items-end gap-2">
-          <Button
-            onClick={syncData}
-            disabled={syncing}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Syncing..." : "Sync Data"}
-          </Button>
-        </div>
-      </div>
-
-      <TransactionSyncProgress
-        sessionId={currentSessionId}
+      <TransactionHeader
+        loading={loading}
+        transactionsLength={transactions.length}
+        filteredTransactionsLength={filteredAndSortedTransactions.length}
         onSyncComplete={handleSyncComplete}
       />
 

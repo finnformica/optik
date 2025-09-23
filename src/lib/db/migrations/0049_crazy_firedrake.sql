@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "rtm_sync_progress_account_key_unique" ON "rtm_sync_progress" USING btree ("account_key");

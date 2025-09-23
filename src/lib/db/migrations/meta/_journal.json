@@ -330,6 +330,41 @@
       "when": 1758448857084,
       "tag": "0046_magenta_risque",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1758564995776,
+      "tag": "0047_nostalgic_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1758567711090,
+      "tag": "0048_closed_sentinel",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1758570213835,
+      "tag": "0049_crazy_firedrake",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1758611298108,
+      "tag": "0050_late_falcon",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1758611931734,
+      "tag": "0051_majestic_layla_miller",
+      "breakpoints": true
     }
   ]
 }

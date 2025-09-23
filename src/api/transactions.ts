@@ -16,10 +16,7 @@ export function useTransactions() {
   };
 }
 
-export async function syncTransactions(sessionId?: string) {
-  const URL = sessionId
-    ? `${endpoints.schwab.data}?sessionId=${sessionId}`
-    : endpoints.schwab.data;
-
+export async function syncTransactions() {
+  const URL = endpoints.schwab.data;
   return postFetcher(URL);
 }
