@@ -1,10 +1,11 @@
+import { and, eq } from "drizzle-orm";
+
 import { getAccountKey } from "@/lib/auth/session";
 import { TokenEncryption } from "@/lib/auth/token-encryption";
 import { db } from "@/lib/db/config";
-import { SchwabActivity } from "@/lib/db/etl/queries";
+import { SchwabActivity } from "@/lib/db/etl/schwab";
 import { dimAccountAccessToken } from "@/lib/db/schema";
 import { endpoints } from "@/lib/utils";
-import { and, eq } from "drizzle-orm";
 
 interface SchwabTokens {
   access_token: string;
