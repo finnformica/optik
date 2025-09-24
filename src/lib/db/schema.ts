@@ -215,6 +215,33 @@ export const dimDate = pgTable(
   ]
 );
 
+// Time Dimension
+export const dimTime = pgTable(
+  "dim_time",
+  {
+    timeKey: serial("time_key").primaryKey(), // Sequential integer 1-86400
+    timeValue: varchar("time_value", { length: 8 }).notNull().unique(), // HH:MM:SS format
+    hour: integer("hour").notNull(), // 0-23
+    minute: integer("minute").notNull(), // 0-59
+    second: integer("second").notNull(), // 0-59
+    hourMinute: varchar("hour_minute", { length: 5 }).notNull(), // HH:MM format
+    periodOfDay: varchar("period_of_day", { length: 20 }), // Morning, Afternoon, Evening, Night
+    isMarketHours: boolean("is_market_hours").default(false), // Assuming US market hours 9:30-16:00 EST
+    quarterHour: integer("quarter_hour").notNull(), // 1-96 (15-minute intervals in a day)
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_dim_time_hour").on(table.hour),
+    index("idx_dim_time_hour_minute").on(table.hour, table.minute),
+    index("idx_dim_time_time_value").on(table.timeValue),
+    pgPolicy("authenticated_can_read_times", {
+      for: "select",
+      to: "authenticated",
+      using: sql`true`,
+    }),
+  ]
+);
+
 // Security Dimension - Handles stocks and options with company grouping
 export const dimSecurity = pgTable(
   "dim_security",
@@ -361,6 +388,9 @@ export const factTransaction = pgTable(
     dateKey: integer("date_key")
       .notNull()
       .references(() => dimDate.dateKey),
+    timeKey: integer("time_key")
+      .notNull()
+      .references(() => dimTime.timeKey),
     accountKey: integer("account_key")
       .notNull()
       .references(() => dimAccount.accountKey),
@@ -410,6 +440,8 @@ export const factTransaction = pgTable(
 
     // Performance indexes
     index("idx_fact_transaction_date").on(table.dateKey),
+    index("idx_fact_transaction_time").on(table.timeKey),
+    index("idx_fact_transaction_date_time").on(table.dateKey, table.timeKey),
     index("idx_fact_transaction_account").on(table.accountKey),
     index("idx_fact_transaction_security").on(table.securityKey),
 
@@ -898,6 +930,10 @@ export const factTransactionRelations = relations(
       fields: [factTransaction.dateKey],
       references: [dimDate.dateKey],
     }),
+    time: one(dimTime, {
+      fields: [factTransaction.timeKey],
+      references: [dimTime.timeKey],
+    }),
     account: one(dimAccount, {
       fields: [factTransaction.accountKey],
       references: [dimAccount.accountKey],
@@ -949,6 +985,7 @@ export type NewDimAccountAccessToken =
   typeof dimAccountAccessToken.$inferInsert;
 
 export type DimDate = typeof dimDate.$inferSelect;
+export type DimTime = typeof dimTime.$inferSelect;
 export type DimSecurity = typeof dimSecurity.$inferSelect;
 export type DimTransactionType = typeof dimTransactionType.$inferSelect;
 export type DimAccount = typeof dimAccount.$inferSelect;

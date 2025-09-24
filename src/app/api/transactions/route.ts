@@ -4,6 +4,7 @@ import {
   dimBroker,
   dimDate,
   dimSecurity,
+  dimTime,
   dimTransactionType,
   factTransaction,
 } from "@/lib/db/schema";
@@ -52,19 +53,24 @@ export async function GET(request: NextRequest) {
     .from(factTransaction)
     .leftJoin(
       dimSecurity,
-      eq(factTransaction.securityKey, dimSecurity.securityKey),
+      eq(factTransaction.securityKey, dimSecurity.securityKey)
     )
     .innerJoin(dimDate, eq(factTransaction.dateKey, dimDate.dateKey))
+    .innerJoin(dimTime, eq(factTransaction.timeKey, dimTime.timeKey))
     .innerJoin(
       dimTransactionType,
       eq(
         factTransaction.transactionTypeKey,
-        dimTransactionType.transactionTypeKey,
-      ),
+        dimTransactionType.transactionTypeKey
+      )
     )
     .innerJoin(dimBroker, eq(factTransaction.brokerKey, dimBroker.brokerKey))
     .where(eq(factTransaction.accountKey, accountKey))
-    .orderBy(desc(dimDate.fullDate), desc(factTransaction.createdAt));
+    .orderBy(
+      desc(dimTime.timeKey),
+      desc(dimDate.fullDate),
+      desc(factTransaction.createdAt)
+    );
 
   return NextResponse.json({
     success: true,
