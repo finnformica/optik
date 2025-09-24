@@ -457,6 +457,39 @@ export const factTransaction = pgTable(
   ]
 );
 
+// Stock Prices Fact Table - Caches stock prices in 15-minute intervals
+export const factStockPrices = pgTable(
+  "fact_stock_prices",
+  {
+    id: serial("id").primaryKey(),
+    symbol: varchar("symbol", { length: 20 }).notNull(),
+    dateKey: integer("date_key")
+      .notNull()
+      .references(() => dimDate.dateKey),
+    quarterHour: integer("quarter_hour").notNull(),
+    price: decimal("price", { precision: 18, scale: 8 }).notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    // Unique constraint for caching - one price per symbol per 15-minute interval
+    unique("unique_symbol_time_cache").on(
+      table.symbol,
+      table.dateKey,
+      table.quarterHour
+    ),
+    // Performance indexes
+    index("idx_fact_stock_prices_symbol").on(table.symbol),
+    index("idx_fact_stock_prices_date_time").on(table.dateKey, table.quarterHour),
+    index("idx_fact_stock_prices_created_at").on(table.createdAt),
+    // RLS Policy - all authenticated users can read stock prices
+    pgPolicy("authenticated_can_read_stock_prices", {
+      for: "select",
+      to: "authenticated",
+      using: sql`true`,
+    }),
+  ]
+);
+
 // =============================================
 // ANALYTICAL VIEWS
 // =============================================
@@ -996,6 +1029,9 @@ export type NewDimBrokerAccount = typeof dimBrokerAccount.$inferInsert;
 
 export type FactTransaction = typeof factTransaction.$inferSelect;
 export type NewFactTransaction = typeof factTransaction.$inferInsert;
+
+export type FactStockPrices = typeof factStockPrices.$inferSelect;
+export type NewFactStockPrices = typeof factStockPrices.$inferInsert;
 
 export type ViewPosition = typeof viewPosition.$inferSelect;
 export type ViewPortfolioDistribution =
