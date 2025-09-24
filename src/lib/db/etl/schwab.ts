@@ -86,6 +86,7 @@ export async function processSchwabTransactions(stgTransactionIds: number[]) {
         
         -- Extract main transaction data
         stg.raw_data->>'tradeDate' AS trade_date,
+        stg.raw_data->>'time' AS transaction_time,
         stg.raw_data->>'activityId' AS activity_id,
         stg.raw_data->>'orderId' AS order_id,
         stg.raw_data->>'type' AS schwab_type,
@@ -210,9 +211,10 @@ export async function processSchwabTransactions(stgTransactionIds: number[]) {
     
     -- CTE 5: Final data preparation with all JOINs
     final_data AS (
-      SELECT 
+      SELECT
         tt.id AS stg_id,
         dd.date_key,
+        dt.time_key,
         tt.account_key,
         COALESCE(s.security_key, NULL) AS security_key,
         dtt.transaction_type_key,
@@ -225,9 +227,10 @@ export async function processSchwabTransactions(stgTransactionIds: number[]) {
         COALESCE((tt.security_item->>'cost')::numeric, tt.net_amount, 0) AS gross_amount,
         tt.total_fees AS fees,
         tt.net_amount
-        
+
       FROM transaction_types tt
       LEFT JOIN dim_date dd ON dd.full_date = tt.trade_date::date
+      LEFT JOIN dim_time dt ON dt.time_value = TO_CHAR((tt.transaction_time::timestamptz AT TIME ZONE 'UTC')::time, 'HH24:MI:SS')
       LEFT JOIN dim_transaction_type dtt ON dtt.action_code = tt.action_code
       LEFT JOIN dim_broker db ON db.broker_code = tt.broker_code
       LEFT JOIN all_securities s ON (
@@ -236,7 +239,7 @@ export async function processSchwabTransactions(stgTransactionIds: number[]) {
           tt.security_item->'instrument'->>'underlyingSymbol',
           tt.security_item->'instrument'->>'symbol'
         )
-        AND s.security_type = CASE WHEN tt.security_item->'instrument'->>'assetType' = 'OPTION' 
+        AND s.security_type = CASE WHEN tt.security_item->'instrument'->>'assetType' = 'OPTION'
                                 THEN 'OPTION' ELSE 'STOCK' END
         AND COALESCE(s.option_type, '') = COALESCE(tt.security_item->'instrument'->>'putCall', '')
         AND COALESCE(s.strike_price, 0) = COALESCE((tt.security_item->'instrument'->>'strikePrice')::numeric, 0)
@@ -247,16 +250,17 @@ export async function processSchwabTransactions(stgTransactionIds: number[]) {
     -- Insert into fact table
     inserted_facts AS (
       INSERT INTO fact_transaction (
-        date_key, account_key, security_key, transaction_type_key, broker_key,
+        date_key, time_key, account_key, security_key, transaction_type_key, broker_key,
         broker_transaction_id, order_id, description, quantity, price_per_unit,
         gross_amount, fees, net_amount
       )
-      SELECT 
-        date_key, account_key, security_key, transaction_type_key, broker_key,
+      SELECT
+        date_key, time_key, account_key, security_key, transaction_type_key, broker_key,
         broker_transaction_id, order_id, description, quantity, price_per_unit,
         gross_amount, fees, net_amount
       FROM final_data
-      WHERE transaction_type_key IS NOT NULL -- Only insert if we found valid transaction type
+      WHERE transaction_type_key IS NOT NULL
+        AND time_key IS NOT NULL -- Only insert if we found valid transaction type and time
       RETURNING broker_transaction_id
     )
     
@@ -269,7 +273,7 @@ export async function processSchwabTransactions(stgTransactionIds: number[]) {
         ELSE 'FAILED'
       END,
       processed_at = NOW(),
-      error_message = CASE 
+      error_message = CASE
         WHEN broker_transaction_id NOT IN (SELECT broker_transaction_id FROM inserted_facts)
         THEN 'Failed to process transaction - invalid transaction type or missing dimensions'
         ELSE NULL
