@@ -81,6 +81,8 @@ export async function POST() {
           accountError instanceof SchwabAuthenticationError ||
           accountError instanceof SchwabTokenRefreshError
         ) {
+          await updateSyncProgress("failed");
+
           return NextResponse.json(
             {
               message:
