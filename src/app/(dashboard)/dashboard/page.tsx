@@ -9,11 +9,11 @@ import { db } from "@/lib/db/config";
 import {
   viewPortfolioDistribution,
   viewPortfolioSummary,
-  viewPosition,
   viewProfitDistribution,
   viewWeeklyReturn,
 } from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { getPositionsWithPrices } from "./actions";
 
 export default async function DashboardPage() {
   const accountKey = await getAccountKey();
@@ -26,17 +26,8 @@ export default async function DashboardPage() {
     [{ cashBalance }],
     weeklyReturnsData,
   ] = await Promise.all([
-    // Current positions
-    db
-      .select()
-      .from(viewPosition)
-      .where(
-        and(
-          eq(viewPosition.accountKey, accountKey),
-          eq(viewPosition.positionStatus, "OPEN")
-        )
-      )
-      .limit(50),
+    // Current positions with stock prices
+    getPositionsWithPrices(accountKey),
     // Portfolio distribution
     db
       .select()

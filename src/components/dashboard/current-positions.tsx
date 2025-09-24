@@ -1,29 +1,52 @@
+import type { EnrichedPosition } from "@/app/(dashboard)/dashboard/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ViewPosition } from "@/lib/db/schema";
 import { Badge } from "../ui/badge";
+
 interface CurrentPositionsProps {
-  positions: ViewPosition[];
+  positions: EnrichedPosition[];
 }
 
 const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
-  const renderBadge = (percentDrawdown: number) => {
+  const renderBadge = (itmPercentage?: number) => {
+    if (itmPercentage === undefined) {
+      return (
+        <Badge
+          variant="outline"
+          className="bg-gray-500/10 text-gray-400 border-gray-500/20 text-xs"
+        >
+          N/A
+        </Badge>
+      );
+    }
+
+    const formattedPercentage = Math.abs(itmPercentage).toFixed(1);
     let content;
     let className;
-    if (percentDrawdown >= 9.999) {
+    let sign;
+
+    if (itmPercentage <= -5.0) {
       content = "ITM";
+      sign = "-";
       className = "bg-red-500/10 text-red-400 border-red-500/20 text-xs";
-    } else if (percentDrawdown >= 0.001) {
+    } else if (itmPercentage < 0) {
       content = "ITM";
+      sign = "-";
       className =
         "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-xs";
+    } else if (itmPercentage < 0.01) {
+      content = "ATM";
+      sign = "";
+      className = "bg-gray-500/10 text-gray-400 border-gray-500/20 text-xs";
     } else {
       content = "OTM";
+      sign = "+";
       className = "bg-green-500/10 text-green-400 border-green-500/20 text-xs";
     }
 
     return (
       <Badge variant="outline" className={className}>
-        {content} {percentDrawdown.toFixed(1)}%
+        {content} {sign}
+        {formattedPercentage}%
       </Badge>
     );
   };
@@ -53,6 +76,9 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Quantity
                 </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider min-w-fit">
+                  Current Price
+                </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   ITM %
                 </th>
@@ -62,7 +88,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
               {positions.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-3 py-8 text-center text-gray-400"
                   >
                     No open positions found
@@ -96,8 +122,13 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                           : ""}
                         {parseFloat(position.quantityHeld || "0")}
                       </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
+                        {position.currentPrice
+                          ? `$${position.currentPrice.toFixed(2)}`
+                          : "-"}
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm">
-                        {renderBadge(2.5)}
+                        {renderBadge(position.itmPercentage)}
                       </td>
                     </tr>
                   );
