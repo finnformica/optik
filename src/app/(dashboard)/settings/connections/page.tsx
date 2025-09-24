@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAccountKey } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import { dimAccountAccessToken } from "@/lib/db/schema";
+import { paths } from "@/lib/utils";
 import { and, eq } from "drizzle-orm";
-import { CheckCircle, ExternalLink, XCircle } from "lucide-react";
+import { CheckCircle, ExternalLink, RefreshCw, XCircle } from "lucide-react";
+import Link from "next/link";
 import { connectSchwab, disconnectSchwab } from "./actions";
 
 async function getSchwabConnectionStatus() {
@@ -168,12 +170,15 @@ export default async function ConnectionsPage({
                 )}
 
                 {connected && (
-                  <Button
-                    variant="outline"
-                    className="border-gray-600 text-white hover:bg-gray-700"
-                  >
-                    Refresh Data
-                  </Button>
+                  <Link href={paths.transactions}>
+                    <Button
+                      variant="outline"
+                      className="border-gray-600 text-white hover:bg-gray-700"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Sync Data
+                    </Button>
+                  </Link>
                 )}
               </div>
 
@@ -184,6 +189,13 @@ export default async function ConnectionsPage({
                   <li>Track account performance</li>
                   <li>Analyse your investment strategy</li>
                 </ul>
+                {connected && (
+                  <p className="mt-3 text-gray-400">
+                    Click "Sync Data" to go to your transactions page and
+                    refresh your portfolio data with the latest information from
+                    Schwab.
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
