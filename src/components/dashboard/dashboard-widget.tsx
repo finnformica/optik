@@ -15,12 +15,12 @@ export const DashboardWidget = ({
   contentClassName,
 }: DashboardWidgetProps) => {
   return (
-    <Card className={cn("bg-[#1a2236] border-gray-800 py-0 gap-0", className)}>
+    <Card className={cn("gap-0 border-gray-800 bg-[#1a2236] py-0", className)}>
       <CardHeader className="border-b border-gray-800 p-4">
         <CardTitle className="text-white">{title}</CardTitle>
       </CardHeader>
       <CardContent
-        className={cn("px-2 h-[320px] relative p-4", contentClassName)}
+        className={cn("relative h-[320px] p-4 px-2", contentClassName)}
       >
         {children}
       </CardContent>

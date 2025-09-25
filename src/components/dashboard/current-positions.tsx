@@ -18,7 +18,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
       return (
         <Badge
           variant="outline"
-          className="bg-gray-500/10 text-gray-400 border-gray-500/20 text-xs"
+          className="border-gray-500/20 bg-gray-500/10 text-xs text-gray-400"
         >
           N/A
         </Badge>
@@ -58,45 +58,31 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
   };
 
   return (
-    <Card className="bg-[#1a2236] border-gray-800 py-0">
+    <Card className="border-gray-800 bg-[#1a2236] py-0">
       <CardHeader className="border-b border-gray-800 p-4">
         <CardTitle className="text-white">Current Positions</CardTitle>
       </CardHeader>
       <CardContent className="px-2">
         <table className="min-w-full divide-y divide-gray-700">
           <thead>
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Symbol
+            <tr className="[&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wider [&_th]:text-gray-400 [&_th]:uppercase">
+              <th>Symbol</th>
+              <th>Type</th>
+              <th>Strike</th>
+              <th>Expiry</th>
+              <th>Quantity</th>
+              <th className="flex items-center gap-1">
+                Current
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 cursor-help text-gray-500" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Current stock price refreshed every 15 minutes</p>
+                  </TooltipContent>
+                </Tooltip>
               </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Strike
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Expiry
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Quantity
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider min-w-fit">
-                <div className="flex items-center gap-1">
-                  Current
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="w-3.5 h-3.5 text-gray-500 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Current stock price refreshed every 15 minutes</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                ITM %
-              </th>
+              <th>ITM %</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700">
@@ -104,7 +90,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
               ? Array.from({ length: 3 }).map((_, index) => (
                   <tr
                     key={`empty-${index}`}
-                    className="[&_td]:px-3 [&_td]:opacity-50 [&_td]:py-2 [&_td]:whitespace-nowrap [&_td]:text-sm [&_td]:text-gray-600"
+                    className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-600 [&_td]:opacity-50"
                   >
                     <td>---</td>
                     <td>---</td>
@@ -119,7 +105,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                   return (
                     <tr
                       key={`${position.underlyingSymbol}-${position.strikePrice}-${index}`}
-                      className="[&_td]:px-3 [&_td]:py-2 [&_td]:whitespace-nowrap [&_td]:text-sm [&_td]:text-gray-300"
+                      className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-300"
                     >
                       <td className="font-medium text-white">
                         {position.underlyingSymbol}

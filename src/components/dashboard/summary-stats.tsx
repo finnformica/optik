@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
-import { getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { viewPortfolioSummary, ViewPortfolioSummary } from "@/lib/db/schema";
+import { getAccountKey } from "@/lib/supabase/server";
 import { eq } from "drizzle-orm";
 import {
   Calendar,
@@ -118,26 +118,26 @@ const SummaryStats = async () => {
   ];
 
   return (
-    <Card className="bg-[#1a2236] border-gray-800 p-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <Card className="border-gray-800 bg-[#1a2236] p-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {summaryCards.map((card) => {
           const Icon = card.icon;
           const trendValue = card.trendValue ? card.trendValue(summary) : 0;
 
           return (
-            <div key={card.id} className="bg-[#14192a] p-4 rounded-lg">
+            <div key={card.id} className="rounded-lg bg-[#14192a] p-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-gray-400 text-sm font-medium">
+                <h3 className="text-sm font-medium text-gray-400">
                   {card.title}
                 </h3>
                 <Icon className={`h-5 w-5 ${card.iconColor}`} />
               </div>
-              <p className="text-white text-2xl font-bold mt-2">
+              <p className="mt-2 text-2xl font-bold text-white">
                 {card.value(summary)}
               </p>
               {card.subtitle && (
                 <div
-                  className={`flex items-center mt-2 text-sm ${
+                  className={`mt-2 flex items-center text-sm ${
                     card.subtitleColor || "text-gray-400"
                   }`}
                 >
@@ -146,13 +146,13 @@ const SummaryStats = async () => {
               )}
               {card.showTrend && card.trendValue && (
                 <div
-                  className={`flex items-center mt-2 text-sm ${
+                  className={`mt-2 flex items-center text-sm ${
                     trendValue >= 0 ? "text-green-400" : "text-red-400"
                   }`}
                 >
                   <TrendingUp
-                    className={`h-4 w-4 mr-1 ${
-                      trendValue < 0 ? "transform rotate-180" : ""
+                    className={`mr-1 h-4 w-4 ${
+                      trendValue < 0 ? "rotate-180 transform" : ""
                     }`}
                   />
                   <span>

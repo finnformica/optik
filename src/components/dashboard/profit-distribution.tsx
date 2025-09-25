@@ -32,7 +32,7 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
   // Calculate total absolute profit to get percentages
   const totalAbsoluteProfit = profitData.reduce(
     (sum, item) => sum + Math.abs(parseFloat(item.totalProfit || "0")),
-    0
+    0,
   );
 
   // Check if there's no data to display
@@ -55,7 +55,7 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
   const totalForProcessing = hasNoData
     ? mockProfitData.reduce(
         (sum, item) => sum + Math.abs(parseFloat(item.totalProfit)),
-        0
+        0,
       )
     : totalAbsoluteProfit;
 
@@ -100,11 +100,11 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
       const othersValue = otherItems.reduce((sum, item) => sum + item.value, 0);
       const othersOriginalValue = otherItems.reduce(
         (sum, item) => sum + item.originalValue,
-        0
+        0,
       );
       const othersTrades = otherItems.reduce(
         (sum, item) => sum + (item.trades ?? 0),
-        0
+        0,
       );
 
       finalData.push({
@@ -224,7 +224,7 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
                     {isProfit ? "+" : ""}${originalValue.toLocaleString()} (
                     {percentage}%)
                   </div>
-                  <div className="text-gray-300 text-xs">
+                  <div className="text-xs text-gray-300">
                     {trades} trade{trades !== 1 ? "s" : ""}
                   </div>
                 </div>,
