@@ -145,6 +145,7 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
 
   // Create user record in our database
   const newUser: NewDimUser = {
+    authUserId: authData.user.id,
     firstName,
     lastName,
     email,

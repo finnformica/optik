@@ -16,8 +16,10 @@ import {
   timestamp,
   unique,
   uniqueIndex,
+  uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import { authUsers } from "drizzle-orm/supabase";
 
 // =============================================
 // REALTIME TABLES
@@ -106,6 +108,7 @@ export const dimUser = pgTable(
   "dim_user",
   {
     id: serial("id").primaryKey(),
+    authUserId: uuid("auth_user_id").unique().references(() => authUsers.id),
     firstName: varchar("first_name", { length: 50 }),
     lastName: varchar("last_name", { length: 50 }),
     email: varchar("email", { length: 255 }).notNull().unique(),
@@ -115,6 +118,7 @@ export const dimUser = pgTable(
     deletedAt: timestamp("deleted_at"),
   },
   (table) => [
+    index("idx_dim_user_auth_user_id").on(table.authUserId),
     pgPolicy("users_own_data", {
       for: "all",
       to: "authenticated",
