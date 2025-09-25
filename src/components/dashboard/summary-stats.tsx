@@ -5,9 +5,9 @@ import { viewPortfolioSummary, ViewPortfolioSummary } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import {
   Calendar,
+  ChartNoAxesColumn,
   DollarSign,
   LucideIcon,
-  Percent,
   TrendingUp,
 } from "lucide-react";
 
@@ -69,7 +69,7 @@ const SummaryStats = async () => {
     {
       id: "portfolio-value",
       title: "Portfolio Value",
-      icon: DollarSign,
+      icon: ChartNoAxesColumn,
       iconColor: "text-purple-500",
       value: (summary) =>
         formatCurrency(Math.abs(parseFloat(summary.portfolioValue || "0"))),
@@ -80,7 +80,7 @@ const SummaryStats = async () => {
     {
       id: "cash-balance",
       title: "Cash Balance",
-      icon: Percent,
+      icon: DollarSign,
       iconColor: "text-purple-500",
       value: (summary) =>
         formatCurrency(parseFloat(summary.cashBalance || "0")),

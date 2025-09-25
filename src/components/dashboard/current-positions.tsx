@@ -1,6 +1,12 @@
 import type { EnrichedPosition } from "@/app/(dashboard)/dashboard/actions";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "../ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 
 interface CurrentPositionsProps {
   positions: EnrichedPosition[];
@@ -77,7 +83,17 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                   Quantity
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider min-w-fit">
-                  Current Price
+                  <div className="flex items-center gap-1">
+                    Current
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="w-3.5 h-3.5 text-gray-500 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Current stock price refreshed every 15 minutes</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   ITM %
