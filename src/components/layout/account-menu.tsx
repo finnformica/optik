@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useGetUserAccounts } from "@/api/accounts";
-import { useSession } from "@/components/providers/session-provider";
+import { useCurrentAccountKey } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,7 +37,7 @@ import { deleteAccount, switchAccount } from "./actions";
 export function AccountMenu() {
   const { mutate: globalMutate } = useSWRConfig();
   const { accounts, mutate } = useGetUserAccounts();
-  const { session } = useSession();
+  const currentAccountKey = useCurrentAccountKey();
 
   const [loading, setLoading] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<number | null>(null);
@@ -83,7 +83,7 @@ export function AccountMenu() {
         <DropdownMenuLabel>Select account</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroupPrimitive
-          value={session.accountKey.toString()}
+          value={currentAccountKey?.toString() || ""}
           onValueChange={(value) => handleAccountSwitch(Number(value))}
         >
           {accounts?.map((account) => (
@@ -116,7 +116,7 @@ export function AccountMenu() {
                   onSelect={(e) => {
                     e.preventDefault();
 
-                    if (session.accountKey === account.accountKey) {
+                    if (currentAccountKey === account.accountKey) {
                       toast.error("Current account cannot be deleted");
                       return;
                     }

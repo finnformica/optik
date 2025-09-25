@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import { getAccountKey } from "@/lib/auth/session";
+import { getCurrentAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { stgTransaction } from "@/lib/db/schema";
 import { updateSyncProgress } from "@/lib/sync-progress";
@@ -11,7 +11,7 @@ import { processSchwabTransactions, SchwabActivity } from "./schwab";
  * Insert API data in raw transactions table
  */
 export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
-  const accountKey = await getAccountKey();
+  const accountKey = await getCurrentAccountKey();
   const database = tx || db;
 
   // Convert json to expected stg_transaction format
@@ -40,7 +40,7 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
 
 // Helper function to get pending transaction IDs in batches
 export async function getPendingTransactionIds(batchSize: number) {
-  const accountKey = await getAccountKey();
+  const accountKey = await getCurrentAccountKey();
 
   const pendingIds = await db
     .select({ id: stgTransaction.id })
@@ -59,7 +59,7 @@ export async function getPendingTransactionIds(batchSize: number) {
 
 // Updated helper to group pending transactions by broker
 export async function getPendingTransactionIdsByBroker(batchSize: number) {
-  const accountKey = await getAccountKey();
+  const accountKey = await getCurrentAccountKey();
 
   const pendingTransactions = await db
     .select({
@@ -100,7 +100,7 @@ export async function getPendingTransactionIdsByBroker(batchSize: number) {
 }
 
 export async function getPendingTransactionCount() {
-  const accountKey = await getAccountKey();
+  const accountKey = await getCurrentAccountKey();
 
   const [pendingCount] = await db
     .select({ count: sql<number>`count(*)` })

@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { getAccountKey } from "@/lib/auth/session";
+import { getCurrentAccountKey } from "@/lib/supabase/server";
 import { TokenEncryption } from "@/lib/auth/token-encryption";
 import { db } from "@/lib/db/config";
 import { SchwabActivity } from "@/lib/db/etl/schwab";
@@ -50,7 +50,7 @@ export class SchwabAuth {
 
   // Store tokens
   async storeTokens(tokens: SchwabTokens): Promise<void> {
-    const accountKey = await getAccountKey();
+    const accountKey = await getCurrentAccountKey();
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
     // Encrypt token data
@@ -98,7 +98,7 @@ export class SchwabAuth {
 
   // Retrieve and decrypt tokens
   async getStoredTokens(): Promise<SchwabTokens | null> {
-    const accountKey = await getAccountKey();
+    const accountKey = await getCurrentAccountKey();
 
     try {
       const data = await db
@@ -173,7 +173,7 @@ export class SchwabAuth {
 
   // Clear tokens (for logout or failed refresh)
   async clearStoredTokens(): Promise<void> {
-    const accountKey = await getAccountKey();
+    const accountKey = await getCurrentAccountKey();
     try {
       await db
         .delete(dimAccountAccessToken)

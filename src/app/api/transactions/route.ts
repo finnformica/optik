@@ -1,4 +1,4 @@
-import { getAccountKey } from "@/lib/auth/session";
+import { getCurrentAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import {
   dimBroker,
@@ -12,7 +12,7 @@ import { desc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const accountKey = await getAccountKey();
+  const accountKey = await getCurrentAccountKey();
 
   // Get all transactions for the account with dimension data
   const accountTransactions = await db

@@ -1,49 +1,34 @@
-import { getSession, verifyToken } from "@/lib/auth/session";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { cookies } from "next/headers";
 import { db } from "./config";
 import { dimAccount, dimUser } from "./schema";
 
 export async function getUser() {
-  const sessionCookie = (await cookies()).get("session");
-  if (!sessionCookie || !sessionCookie.value) {
+  try {
+    const supabaseUser = await getAuthenticatedUser();
+
+    const [user] = await db
+      .select()
+      .from(dimUser)
+      .where(and(eq(dimUser.email, supabaseUser.email!), isNull(dimUser.deletedAt)))
+      .limit(1);
+
+    return user || null;
+  } catch {
     return null;
   }
-
-  const sessionData = await verifyToken(sessionCookie.value);
-  if (
-    !sessionData ||
-    !sessionData.user ||
-    typeof sessionData.user.id !== "number"
-  ) {
-    return null;
-  }
-
-  if (new Date(sessionData.expires) < new Date()) {
-    return null;
-  }
-
-  const user = await db
-    .select()
-    .from(dimUser)
-    .where(and(eq(dimUser.id, sessionData.user.id), isNull(dimUser.deletedAt)))
-    .limit(1);
-
-  if (user.length === 0) {
-    return null;
-  }
-
-  return user[0];
 }
 
 export async function getUserAccounts() {
-  const session = await getSession();
+  const user = await getUser();
+  if (!user) return [];
+
   const accounts = await db
     .select()
     .from(dimAccount)
     .where(
       and(
-        eq(dimAccount.userId, session.user.id),
+        eq(dimAccount.userId, user.id),
         eq(dimAccount.isActive, true),
       ),
     )

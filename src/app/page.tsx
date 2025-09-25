@@ -1,11 +1,11 @@
-import { getSession } from "@/lib/auth/session";
+import { getUser } from "@/lib/supabase/server";
 import { paths } from "@/lib/utils";
 import { redirect } from "next/navigation";
 
 export default async function HomePage() {
-  const session = await getSession();
+  const user = await getUser();
 
-  if (!session) redirect(paths.home);
+  if (!user) redirect(paths.home);
 
   redirect(paths.dashboard);
 }

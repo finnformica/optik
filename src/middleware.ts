@@ -1,77 +1,20 @@
-import { signToken, verifyToken } from "@/lib/auth/session";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { endpoints, paths } from "./lib/utils";
+import { type NextRequest } from "next/server";
 
-const protectedRoutes = paths.dashboard;
-const publicApiRoutes = [endpoints.stripe.webhook];
+import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get("session");
-
-  const isProtectedRoute = pathname.startsWith(protectedRoutes);
-  const isApiRoute = pathname.startsWith("/api");
-  const isPublicApiRoute = publicApiRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
-  const isProtectedApiRoute = isApiRoute && !isPublicApiRoute;
-  const isAuthRoute =
-    pathname.startsWith(paths.auth.signIn) ||
-    pathname.startsWith(paths.auth.signUp);
-
-  if (isProtectedRoute && !sessionCookie) {
-    return NextResponse.redirect(new URL(paths.auth.signIn, request.url));
-  }
-
-  if (isProtectedApiRoute && !sessionCookie) {
-    return NextResponse.redirect(new URL(paths.auth.signIn, request.url));
-  }
-
-  if (isAuthRoute && sessionCookie) {
-    return NextResponse.redirect(new URL(paths.dashboard, request.url));
-  }
-
-  let res = NextResponse.next();
-
-  if (sessionCookie && request.method === "GET") {
-    try {
-      const parsed = await verifyToken(sessionCookie.value);
-      const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      res.cookies.set({
-        name: "session",
-        value: await signToken({
-          ...parsed,
-          expires: expiresInOneDay.toISOString(),
-        }),
-        httpOnly: true,
-        secure: true,
-        sameSite: "lax",
-        expires: expiresInOneDay,
-      });
-    } catch (error) {
-      res.cookies.delete("session");
-
-      if (isProtectedRoute) {
-        return NextResponse.redirect(new URL(paths.auth.signIn, request.url));
-      }
-
-      if (isProtectedApiRoute) {
-        return NextResponse.redirect(new URL(paths.auth.signIn, request.url));
-      }
-
-      return NextResponse.json(
-        { error: `Error updating session: ${error}` },
-        { status: 500 }
-      );
-    }
-  }
-
-  return res;
+  return await updateSession(request);
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-  runtime: "nodejs",
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };
