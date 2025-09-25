@@ -1,6 +1,6 @@
 import type { EnrichedPosition } from "@/app/(dashboard)/dashboard/actions";
+import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
@@ -58,90 +58,86 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
   };
 
   return (
-    <Card className="border-gray-800 bg-[#1a2236] py-0">
-      <CardHeader className="border-b border-gray-800 p-4">
-        <CardTitle className="text-white">Current Positions</CardTitle>
-      </CardHeader>
-      <CardContent className="px-2">
-        <table className="min-w-full divide-y divide-gray-700">
-          <thead>
-            <tr className="[&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wider [&_th]:text-gray-400 [&_th]:uppercase">
-              <th>Symbol</th>
-              <th>Type</th>
-              <th>Strike</th>
-              <th>Expiry</th>
-              <th>Quantity</th>
-              <th className="flex items-center gap-1">
-                Current
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3.5 w-3.5 cursor-help text-gray-500" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Current stock price refreshed every 15 minutes</p>
-                  </TooltipContent>
-                </Tooltip>
-              </th>
-              <th>ITM %</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700">
-            {positions.length === 0
-              ? Array.from({ length: 3 }).map((_, index) => (
+    <DashboardWidget
+      title="Current Positions"
+      contentClassName="py-0 px-2 overflow-x-scroll"
+    >
+      <table className="min-w-full divide-y divide-gray-700">
+        <thead>
+          <tr className="[&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wider [&_th]:text-gray-400 [&_th]:uppercase">
+            <th>Symbol</th>
+            <th>Type</th>
+            <th>Strike</th>
+            <th>Expiry</th>
+            <th>Quantity</th>
+            <th className="flex items-center gap-1">
+              Current
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-3.5 w-3.5 cursor-help text-gray-500" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Current stock price refreshed every 15 minutes</p>
+                </TooltipContent>
+              </Tooltip>
+            </th>
+            <th>ITM %</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-700">
+          {positions.length === 0
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <tr
+                  key={`empty-${index}`}
+                  className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-600 [&_td]:opacity-50"
+                >
+                  <td>---</td>
+                  <td>---</td>
+                  <td>---</td>
+                  <td>---</td>
+                  <td>---</td>
+                  <td>---</td>
+                  <td>---</td>
+                </tr>
+              ))
+            : positions.map((position, index) => {
+                return (
                   <tr
-                    key={`empty-${index}`}
-                    className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-600 [&_td]:opacity-50"
+                    key={`${position.underlyingSymbol}-${position.strikePrice}-${index}`}
+                    className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-300"
                   >
-                    <td>---</td>
-                    <td>---</td>
-                    <td>---</td>
-                    <td>---</td>
-                    <td>---</td>
-                    <td>---</td>
-                    <td>---</td>
+                    <td className="font-medium text-white">
+                      {position.underlyingSymbol}
+                    </td>
+                    <td>
+                      {position.optionType ?? position.securityType ?? "N/A"}
+                    </td>
+                    <td>
+                      {position.strikePrice
+                        ? `$${parseFloat(position.strikePrice).toFixed(2)}`
+                        : "-"}
+                    </td>
+                    <td>
+                      {position.expiryDate
+                        ? new Date(position.expiryDate).toLocaleDateString()
+                        : "-"}
+                    </td>
+                    <td>
+                      {parseFloat(position.quantityHeld || "0") > 0 ? "+" : ""}
+                      {parseFloat(position.quantityHeld || "0")}
+                    </td>
+                    <td>
+                      {position.currentPrice
+                        ? `$${position.currentPrice.toFixed(2)}`
+                        : "-"}
+                    </td>
+                    <td>{renderBadge(position.itmPercentage)}</td>
                   </tr>
-                ))
-              : positions.map((position, index) => {
-                  return (
-                    <tr
-                      key={`${position.underlyingSymbol}-${position.strikePrice}-${index}`}
-                      className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-300"
-                    >
-                      <td className="font-medium text-white">
-                        {position.underlyingSymbol}
-                      </td>
-                      <td>
-                        {position.optionType ?? position.securityType ?? "N/A"}
-                      </td>
-                      <td>
-                        {position.strikePrice
-                          ? `$${parseFloat(position.strikePrice).toFixed(2)}`
-                          : "-"}
-                      </td>
-                      <td>
-                        {position.expiryDate
-                          ? new Date(position.expiryDate).toLocaleDateString()
-                          : "-"}
-                      </td>
-                      <td>
-                        {parseFloat(position.quantityHeld || "0") > 0
-                          ? "+"
-                          : ""}
-                        {parseFloat(position.quantityHeld || "0")}
-                      </td>
-                      <td>
-                        {position.currentPrice
-                          ? `$${position.currentPrice.toFixed(2)}`
-                          : "-"}
-                      </td>
-                      <td>{renderBadge(position.itmPercentage)}</td>
-                    </tr>
-                  );
-                })}
-          </tbody>
-        </table>
-      </CardContent>
-    </Card>
+                );
+              })}
+        </tbody>
+      </table>
+    </DashboardWidget>
   );
 };
 
