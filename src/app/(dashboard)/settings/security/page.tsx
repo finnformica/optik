@@ -1,6 +1,6 @@
 "use client";
 
-import { deleteAccount, updatePassword } from "@/app/(auth)/actions";
+import { deleteUser, updatePassword } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ export default function SecurityPage() {
   const [deleteState, deleteAction, isDeletePending] = useActionState<
     DeleteState,
     FormData
-  >(deleteAccount, {});
+  >(deleteUser, {});
 
   return (
     <section className="flex-1">

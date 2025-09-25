@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@/api/user";
-import { updateAccount } from "@/app/(auth)/actions";
+import { updateUser } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -90,7 +90,7 @@ function AccountFormWithData({ state }: { state: ActionState }) {
 
 export default function GeneralPage() {
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
-    updateAccount,
+    updateUser,
     {}
   );
 

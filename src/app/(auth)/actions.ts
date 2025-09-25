@@ -48,6 +48,16 @@ export const signIn = validatedAction(signInSchema, async (data) => {
   });
 
   if (error) {
+    // Check if the error is due to unconfirmed email
+    if (error.code === "email_not_confirmed") {
+      return {
+        error:
+          "Please confirm your email address before signing in. Check your email for a confirmation link.",
+        email,
+        password,
+      };
+    }
+
     return {
       error: "Invalid email or password. Please try again.",
       email,
@@ -96,9 +106,24 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
   const { data: authData, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${process.env.BASE_URL}${paths.auth.signIn}`,
+    },
   });
 
   if (signUpError) {
+    // Check if email already exists
+    if (signUpError.code === "email_exists") {
+      return {
+        error:
+          "An account with this email already exists. Please sign in instead.",
+        firstName,
+        lastName,
+        email,
+        password,
+      };
+    }
+
     return {
       error: signUpError.message,
       firstName,
@@ -120,6 +145,7 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
 
   // Create user record in our database
   const newUser: NewDimUser = {
+    authUserId: authData.user.id,
     firstName,
     lastName,
     email,
@@ -201,32 +227,24 @@ export const updatePassword = validatedActionWithUser(
   }
 );
 
-const deleteAccountSchema = z.object({
+const deleteUserSchema = z.object({
   confirmDelete: z.string().refine((val) => val === "DELETE", {
     message: "Please type DELETE to confirm account deletion",
   }),
 });
 
-export const deleteAccount = validatedActionWithUser(
-  deleteAccountSchema,
+export const deleteUser = validatedActionWithUser(
+  deleteUserSchema,
   async (data, _, user, supabaseUser) => {
-    // First, soft delete from our database to retain user data
-    await db
-      .update(dimUser)
-      .set({
-        deletedAt: sql`CURRENT_TIMESTAMP`,
-        email: sql`CONCAT(email, '-', extract(epoch from now()), '-deleted')`, // Ensure email uniqueness
-      })
-      .where(eq(dimUser.email, user.email));
-
-    // Then delete user from Supabase Auth (this will automatically sign them out)
+    // Delete user from Supabase Auth
+    // This will cascade delete all related data in our database automatically
     const supabase = await createClient();
     const { error } = await supabase.auth.admin.deleteUser(supabaseUser.id);
 
     if (error) {
       return {
         confirmDelete: "",
-        error: "Failed to delete account. Please try again.",
+        error: "Failed to delete user account. Please try again.",
       };
     }
 
@@ -234,14 +252,14 @@ export const deleteAccount = validatedActionWithUser(
   }
 );
 
-const updateAccountSchema = z.object({
+const updateUserSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(50),
   lastName: z.string().min(1, "Last name is required").max(50),
   email: z.email("Invalid email address"),
 });
 
-export const updateAccount = validatedActionWithUser(
-  updateAccountSchema,
+export const updateUser = validatedActionWithUser(
+  updateUserSchema,
   async (data, _, user, supabaseUser) => {
     const { firstName, lastName, email } = data;
 
@@ -271,6 +289,10 @@ export const updateAccount = validatedActionWithUser(
       .set({ firstName, lastName, email })
       .where(eq(dimUser.id, user.id));
 
-    return { firstName, lastName, success: "Account updated successfully." };
+    return {
+      firstName,
+      lastName,
+      success: "User account updated successfully.",
+    };
   }
 );
