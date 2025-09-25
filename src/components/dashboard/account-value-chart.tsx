@@ -80,6 +80,7 @@ const AccountValueChart = ({ accountValueData }: AccountValueChartProps) => {
             verticalAlign="bottom"
             align="center"
             wrapperStyle={{
+              paddingTop: "12px",
               color: "#fff",
               fontSize: "12px",
             }}

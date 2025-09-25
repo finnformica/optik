@@ -8,6 +8,8 @@ import {
   BarChart,
   CartesianGrid,
   LabelList,
+  Legend,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -53,13 +55,16 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
     { week: "Feb 12", percentReturns: 19.6, absoluteReturns: 3100 },
   ];
 
+  const hasNoData = chartData.length === 0;
+  const data = hasNoData ? emptyStateData : chartData;
+  const average = (
+    data.reduce((total, next) => total + next.percentReturns, 0) / data.length
+  ).toFixed(1);
+
   return (
     <DashboardWidget title="Weekly Returns" contentClassName="pt-6">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={chartData.length === 0 ? emptyStateData : chartData}
-          margin={{ top: 10, right: 30 }}
-        >
+        <BarChart data={data} margin={{ top: 10, right: 40 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
           <XAxis dataKey="week" stroke="#9CA3AF" fontSize={12} />
           <YAxis
@@ -83,26 +88,60 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
               ];
             }}
           />
+          <ReferenceLine
+            y={average}
+            strokeDasharray="8 4"
+            stroke="#6B7280"
+            strokeOpacity={0.7}
+            strokeWidth={2}
+          />
+          <Legend
+            verticalAlign="bottom"
+            wrapperStyle={{
+              paddingTop: "12px",
+              fontSize: "12px",
+              color: "#9CA3AF",
+            }}
+            formatter={(value, _) => (
+              <span style={{ color: "#9CA3AF" }}>{value}</span>
+            )}
+            content={(props) => {
+              return (
+                <div className="flex items-center justify-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-xs bg-blue-400/90" />
+                    <span className="text-xs text-gray-400">
+                      Percent Returns
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-px w-6 border-t-2 border-dashed border-gray-500" />
+                    <span className="text-xs text-gray-400">
+                      Average Returns ({average}%)
+                    </span>
+                  </div>
+                </div>
+              );
+            }}
+          />
           <Bar
             dataKey="percentReturns"
             fill="#3b82f6"
             radius={[4, 4, 0, 0]}
             opacity={1}
           >
-            {chartData.length > 0 && (
-              <LabelList
-                dataKey="percentReturns"
-                position="top"
-                style={{ fill: "#fff", fontSize: "12px" }}
-                formatter={(value: unknown) =>
-                  `${parseFloat(value as string).toFixed(2)}%`
-                }
-              />
-            )}
+            <LabelList
+              dataKey="percentReturns"
+              position="top"
+              style={{ fill: "#fff", fontSize: "12px" }}
+              formatter={(value: unknown) =>
+                `${parseFloat(value as string).toFixed(2)}%`
+              }
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <NoDataOverlay show={chartData.length === 0} />
+      <NoDataOverlay show={hasNoData} />
     </DashboardWidget>
   );
 };
