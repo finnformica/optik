@@ -48,6 +48,16 @@ export const signIn = validatedAction(signInSchema, async (data) => {
   });
 
   if (error) {
+    // Check if the error is due to unconfirmed email
+    if (error.code === "email_not_confirmed") {
+      return {
+        error:
+          "Please confirm your email address before signing in. Check your email for a confirmation link.",
+        email,
+        password,
+      };
+    }
+
     return {
       error: "Invalid email or password. Please try again.",
       email,
@@ -96,9 +106,24 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
   const { data: authData, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${process.env.BASE_URL}${paths.auth.signIn}`,
+    },
   });
 
   if (signUpError) {
+    // Check if email already exists
+    if (signUpError.code === "email_exists") {
+      return {
+        error:
+          "An account with this email already exists. Please sign in instead.",
+        firstName,
+        lastName,
+        email,
+        password,
+      };
+    }
+
     return {
       error: signUpError.message,
       firstName,
