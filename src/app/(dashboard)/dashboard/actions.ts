@@ -59,7 +59,7 @@ export interface EnrichedPosition extends ViewPosition {
   itmPercentage?: number;
 }
 
-export async function getStockPrices(
+async function getStockPrices(
   symbols: string[]
 ): Promise<Record<string, StockPrice>> {
   if (symbols.length === 0) return {};

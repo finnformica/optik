@@ -1,4 +1,4 @@
-import { setSession } from "@/lib/auth/session";
+import { updateAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { dimAccount, dimUser } from "@/lib/db/schema";
 import { stripe } from "@/lib/payments/stripe";
@@ -88,7 +88,8 @@ export async function GET(request: NextRequest) {
     //   })
     //   .where(eq(teams.id, userTeam[0].teamId));
 
-    await setSession(user[0], user[0].accountKey);
+    // Update the authenticated user's account key
+    await updateAccountKey(user[0].accountKey);
     return NextResponse.redirect(new URL(paths.dashboard, request.url));
   } catch (error) {
     console.error("Error handling successful checkout:", error);

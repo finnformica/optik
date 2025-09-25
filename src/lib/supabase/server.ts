@@ -64,22 +64,11 @@ export async function getCurrentAccountKey(): Promise<number> {
   return accountKey;
 }
 
-export async function getUserWithAccountKey() {
-  const user = await getAuthenticatedUser();
-  const accountKey = user.user_metadata?.accountKey;
-
-  if (!accountKey || typeof accountKey !== "number") {
-    throw new Error("No account key found in user metadata");
-  }
-
-  return { user, accountKey };
-}
-
 export async function updateAccountKey(accountKey: number) {
   const supabase = await createClient();
   // Update user metadata with the new account key
   const { error } = await supabase.auth.updateUser({
-    data: { accountKey }
+    data: { accountKey },
   });
 
   if (error) {
