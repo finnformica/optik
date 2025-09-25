@@ -109,8 +109,7 @@ export const dimUser = pgTable(
     firstName: varchar("first_name", { length: 50 }),
     lastName: varchar("last_name", { length: 50 }),
     email: varchar("email", { length: 255 }).notNull().unique(),
-    passwordHash: text("password_hash").notNull(),
-    role: varchar("role", { length: 20 }).notNull().default("member"),
+    role: varchar("role", { length: 20 }).notNull().default("basic"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     deletedAt: timestamp("deleted_at"),
@@ -479,7 +478,10 @@ export const factStockPrices = pgTable(
     ),
     // Performance indexes
     index("idx_fact_stock_prices_symbol").on(table.symbol),
-    index("idx_fact_stock_prices_date_time").on(table.dateKey, table.quarterHour),
+    index("idx_fact_stock_prices_date_time").on(
+      table.dateKey,
+      table.quarterHour
+    ),
     index("idx_fact_stock_prices_created_at").on(table.createdAt),
     // RLS Policy - all authenticated users can read stock prices
     pgPolicy("authenticated_can_read_stock_prices", {

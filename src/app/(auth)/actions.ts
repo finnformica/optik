@@ -123,8 +123,7 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     firstName,
     lastName,
     email,
-    passwordHash: "", // Not needed since Supabase handles auth
-    role: "member",
+    role: "basic",
   };
 
   const [createdUser] = await db.insert(dimUser).values(newUser).returning();
