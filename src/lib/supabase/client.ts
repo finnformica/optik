@@ -8,7 +8,7 @@ function createClient() {
   );
 }
 
-export function useCurrentAccountKey(): {
+export function useAccountKey(): {
   accountKey: number | null;
   refresh: () => Promise<void>;
 } {

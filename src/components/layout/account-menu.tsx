@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useGetUserAccounts } from "@/api/accounts";
-import { useCurrentAccountKey } from "@/lib/supabase/client";
+import { useAccountKey } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,7 +37,7 @@ import { deleteAccount, switchAccount } from "./actions";
 export function AccountMenu() {
   const { mutate: globalMutate } = useSWRConfig();
   const { accounts, mutate } = useGetUserAccounts();
-  const { accountKey, refresh } = useCurrentAccountKey();
+  const { accountKey, refresh } = useAccountKey();
 
   const [loading, setLoading] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<number | null>(null);

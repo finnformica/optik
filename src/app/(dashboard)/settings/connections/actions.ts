@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentAccountKey } from "@/lib/supabase/server";
+import { getAccountKey } from "@/lib/supabase/server";
 import { SchwabAuth } from "@/lib/connections/schwab/oauth";
 import { db } from "@/lib/db/config";
 import { dimAccountAccessToken } from "@/lib/db/schema";
@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function disconnectSchwab() {
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   try {
     await db

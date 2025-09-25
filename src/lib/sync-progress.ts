@@ -1,4 +1,4 @@
-import { getCurrentAccountKey } from "@/lib/supabase/server";
+import { getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { NewRtmSyncProgress, rtmSyncProgress } from "@/lib/db/schema";
 import { SyncStatus } from "@/types/sync-progress";
@@ -6,7 +6,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 // Helper functions to manage sync sessions
 export async function startSyncSession() {
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   // Insert or update table
   const values: NewRtmSyncProgress = {
@@ -35,7 +35,7 @@ export async function updateSyncProgress(
     remaining?: number;
   }
 ) {
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   await db
     .update(rtmSyncProgress)
@@ -52,7 +52,7 @@ export async function updateSyncProgress(
 
 // Get active sync session for account (to prevent multiple concurrent syncs)
 export async function getActiveSyncSession() {
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   const [activeSession] = await db
     .select()

@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import { validatedActionWithUser } from "@/lib/auth/middleware";
-import { updateAccountKey, getCurrentAccountKey } from "@/lib/supabase/server";
+import { updateAccountKey, getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { dimAccount } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -66,7 +66,7 @@ export const deleteAccount = validatedActionWithUser(
   async (data, _, user, supabaseUser) => {
     const { accountKey } = data;
 
-    const currentAccountKey = await getCurrentAccountKey();
+    const currentAccountKey = await getAccountKey();
 
     if (currentAccountKey === accountKey) {
       return { error: "Current account cannot be deleted." };

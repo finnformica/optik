@@ -4,7 +4,7 @@ import PortfolioDistribution from "@/components/dashboard/portfolio-distribution
 import ProfitDistribution from "@/components/dashboard/profit-distribution";
 import SummaryStats from "@/components/dashboard/summary-stats";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
-import { getCurrentAccountKey } from "@/lib/supabase/server";
+import { getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import {
   viewPortfolioDistribution,
@@ -16,7 +16,7 @@ import { eq } from "drizzle-orm";
 import { getPositionsWithPrices } from "./actions";
 
 export default async function DashboardPage() {
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   // Fetch all analytics data in parallel
   const [

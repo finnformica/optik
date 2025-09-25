@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentAccountKey } from "@/lib/supabase/server";
+import { getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { dimAccountAccessToken } from "@/lib/db/schema";
 import { paths } from "@/lib/utils";
@@ -11,7 +11,7 @@ import Link from "next/link";
 import { connectSchwab, disconnectSchwab } from "./actions";
 
 async function getSchwabConnectionStatus() {
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   try {
     const token = await db

@@ -5,7 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { syncTransactions } from "@/api/transactions";
-import { useCurrentAccountKey } from "@/lib/supabase/client";
+import { useAccountKey } from "@/lib/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
@@ -29,7 +29,7 @@ export function TransactionHeader({
   filteredTransactionsLength,
   onSyncComplete,
 }: TransactionHeaderProps) {
-  const currentAccountKey = useCurrentAccountKey();
+  const { accountKey } = useAccountKey();
 
   const [_syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,9 +59,9 @@ export function TransactionHeader({
 
   // Manage realtime subscription for sync progress
   useEffect(() => {
-    if (!currentAccountKey) return;
+    if (!accountKey) return;
 
-    const channelName = channels.syncSessionProgress(currentAccountKey);
+    const channelName = channels.syncSessionProgress(accountKey);
 
     const channel = supabase
       .channel(channelName, {
@@ -95,7 +95,7 @@ export function TransactionHeader({
     return () => {
       channel.unsubscribe();
     };
-  }, [currentAccountKey, onSyncComplete, setShowAlert, syncProgress]);
+  }, [accountKey, onSyncComplete, setShowAlert, syncProgress]);
 
   const syncing = loading || _syncing;
 

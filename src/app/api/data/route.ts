@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { getCurrentAccountKey } from "@/lib/supabase/server";
+import { getAccountKey } from "@/lib/supabase/server";
 import {
   SchwabAuth,
   SchwabAuthenticationError,
@@ -109,7 +109,7 @@ export async function POST() {
     }
 
     // Get the count of pending transactions to process
-    const accountKey = await getCurrentAccountKey();
+    const accountKey = await getAccountKey();
     const [pendingCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(stgTransaction)

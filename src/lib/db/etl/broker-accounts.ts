@@ -1,4 +1,4 @@
-import { getCurrentAccountKey } from "@/lib/supabase/server";
+import { getAccountKey } from "@/lib/supabase/server";
 import { SchwabAuth } from "@/lib/connections/schwab/oauth";
 import { db } from "@/lib/db/config";
 import {
@@ -17,7 +17,7 @@ import { and, desc, eq, notInArray } from "drizzle-orm";
  */
 export async function syncSchwabBrokerAccounts(): Promise<void> {
   const schwabAuth = new SchwabAuth();
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   try {
     // Get account info from Schwab API
@@ -92,7 +92,7 @@ async function markMissingAccountsInactive(
 ): Promise<void> {
   if (activeAccountNumbers.length === 0) return;
 
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   await db
     .update(dimBrokerAccount)
@@ -116,7 +116,7 @@ async function markMissingAccountsInactive(
  * Get all active broker accounts for a user that have valid access tokens
  */
 export async function getActiveBrokerAccounts(brokerCode: string) {
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   return await db
     .select({
@@ -154,7 +154,7 @@ export async function getActiveBrokerAccounts(brokerCode: string) {
 export async function getLastTransactionDate(
   brokerCode: string
 ): Promise<Date> {
-  const accountKey = await getCurrentAccountKey();
+  const accountKey = await getAccountKey();
 
   const result = await db
     .select({

@@ -53,7 +53,7 @@ export async function getAuthenticatedUser() {
   return user;
 }
 
-export async function getCurrentAccountKey(): Promise<number> {
+export async function getAccountKey(): Promise<number> {
   const user = await getAuthenticatedUser();
   const accountKey = user.user_metadata?.accountKey;
 
