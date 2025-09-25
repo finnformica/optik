@@ -1,6 +1,6 @@
 "use server";
 
-import { getAccountKey } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/supabase/server";
 import { SchwabAuth } from "@/lib/connections/schwab/oauth";
 import { db } from "@/lib/db/config";
 import { dimAccountAccessToken } from "@/lib/db/schema";

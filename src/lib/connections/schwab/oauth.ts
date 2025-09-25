@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { getAccountKey } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/supabase/server";
 import { TokenEncryption } from "@/lib/auth/token-encryption";
 import { db } from "@/lib/db/config";
 import { SchwabActivity } from "@/lib/db/etl/schwab";

@@ -1,7 +1,7 @@
-import { setSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import { dimAccount, dimUser } from "@/lib/db/schema";
 import { stripe } from "@/lib/payments/stripe";
+import { updateAccountKey } from "@/lib/supabase/server";
 import { paths } from "@/lib/utils";
 import { eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -60,7 +60,6 @@ export async function GET(request: NextRequest) {
         id: dimUser.id,
         name: sql`${dimUser.firstName} ${dimUser.lastName}`,
         email: dimUser.email,
-        passwordHash: dimUser.passwordHash,
         role: dimUser.role,
         createdAt: dimUser.createdAt,
         updatedAt: dimUser.updatedAt,
@@ -88,7 +87,8 @@ export async function GET(request: NextRequest) {
     //   })
     //   .where(eq(teams.id, userTeam[0].teamId));
 
-    await setSession(user[0], user[0].accountKey);
+    // Update the authenticated user's account key
+    await updateAccountKey(user[0].accountKey);
     return NextResponse.redirect(new URL(paths.dashboard, request.url));
   } catch (error) {
     console.error("Error handling successful checkout:", error);

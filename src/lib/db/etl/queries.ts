@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import { getAccountKey } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { stgTransaction } from "@/lib/db/schema";
 import { updateSyncProgress } from "@/lib/sync-progress";

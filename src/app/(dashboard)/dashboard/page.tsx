@@ -4,7 +4,7 @@ import PortfolioDistribution from "@/components/dashboard/portfolio-distribution
 import ProfitDistribution from "@/components/dashboard/profit-distribution";
 import SummaryStats from "@/components/dashboard/summary-stats";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
-import { getAccountKey } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import {
   viewPortfolioDistribution,

@@ -1,17 +1,17 @@
 "use server";
 
+import { eq, sql } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+
 import {
   validatedAction,
   validatedActionWithUser,
 } from "@/lib/auth/middleware";
-import { comparePasswords, hashPassword, setSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/config";
 import { dimAccount, dimUser, type NewDimUser } from "@/lib/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { paths } from "@/lib/utils";
-import { eq, sql } from "drizzle-orm";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { z } from "zod";
 
 const signInSchema = z.object({
   email: z.email().min(3).max(255),
@@ -21,11 +21,10 @@ const signInSchema = z.object({
 export const signIn = validatedAction(signInSchema, async (data) => {
   const { email, password } = data;
 
+  // First, check if user exists in our database and get their account info
   const [foundUser] = await db
     .select({
       id: dimUser.id,
-      email: dimUser.email,
-      passwordHash: dimUser.passwordHash,
       accountKey: dimAccount.accountKey,
     })
     .from(dimUser)
@@ -41,12 +40,14 @@ export const signIn = validatedAction(signInSchema, async (data) => {
     };
   }
 
-  const isPasswordValid = await comparePasswords(
+  // Sign in with Supabase
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
     password,
-    foundUser.passwordHash
-  );
+  });
 
-  if (!isPasswordValid) {
+  if (error) {
     return {
       error: "Invalid email or password. Please try again.",
       email,
@@ -54,7 +55,10 @@ export const signIn = validatedAction(signInSchema, async (data) => {
     };
   }
 
-  await setSession(foundUser, foundUser.accountKey);
+  // Update user metadata with account key
+  await supabase.auth.updateUser({
+    data: { accountKey: foundUser.accountKey },
+  });
 
   redirect(paths.dashboard);
 });
@@ -69,6 +73,7 @@ const signUpSchema = z.object({
 export const signUp = validatedAction(signUpSchema, async (data) => {
   const { firstName, lastName, email, password } = data;
 
+  // Check if user already exists in our database
   const [existingUser] = await db
     .select()
     .from(dimUser)
@@ -86,19 +91,24 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     };
   }
 
-  const passwordHash = await hashPassword(password);
-
-  const newUser: NewDimUser = {
-    firstName,
-    lastName,
+  // Sign up with Supabase Auth
+  const supabase = await createClient();
+  const { data: authData, error: signUpError } = await supabase.auth.signUp({
     email,
-    passwordHash,
-    role: "member",
-  };
+    password,
+  });
 
-  const [createdUser] = await db.insert(dimUser).values(newUser).returning();
+  if (signUpError) {
+    return {
+      error: signUpError.message,
+      firstName,
+      lastName,
+      email,
+      password,
+    };
+  }
 
-  if (!createdUser) {
+  if (!authData.user) {
     return {
       error: "Failed to create user. Please try again.",
       firstName,
@@ -108,7 +118,27 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     };
   }
 
-  // Create a default account for the new user using first name
+  // Create user record in our database
+  const newUser: NewDimUser = {
+    firstName,
+    lastName,
+    email,
+    role: "basic",
+  };
+
+  const [createdUser] = await db.insert(dimUser).values(newUser).returning();
+
+  if (!createdUser) {
+    return {
+      error: "Failed to create user profile. Please try again.",
+      firstName,
+      lastName,
+      email,
+      password,
+    };
+  }
+
+  // Create a default account for the new user
   const [createdAccount] = await db
     .insert(dimAccount)
     .values({
@@ -119,65 +149,51 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     })
     .returning();
 
-  await setSession(createdUser, createdAccount.accountKey);
+  // Update user metadata with account key
+  await supabase.auth.updateUser({
+    data: { accountKey: createdAccount.accountKey },
+  });
 
   redirect(paths.dashboard);
 });
 
 export async function signOut() {
-  (await cookies()).delete("session");
+  const supabase = await createClient();
+  await supabase.auth.signOut();
   redirect(paths.auth.signIn);
 }
 
 const updatePasswordSchema = z.object({
-  currentPassword: z.string().min(8).max(100),
   newPassword: z.string().min(8).max(100),
   confirmPassword: z.string().min(8).max(100),
 });
 
 export const updatePassword = validatedActionWithUser(
   updatePasswordSchema,
-  async (data, _, user) => {
-    const { currentPassword, newPassword, confirmPassword } = data;
-
-    const isPasswordValid = await comparePasswords(
-      currentPassword,
-      user.passwordHash
-    );
-
-    if (!isPasswordValid) {
-      return {
-        currentPassword,
-        newPassword,
-        confirmPassword,
-        error: "Current password is incorrect.",
-      };
-    }
-
-    if (currentPassword === newPassword) {
-      return {
-        currentPassword,
-        newPassword,
-        confirmPassword,
-        error: "New password must be different from the current password.",
-      };
-    }
+  async (data, _, user, supabaseUser) => {
+    const { newPassword, confirmPassword } = data;
 
     if (confirmPassword !== newPassword) {
       return {
-        currentPassword,
         newPassword,
         confirmPassword,
         error: "New password and confirmation password do not match.",
       };
     }
 
-    const newPasswordHash = await hashPassword(newPassword);
+    // Update password with Supabase Auth
+    const supabase = await createClient();
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
 
-    await db
-      .update(dimUser)
-      .set({ passwordHash: newPasswordHash })
-      .where(eq(dimUser.id, user.id));
+    if (error) {
+      return {
+        newPassword,
+        confirmPassword,
+        error: error.message,
+      };
+    }
 
     return {
       success: "Password updated successfully.",
@@ -186,32 +202,34 @@ export const updatePassword = validatedActionWithUser(
 );
 
 const deleteAccountSchema = z.object({
-  password: z.string().min(8).max(100),
+  confirmDelete: z.string().refine((val) => val === "DELETE", {
+    message: "Please type DELETE to confirm account deletion",
+  }),
 });
 
 export const deleteAccount = validatedActionWithUser(
   deleteAccountSchema,
-  async (data, _, user) => {
-    const { password } = data;
-
-    const isPasswordValid = await comparePasswords(password, user.passwordHash);
-    if (!isPasswordValid) {
-      return {
-        password,
-        error: "Incorrect password. Account deletion failed.",
-      };
-    }
-
-    // Soft delete
+  async (data, _, user, supabaseUser) => {
+    // First, soft delete from our database to retain user data
     await db
       .update(dimUser)
       .set({
         deletedAt: sql`CURRENT_TIMESTAMP`,
-        email: sql`CONCAT(email, '-', id, '-deleted')`, // Ensure email uniqueness
+        email: sql`CONCAT(email, '-', extract(epoch from now()), '-deleted')`, // Ensure email uniqueness
       })
-      .where(eq(dimUser.id, user.id));
+      .where(eq(dimUser.email, user.email));
 
-    (await cookies()).delete("session");
+    // Then delete user from Supabase Auth (this will automatically sign them out)
+    const supabase = await createClient();
+    const { error } = await supabase.auth.admin.deleteUser(supabaseUser.id);
+
+    if (error) {
+      return {
+        confirmDelete: "",
+        error: "Failed to delete account. Please try again.",
+      };
+    }
+
     redirect(paths.auth.signIn);
   }
 );
@@ -224,9 +242,30 @@ const updateAccountSchema = z.object({
 
 export const updateAccount = validatedActionWithUser(
   updateAccountSchema,
-  async (data, _, user) => {
+  async (data, _, user, supabaseUser) => {
     const { firstName, lastName, email } = data;
 
+    // Update user metadata in Supabase
+    const supabase = await createClient();
+    const { error } = await supabase.auth.updateUser({
+      email: email,
+      data: {
+        firstName,
+        lastName,
+        accountKey: supabaseUser.user_metadata?.accountKey, // Preserve existing account key
+      },
+    });
+
+    if (error) {
+      return {
+        firstName,
+        lastName,
+        email,
+        error: error.message,
+      };
+    }
+
+    // Also update in our database for consistency
     await db
       .update(dimUser)
       .set({ firstName, lastName, email })

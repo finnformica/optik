@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { getAccountKey } from "@/lib/auth/session";
+import { getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { viewPortfolioSummary, ViewPortfolioSummary } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";

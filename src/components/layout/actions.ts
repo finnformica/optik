@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import { validatedActionWithUser } from "@/lib/auth/middleware";
-import { getSession, updateSessionAccountKey } from "@/lib/auth/session";
+import { updateAccountKey, getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { dimAccount } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -17,7 +17,7 @@ const createAccountSchema = z.object({
 
 export const createAccount = validatedActionWithUser(
   createAccountSchema,
-  async (data, _, user) => {
+  async (data, _, user, supabaseUser) => {
     const { accountName } = data;
 
     await db.insert(dimAccount).values({
@@ -42,7 +42,7 @@ const updateAccountSchema = z.object({
 
 export const updateAccount = validatedActionWithUser(
   updateAccountSchema,
-  async (data, _, user) => {
+  async (data, _, user, supabaseUser) => {
     const { accountKey, accountName } = data;
 
     await db
@@ -63,12 +63,12 @@ const deleteAccountSchema = z.object({
 
 export const deleteAccount = validatedActionWithUser(
   deleteAccountSchema,
-  async (data, _, user) => {
+  async (data, _, user, supabaseUser) => {
     const { accountKey } = data;
 
-    const session = await getSession();
+    const currentAccountKey = await getAccountKey();
 
-    if (session.accountKey === accountKey) {
+    if (currentAccountKey === accountKey) {
       return { error: "Current account cannot be deleted." };
     }
 
@@ -90,7 +90,7 @@ const switchAccountSchema = z.object({
 
 export const switchAccount = validatedActionWithUser(
   switchAccountSchema,
-  async (data, _, user) => {
+  async (data, _, user, supabaseUser) => {
     const { accountKey } = data;
 
     // Verify the account belongs to the user
@@ -104,8 +104,8 @@ export const switchAccount = validatedActionWithUser(
       return { error: "Account not found or access denied." };
     }
 
-    // Update the session with the new account key
-    await updateSessionAccountKey(accountKey);
+    // Update the user metadata with the new account key
+    await updateAccountKey(accountKey);
 
     return { success: "Account switched successfully." };
   },
