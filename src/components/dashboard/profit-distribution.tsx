@@ -1,7 +1,7 @@
 "use client";
 
+import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
 import { NoDataOverlay } from "@/components/dashboard/no-data-overlay";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ViewProfitDistribution } from "@/lib/db/schema";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
@@ -172,77 +172,72 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
   };
 
   return (
-    <Card className="bg-[#1a2236] border-gray-800 py-0 gap-0">
-      <CardHeader className="border-b border-gray-800 p-4">
-        <CardTitle className="text-white">Profit Distribution</CardTitle>
-      </CardHeader>
-      <CardContent className="p-4">
-        <div className="h-[300px] flex items-center justify-center relative">
-          <ResponsiveContainer
-            key={hasNoData.toString()}
-            width="100%"
-            height="100%"
-          >
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={80}
-                outerRadius={120}
-                paddingAngle={0}
-                stroke="none"
-                dataKey="value"
-                label={renderCustomisedLabel}
-                labelLine={false}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1a2236",
-                  border: "1px solid #374151",
-                  borderRadius: "8px",
-                  color: "#fff",
-                }}
-                formatter={(value: number, name: string) => {
-                  const dataPoint = data.find((d) => d.name === name);
-                  const percentage =
-                    totalForProcessing > 0
-                      ? ((value / totalForProcessing) * 100).toFixed(1)
-                      : "0";
+    <DashboardWidget title="Profit Distribution" className="gap-0" contentClassName="p-4">
+      <div className="h-[300px] flex items-center justify-center relative">
+        <ResponsiveContainer
+          key={hasNoData.toString()}
+          width="100%"
+          height="100%"
+        >
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={80}
+              outerRadius={120}
+              paddingAngle={0}
+              stroke="none"
+              dataKey="value"
+              label={renderCustomisedLabel}
+              labelLine={false}
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#1a2236",
+                border: "1px solid #374151",
+                borderRadius: "8px",
+                color: "#fff",
+              }}
+              formatter={(value: number, name: string) => {
+                const dataPoint = data.find((d) => d.name === name);
+                const percentage =
+                  totalForProcessing > 0
+                    ? ((value / totalForProcessing) * 100).toFixed(1)
+                    : "0";
 
-                  const isProfit = dataPoint?.isProfit ?? false;
-                  const originalValue = dataPoint?.originalValue ?? 0;
-                  const trades = dataPoint?.trades ?? 0;
+                const isProfit = dataPoint?.isProfit ?? false;
+                const originalValue = dataPoint?.originalValue ?? 0;
+                const trades = dataPoint?.trades ?? 0;
 
-                  return [
-                    <div key="tooltip-content">
-                      <div className="font-medium text-white">{name}</div>
-                      <div
-                        className={`text-sm ${
-                          isProfit ? "text-green-400" : "text-red-400"
-                        }`}
-                      >
-                        {isProfit ? "+" : ""}${originalValue.toLocaleString()} (
-                        {percentage}%)
-                      </div>
-                      <div className="text-gray-300 text-xs">
-                        {trades} trade{trades !== 1 ? "s" : ""}
-                      </div>
-                    </div>,
-                    null,
-                  ];
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <NoDataOverlay show={hasNoData} />
-        </div>
-      </CardContent>
-    </Card>
+                return [
+                  <div key="tooltip-content">
+                    <div className="font-medium text-white">{name}</div>
+                    <div
+                      className={`text-sm ${
+                        isProfit ? "text-green-400" : "text-red-400"
+                      }`}
+                    >
+                      {isProfit ? "+" : ""}${originalValue.toLocaleString()} (
+                      {percentage}%)
+                    </div>
+                    <div className="text-gray-300 text-xs">
+                      {trades} trade{trades !== 1 ? "s" : ""}
+                    </div>
+                  </div>,
+                  null,
+                ];
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <NoDataOverlay show={hasNoData} />
+      </div>
+    </DashboardWidget>
   );
 };
 
