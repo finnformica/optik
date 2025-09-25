@@ -1,5 +1,6 @@
 "use client";
 
+import { NoDataOverlay } from "@/components/dashboard/no-data-overlay";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ViewPortfolioDistribution } from "@/lib/db/schema";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
@@ -41,14 +42,24 @@ const PortfolioDistribution = ({
   // Check if there's no data to display
   const hasNoData = distribution.length === 0 && cashBalance === 0;
 
-  const data = [
-    ...distribution,
-    { symbol: "Cash", positionValue: cashBalance.toString() },
-  ].map((item, index) => ({
-    name: item.symbol,
-    value: parseFloat(item.positionValue || "0"),
-    fill: item.symbol === "Cash" ? CASH_COLOR : getColor(index),
-  }));
+  // Mock data for empty state
+  const emptyStateData = [
+    { name: "Stock A", value: 25, fill: COLORS[0] },
+    { name: "Stock B", value: 20, fill: COLORS[1] },
+    { name: "Stock C", value: 15, fill: COLORS[2] },
+    { name: "Cash", value: 40, fill: CASH_COLOR },
+  ];
+
+  const data = hasNoData
+    ? emptyStateData
+    : [
+        ...distribution,
+        { symbol: "Cash", positionValue: cashBalance.toString() },
+      ].map((item, index) => ({
+        name: item.symbol,
+        value: parseFloat(item.positionValue || "0"),
+        fill: item.symbol === "Cash" ? CASH_COLOR : getColor(index),
+      }));
 
   // Calculate positions for labels extending from the pie chart
   const renderCustomisedLabel = ({
@@ -65,8 +76,9 @@ const PortfolioDistribution = ({
 
     // Calculate the percentage for this segment
     const value = data[index].value;
+    const displayTotal = hasNoData ? 100 : totalValue;
     const percentage =
-      totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : "0";
+      displayTotal > 0 ? ((value / displayTotal) * 100).toFixed(1) : "0";
 
     return (
       <g>
@@ -100,55 +112,57 @@ const PortfolioDistribution = ({
         <CardTitle className="text-white">Portfolio Distribution</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="h-[300px] flex items-center justify-center">
-          {hasNoData ? (
-            <p className="text-gray-400">No portfolio data available</p>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={80}
-                  outerRadius={120}
-                  paddingAngle={0}
-                  stroke="none"
-                  dataKey="value"
-                  label={renderCustomisedLabel}
-                  labelLine={false}
-                >
-                  {data.map((item, index) => (
-                    <Cell key={`cell-${index}`} fill={item.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1a2236",
-                    border: "1px solid #374151",
-                    borderRadius: "8px",
-                    color: "#fff",
-                  }}
-                  formatter={(value: number, name: string) => {
-                    const percentage =
-                      totalValue > 0
-                        ? ((value / totalValue) * 100).toFixed(1)
-                        : "0";
+        <div className="h-[300px] flex items-center justify-center relative">
+          <ResponsiveContainer
+            key={hasNoData.toString()}
+            width="100%"
+            height="100%"
+          >
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={80}
+                outerRadius={120}
+                paddingAngle={0}
+                stroke="none"
+                dataKey="value"
+                label={renderCustomisedLabel}
+                labelLine={false}
+              >
+                {data.map((item, index) => (
+                  <Cell key={`cell-${index}`} fill={item.fill} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#1a2236",
+                  border: "1px solid #374151",
+                  borderRadius: "8px",
+                  color: "#fff",
+                }}
+                formatter={(value: number, name: string) => {
+                  const displayTotal = hasNoData ? 100 : totalValue;
+                  const percentage =
+                    displayTotal > 0
+                      ? ((value / displayTotal) * 100).toFixed(1)
+                      : "0";
 
-                    return [
-                      <div key="tooltip-content">
-                        <div className="font-medium text-white">{name}</div>
-                        <div className="text-gray-300">
-                          ${value.toLocaleString()} ({percentage}%)
-                        </div>
-                      </div>,
-                      null,
-                    ];
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+                  return [
+                    <div key="tooltip-content">
+                      <div className="font-medium text-white">{name}</div>
+                      <div className="text-gray-300">
+                        ${value.toLocaleString()} ({percentage}%)
+                      </div>
+                    </div>,
+                    null,
+                  ];
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <NoDataOverlay show={hasNoData} />
         </div>
       </CardContent>
     </Card>

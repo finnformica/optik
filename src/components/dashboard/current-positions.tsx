@@ -63,96 +63,97 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
         <CardTitle className="text-white">Current Positions</CardTitle>
       </CardHeader>
       <CardContent className="px-2">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead>
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Symbol
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Strike
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Expiry
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Quantity
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider min-w-fit">
-                  <div className="flex items-center gap-1">
-                    Current
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="w-3.5 h-3.5 text-gray-500 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Current stock price refreshed every 15 minutes</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  ITM %
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {positions.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-3 py-8 text-center text-gray-400"
+        <table className="min-w-full divide-y divide-gray-700">
+          <thead>
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Symbol
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Strike
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Expiry
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Quantity
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider min-w-fit">
+                <div className="flex items-center gap-1">
+                  Current
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3.5 h-3.5 text-gray-500 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Current stock price refreshed every 15 minutes</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                ITM %
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-700">
+            {positions.length === 0
+              ? Array.from({ length: 3 }).map((_, index) => (
+                  <tr
+                    key={`empty-${index}`}
+                    className="[&_td]:px-3 [&_td]:opacity-50 [&_td]:py-2 [&_td]:whitespace-nowrap [&_td]:text-sm [&_td]:text-gray-600"
                   >
-                    No open positions found
-                  </td>
-                </tr>
-              ) : (
-                positions.map((position, index) => {
+                    <td>---</td>
+                    <td>---</td>
+                    <td>---</td>
+                    <td>---</td>
+                    <td>---</td>
+                    <td>---</td>
+                    <td>---</td>
+                  </tr>
+                ))
+              : positions.map((position, index) => {
                   return (
                     <tr
                       key={`${position.underlyingSymbol}-${position.strikePrice}-${index}`}
+                      className="[&_td]:px-3 [&_td]:py-2 [&_td]:whitespace-nowrap [&_td]:text-sm [&_td]:text-gray-300"
                     >
-                      <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-white">
+                      <td className="font-medium text-white">
                         {position.underlyingSymbol}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
+                      <td>
                         {position.optionType ?? position.securityType ?? "N/A"}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
+                      <td>
                         {position.strikePrice
                           ? `$${parseFloat(position.strikePrice).toFixed(2)}`
                           : "-"}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
+                      <td>
                         {position.expiryDate
                           ? new Date(position.expiryDate).toLocaleDateString()
                           : "-"}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
+                      <td>
                         {parseFloat(position.quantityHeld || "0") > 0
                           ? "+"
                           : ""}
                         {parseFloat(position.quantityHeld || "0")}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-300">
+                      <td>
                         {position.currentPrice
                           ? `$${position.currentPrice.toFixed(2)}`
                           : "-"}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm">
-                        {renderBadge(position.itmPercentage)}
-                      </td>
+                      <td>{renderBadge(position.itmPercentage)}</td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+          </tbody>
+        </table>
       </CardContent>
     </Card>
   );

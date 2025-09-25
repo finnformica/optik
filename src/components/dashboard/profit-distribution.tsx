@@ -1,5 +1,6 @@
 "use client";
 
+import { NoDataOverlay } from "@/components/dashboard/no-data-overlay";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ViewProfitDistribution } from "@/lib/db/schema";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
@@ -37,12 +38,33 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
   // Check if there's no data to display
   const hasNoData = profitData.length === 0 || totalAbsoluteProfit === 0;
 
+  // Mock data for empty state - formatted like incoming ViewProfitDistribution data
+  const mockProfitData = [
+    { underlyingSymbol: "AAPL", totalProfit: "3200", tradeCount: 8 },
+    { underlyingSymbol: "TSLA", totalProfit: "2100", tradeCount: 12 },
+    { underlyingSymbol: "NVDA", totalProfit: "1800", tradeCount: 6 },
+    { underlyingSymbol: "SPY", totalProfit: "-1200", tradeCount: 15 },
+    { underlyingSymbol: "MSFT", totalProfit: "950", tradeCount: 4 },
+    { underlyingSymbol: "AMZN", totalProfit: "-750", tradeCount: 7 },
+  ];
+
+  // Use mock data if no real data available
+  const dataToProcess = hasNoData ? mockProfitData : profitData;
+
+  // Calculate total for mock data if needed
+  const totalForProcessing = hasNoData
+    ? mockProfitData.reduce(
+        (sum, item) => sum + Math.abs(parseFloat(item.totalProfit)),
+        0
+      )
+    : totalAbsoluteProfit;
+
   // Process data and group small slices
   const processedData = (() => {
     const MIN_PERCENTAGE = 3; // Group anything smaller than 3%
     const MAX_INDIVIDUAL_ITEMS = 10; // Show max 10 individual items
 
-    const sortedData = profitData
+    const sortedData = dataToProcess
       .map((item) => {
         const profit = parseFloat(item.totalProfit || "0");
         return {
@@ -52,8 +74,8 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
           trades: item.tradeCount,
           isProfit: profit > 0,
           percentage:
-            totalAbsoluteProfit > 0
-              ? (Math.abs(profit) / totalAbsoluteProfit) * 100
+            totalForProcessing > 0
+              ? (Math.abs(profit) / totalForProcessing) * 100
               : 0,
         };
       })
@@ -92,9 +114,7 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
         trades: othersTrades,
         isProfit: othersOriginalValue > 0,
         percentage:
-          totalAbsoluteProfit > 0
-            ? (othersValue / totalAbsoluteProfit) * 100
-            : 0,
+          totalForProcessing > 0 ? (othersValue / totalForProcessing) * 100 : 0,
       });
     }
 
@@ -121,8 +141,8 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
 
     const value = data[index]?.value ?? 0;
     const percentage =
-      totalAbsoluteProfit > 0
-        ? ((value / totalAbsoluteProfit) * 100).toFixed(1)
+      totalForProcessing > 0
+        ? ((value / totalForProcessing) * 100).toFixed(1)
         : "0";
 
     return (
@@ -157,68 +177,69 @@ const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
         <CardTitle className="text-white">Profit Distribution</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="h-[300px] flex items-center justify-center">
-          {hasNoData ? (
-            <p className="text-gray-400">No profit/loss data available</p>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={80}
-                  outerRadius={120}
-                  paddingAngle={0}
-                  stroke="none"
-                  dataKey="value"
-                  label={renderCustomisedLabel}
-                  labelLine={false}
-                >
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1a2236",
-                    border: "1px solid #374151",
-                    borderRadius: "8px",
-                    color: "#fff",
-                  }}
-                  formatter={(value: number, name: string) => {
-                    const dataPoint = data.find((d) => d.name === name);
-                    const percentage =
-                      totalAbsoluteProfit > 0
-                        ? ((value / totalAbsoluteProfit) * 100).toFixed(1)
-                        : "0";
+        <div className="h-[300px] flex items-center justify-center relative">
+          <ResponsiveContainer
+            key={hasNoData.toString()}
+            width="100%"
+            height="100%"
+          >
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={80}
+                outerRadius={120}
+                paddingAngle={0}
+                stroke="none"
+                dataKey="value"
+                label={renderCustomisedLabel}
+                labelLine={false}
+              >
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#1a2236",
+                  border: "1px solid #374151",
+                  borderRadius: "8px",
+                  color: "#fff",
+                }}
+                formatter={(value: number, name: string) => {
+                  const dataPoint = data.find((d) => d.name === name);
+                  const percentage =
+                    totalForProcessing > 0
+                      ? ((value / totalForProcessing) * 100).toFixed(1)
+                      : "0";
 
-                    const isProfit = dataPoint?.isProfit ?? false;
-                    const originalValue = dataPoint?.originalValue ?? 0;
-                    const trades = dataPoint?.trades ?? 0;
+                  const isProfit = dataPoint?.isProfit ?? false;
+                  const originalValue = dataPoint?.originalValue ?? 0;
+                  const trades = dataPoint?.trades ?? 0;
 
-                    return [
-                      <div key="tooltip-content">
-                        <div className="font-medium text-white">{name}</div>
-                        <div
-                          className={`text-sm ${
-                            isProfit ? "text-green-400" : "text-red-400"
-                          }`}
-                        >
-                          {isProfit ? "+" : ""}${originalValue.toLocaleString()}{" "}
-                          ({percentage}%)
-                        </div>
-                        <div className="text-gray-300 text-xs">
-                          {trades} trade{trades !== 1 ? "s" : ""}
-                        </div>
-                      </div>,
-                      null,
-                    ];
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+                  return [
+                    <div key="tooltip-content">
+                      <div className="font-medium text-white">{name}</div>
+                      <div
+                        className={`text-sm ${
+                          isProfit ? "text-green-400" : "text-red-400"
+                        }`}
+                      >
+                        {isProfit ? "+" : ""}${originalValue.toLocaleString()} (
+                        {percentage}%)
+                      </div>
+                      <div className="text-gray-300 text-xs">
+                        {trades} trade{trades !== 1 ? "s" : ""}
+                      </div>
+                    </div>,
+                    null,
+                  ];
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <NoDataOverlay show={hasNoData} />
         </div>
       </CardContent>
     </Card>
