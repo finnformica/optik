@@ -31,7 +31,7 @@ export const rtmSyncProgress = pgTable(
     id: serial("id").primaryKey(),
     accountKey: integer("account_key")
       .notNull()
-      .references(() => dimAccount.accountKey),
+      .references(() => dimAccount.accountKey, { onDelete: "cascade" }),
     status: varchar("status", { length: 20 }).notNull(),
     progress: integer("progress").notNull().default(0),
     total: integer("total").notNull().default(0),
@@ -58,7 +58,7 @@ export const stgTransaction = pgTable(
     id: serial("id").primaryKey(),
     accountKey: integer("account_key")
       .notNull()
-      .references(() => dimAccount.accountKey),
+      .references(() => dimAccount.accountKey, { onDelete: "cascade" }),
     brokerCode: varchar("broker_code", { length: 20 }).notNull(),
     brokerTransactionId: varchar("broker_transaction_id", {
       length: 50,
@@ -108,7 +108,9 @@ export const dimUser = pgTable(
   "dim_user",
   {
     id: serial("id").primaryKey(),
-    authUserId: uuid("auth_user_id").unique().references(() => authUsers.id),
+    authUserId: uuid("auth_user_id")
+      .unique()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
     firstName: varchar("first_name", { length: 50 }),
     lastName: varchar("last_name", { length: 50 }),
     email: varchar("email", { length: 255 }).notNull().unique(),
@@ -134,7 +136,7 @@ export const dimAccount = pgTable(
     accountKey: serial("account_key").primaryKey(),
     userId: integer("user_id")
       .notNull()
-      .references(() => dimUser.id),
+      .references(() => dimUser.id, { onDelete: "cascade" }),
     accountName: varchar("account_name", { length: 100 }).default(
       "Primary Account"
     ),
@@ -160,14 +162,14 @@ export const dimAccountAccessToken = pgTable(
     accessTokenKey: serial("access_token_key").primaryKey(),
     accountKey: integer("account_key")
       .notNull()
-      .references(() => dimAccount.accountKey),
+      .references(() => dimAccount.accountKey, { onDelete: "cascade" }),
     encryptedTokens: text("encrypted_tokens").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
     tokenType: varchar("token_type", { length: 50 }).notNull(),
     scope: varchar("scope", { length: 255 }).notNull(),
     brokerCode: varchar("broker_code", { length: 20 })
       .notNull()
-      .references(() => dimBroker.brokerCode),
+      .references(() => dimBroker.brokerCode, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -338,10 +340,10 @@ export const dimBrokerAccount = pgTable(
     brokerAccountKey: serial("broker_account_key").primaryKey(),
     accountKey: integer("account_key")
       .notNull()
-      .references(() => dimAccount.accountKey),
+      .references(() => dimAccount.accountKey, { onDelete: "cascade" }),
     brokerKey: integer("broker_key")
       .notNull()
-      .references(() => dimBroker.brokerKey),
+      .references(() => dimBroker.brokerKey, { onDelete: "cascade" }),
     brokerAccountNumber: varchar("broker_account_number", {
       length: 50,
     }).notNull(),
@@ -396,7 +398,7 @@ export const factTransaction = pgTable(
       .references(() => dimTime.timeKey),
     accountKey: integer("account_key")
       .notNull()
-      .references(() => dimAccount.accountKey),
+      .references(() => dimAccount.accountKey, { onDelete: "cascade" }),
     securityKey: integer("security_key").references(
       () => dimSecurity.securityKey
     ),
@@ -405,7 +407,7 @@ export const factTransaction = pgTable(
       .references(() => dimTransactionType.transactionTypeKey),
     brokerKey: integer("broker_key")
       .notNull()
-      .references(() => dimBroker.brokerKey),
+      .references(() => dimBroker.brokerKey, { onDelete: "no action" }),
 
     // Degenerate dimensions (stay in fact table)
     brokerTransactionId: varchar("broker_transaction_id", {
