@@ -37,7 +37,7 @@ import { deleteAccount, switchAccount } from "./actions";
 export function AccountMenu() {
   const { mutate: globalMutate } = useSWRConfig();
   const { accounts, mutate } = useGetUserAccounts();
-  const currentAccountKey = useCurrentAccountKey();
+  const { accountKey, refresh } = useCurrentAccountKey();
 
   const [loading, setLoading] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<number | null>(null);
@@ -47,7 +47,8 @@ export function AccountMenu() {
     formData.append("accountKey", accountKey.toString());
 
     switchAccount({}, formData).then(() => {
-      // Invalidate all API routes
+      // Refresh account key and invalidate all API routes
+      refresh();
       globalMutate((key) => typeof key === "string" && key.startsWith("/api/"));
     });
   };
@@ -83,7 +84,7 @@ export function AccountMenu() {
         <DropdownMenuLabel>Select account</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroupPrimitive
-          value={currentAccountKey?.toString() || ""}
+          value={accountKey?.toString() || ""}
           onValueChange={(value) => handleAccountSwitch(Number(value))}
         >
           {accounts?.map((account) => (
@@ -116,7 +117,7 @@ export function AccountMenu() {
                   onSelect={(e) => {
                     e.preventDefault();
 
-                    if (currentAccountKey === account.accountKey) {
+                    if (accountKey === account.accountKey) {
                       toast.error("Current account cannot be deleted");
                       return;
                     }

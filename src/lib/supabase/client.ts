@@ -8,33 +8,26 @@ function createClient() {
   );
 }
 
-export function useCurrentAccountKey(): number | null {
+export function useCurrentAccountKey(): {
+  accountKey: number | null;
+  refresh: () => Promise<void>;
+} {
   const [accountKey, setAccountKey] = useState<number | null>(null);
   const supabase = createClient();
 
-  useEffect(() => {
-    const getAccountKey = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setAccountKey(user?.user_metadata?.accountKey || null);
-    };
-
-    getAccountKey();
-
-    // Listen for auth state changes
+  const getAccountKey = async () => {
     const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async () => {
-      // Use getUser() instead of session.user for security
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setAccountKey(user?.user_metadata?.accountKey || null);
-    });
+      data: { user },
+    } = await supabase.auth.getUser();
+    setAccountKey(user?.user_metadata?.accountKey || null);
+  };
 
-    return () => subscription.unsubscribe();
-  }, [supabase]);
+  useEffect(() => {
+    getAccountKey();
+  }, []);
 
-  return accountKey;
+  return {
+    accountKey,
+    refresh: getAccountKey,
+  };
 }
