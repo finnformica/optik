@@ -54,57 +54,55 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
   ];
 
   return (
-    <DashboardWidget title="Weekly Returns" contentClassName="py-0">
-      <div className="h-[300px] relative">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData.length === 0 ? emptyStateData : chartData}
-            margin={{ top: 30, right: 30, left: 20, bottom: 5 }}
+    <DashboardWidget title="Weekly Returns" contentClassName="pt-6">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={chartData.length === 0 ? emptyStateData : chartData}
+          margin={{ top: 10, right: 30 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <XAxis dataKey="week" stroke="#9CA3AF" fontSize={12} />
+          <YAxis
+            stroke="#9CA3AF"
+            fontSize={12}
+            tickFormatter={(value) => `${value.toFixed(1)}%`}
+          />
+          <Tooltip
+            cursor={{ fill: "#0f172a", opacity: 0.5 }}
+            contentStyle={{
+              backgroundColor: "#1a2236",
+              border: "1px solid #374151",
+              borderRadius: "8px",
+              color: "#fff",
+            }}
+            formatter={(value: number, _: string, props: any) => {
+              const absoluteValue = props.payload.absoluteReturns;
+              return [
+                `${value.toFixed(2)}% ($${absoluteValue.toLocaleString()})`,
+                "Weekly Return",
+              ];
+            }}
+          />
+          <Bar
+            dataKey="percentReturns"
+            fill="#3b82f6"
+            radius={[4, 4, 0, 0]}
+            opacity={1}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis dataKey="week" stroke="#9CA3AF" fontSize={12} />
-            <YAxis
-              stroke="#9CA3AF"
-              fontSize={12}
-              tickFormatter={(value) => `${value.toFixed(1)}%`}
-            />
-            <Tooltip
-              cursor={{ fill: "#0f172a", opacity: 0.5 }}
-              contentStyle={{
-                backgroundColor: "#1a2236",
-                border: "1px solid #374151",
-                borderRadius: "8px",
-                color: "#fff",
-              }}
-              formatter={(value: number, _: string, props: any) => {
-                const absoluteValue = props.payload.absoluteReturns;
-                return [
-                  `${value.toFixed(2)}% ($${absoluteValue.toLocaleString()})`,
-                  "Weekly Return",
-                ];
-              }}
-            />
-            <Bar
-              dataKey="percentReturns"
-              fill="#3b82f6"
-              radius={[4, 4, 0, 0]}
-              opacity={1}
-            >
-              {chartData.length > 0 && (
-                <LabelList
-                  dataKey="percentReturns"
-                  position="top"
-                  style={{ fill: "#fff", fontSize: "12px" }}
-                  formatter={(value: unknown) =>
-                    `${parseFloat(value as string).toFixed(2)}%`
-                  }
-                />
-              )}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-        <NoDataOverlay show={chartData.length === 0} />
-      </div>
+            {chartData.length > 0 && (
+              <LabelList
+                dataKey="percentReturns"
+                position="top"
+                style={{ fill: "#fff", fontSize: "12px" }}
+                formatter={(value: unknown) =>
+                  `${parseFloat(value as string).toFixed(2)}%`
+                }
+              />
+            )}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <NoDataOverlay show={chartData.length === 0} />
     </DashboardWidget>
   );
 };

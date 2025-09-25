@@ -51,81 +51,79 @@ const AccountValueChart = ({ accountValueData }: AccountValueChartProps) => {
     { week: "Feb 12", "Account Value": 23900, Transfers: 15000 },
   ];
   return (
-    <DashboardWidget title="Account Value">
-      <div className="h-[300px] relative">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData.length === 0 ? emptyStateData : chartData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis dataKey="week" stroke="#9CA3AF" fontSize={12} />
-            <YAxis
-              stroke="#9CA3AF"
-              fontSize={12}
-              tickFormatter={(value) => `$${value.toLocaleString()}`}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#1a2236",
-                border: "1px solid #374151",
-                borderRadius: "8px",
-                color: "#fff",
-              }}
-              formatter={(value: number, name: string) => [
-                `$${value.toLocaleString()}`,
-                name,
-              ]}
-            />
-            <Legend
-              verticalAlign="bottom"
-              align="center"
-              wrapperStyle={{
-                color: "#fff",
-                fontSize: "12px",
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="Transfers"
-              stroke="#8b5cf6"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={{
-                fill: "#fff",
-                stroke: "#8b5cf6",
-                strokeWidth: 2,
-                r: 4,
-              }}
-              activeDot={{
-                r: 5,
-                stroke: "#8b5cf6",
-                strokeWidth: 2,
-                fill: "#fff",
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="Account Value"
-              stroke="#3b82f6"
-              strokeWidth={3}
-              dot={{
-                fill: "#fff",
-                stroke: "#3b82f6",
-                strokeWidth: 2,
-                r: 4,
-              }}
-              activeDot={{
-                r: 5,
-                stroke: "#3b82f6",
-                strokeWidth: 2,
-                fill: "#fff",
-              }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-        <NoDataOverlay show={chartData.length === 0} />
-      </div>
+    <DashboardWidget title="Account Value" contentClassName="pt-6">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={chartData.length === 0 ? emptyStateData : chartData}
+          margin={{ top: 10, right: 30, left: 5 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <XAxis dataKey="week" stroke="#9CA3AF" fontSize={12} />
+          <YAxis
+            stroke="#9CA3AF"
+            fontSize={12}
+            tickFormatter={(value) => `$${value.toLocaleString()}`}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#1a2236",
+              border: "1px solid #374151",
+              borderRadius: "8px",
+              color: "#fff",
+            }}
+            formatter={(value: number, name: string) => [
+              `$${value.toLocaleString()}`,
+              name,
+            ]}
+          />
+          <Legend
+            verticalAlign="bottom"
+            align="center"
+            wrapperStyle={{
+              color: "#fff",
+              fontSize: "12px",
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="Transfers"
+            stroke="#8b5cf6"
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={{
+              fill: "#fff",
+              stroke: "#8b5cf6",
+              strokeWidth: 2,
+              r: 4,
+            }}
+            activeDot={{
+              r: 5,
+              stroke: "#8b5cf6",
+              strokeWidth: 2,
+              fill: "#fff",
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="Account Value"
+            stroke="#3b82f6"
+            strokeWidth={3}
+            dot={{
+              fill: "#fff",
+              stroke: "#3b82f6",
+              strokeWidth: 2,
+              r: 4,
+            }}
+            activeDot={{
+              r: 5,
+              stroke: "#3b82f6",
+              strokeWidth: 2,
+              fill: "#fff",
+            }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      <NoDataOverlay show={chartData.length === 0} />
     </DashboardWidget>
   );
 };

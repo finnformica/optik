@@ -107,59 +107,57 @@ const PortfolioDistribution = ({
   };
 
   return (
-    <DashboardWidget title="Portfolio Distribution" className="gap-0" contentClassName="p-4">
-      <div className="h-[300px] flex items-center justify-center relative">
-        <ResponsiveContainer
-          key={hasNoData.toString()}
-          width="100%"
-          height="100%"
-        >
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={80}
-              outerRadius={120}
-              paddingAngle={0}
-              stroke="none"
-              dataKey="value"
-              label={renderCustomisedLabel}
-              labelLine={false}
-            >
-              {data.map((item, index) => (
-                <Cell key={`cell-${index}`} fill={item.fill} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#1a2236",
-                border: "1px solid #374151",
-                borderRadius: "8px",
-                color: "#fff",
-              }}
-              formatter={(value: number, name: string) => {
-                const displayTotal = hasNoData ? 100 : totalValue;
-                const percentage =
-                  displayTotal > 0
-                    ? ((value / displayTotal) * 100).toFixed(1)
-                    : "0";
+    <DashboardWidget title="Portfolio Distribution" contentClassName="p-0 m-2">
+      <ResponsiveContainer
+        key={hasNoData.toString()}
+        width="100%"
+        height="100%"
+      >
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={80}
+            outerRadius={120}
+            paddingAngle={0}
+            stroke="none"
+            dataKey="value"
+            label={renderCustomisedLabel}
+            labelLine={false}
+          >
+            {data.map((item, index) => (
+              <Cell key={`cell-${index}`} fill={item.fill} />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#1a2236",
+              border: "1px solid #374151",
+              borderRadius: "8px",
+              color: "#fff",
+            }}
+            formatter={(value: number, name: string) => {
+              const displayTotal = hasNoData ? 100 : totalValue;
+              const percentage =
+                displayTotal > 0
+                  ? ((value / displayTotal) * 100).toFixed(1)
+                  : "0";
 
-                return [
-                  <div key="tooltip-content">
-                    <div className="font-medium text-white">{name}</div>
-                    <div className="text-gray-300">
-                      ${value.toLocaleString()} ({percentage}%)
-                    </div>
-                  </div>,
-                  null,
-                ];
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        <NoDataOverlay show={hasNoData} />
-      </div>
+              return [
+                <div key="tooltip-content">
+                  <div className="font-medium text-white">{name}</div>
+                  <div className="text-gray-300">
+                    ${value.toLocaleString()} ({percentage}%)
+                  </div>
+                </div>,
+                null,
+              ];
+            }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <NoDataOverlay show={hasNoData} />
     </DashboardWidget>
   );
 };
