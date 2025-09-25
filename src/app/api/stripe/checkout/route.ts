@@ -1,7 +1,7 @@
-import { updateAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { dimAccount, dimUser } from "@/lib/db/schema";
 import { stripe } from "@/lib/payments/stripe";
+import { updateAccountKey } from "@/lib/supabase/server";
 import { paths } from "@/lib/utils";
 import { eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -60,7 +60,6 @@ export async function GET(request: NextRequest) {
         id: dimUser.id,
         name: sql`${dimUser.firstName} ${dimUser.lastName}`,
         email: dimUser.email,
-        passwordHash: dimUser.passwordHash,
         role: dimUser.role,
         createdAt: dimUser.createdAt,
         updatedAt: dimUser.updatedAt,
