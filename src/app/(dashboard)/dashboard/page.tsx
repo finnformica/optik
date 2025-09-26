@@ -3,10 +3,12 @@ import CurrentPositions from "@/components/dashboard/current-positions";
 import PortfolioDistribution from "@/components/dashboard/portfolio-distribution";
 import ProfitDistribution from "@/components/dashboard/profit-distribution";
 import SummaryStats from "@/components/dashboard/summary-stats";
+import TradingActivityHeatmap from "@/components/dashboard/trading-activity-heatmap";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
 import { getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import {
+  viewDailyActivity,
   viewPortfolioDistribution,
   viewPortfolioSummary,
   viewProfitDistribution,
@@ -25,6 +27,7 @@ export default async function DashboardPage() {
     profitDistributionData,
     [{ cashBalance }],
     weeklyReturnsData,
+    dailyActivityData,
   ] = await Promise.all([
     // Current positions with stock prices
     getPositionsWithPrices(accountKey),
@@ -52,6 +55,11 @@ export default async function DashboardPage() {
       .from(viewWeeklyReturn)
       .where(eq(viewWeeklyReturn.accountKey, accountKey))
       .limit(52),
+    // Daily trading activity
+    db
+      .select()
+      .from(viewDailyActivity)
+      .where(eq(viewDailyActivity.accountKey, accountKey)),
   ]);
 
   return (
@@ -72,7 +80,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div />
+        <TradingActivityHeatmap dailyData={dailyActivityData} />
         <ProfitDistribution profitData={profitDistributionData} />
       </div>
     </div>
