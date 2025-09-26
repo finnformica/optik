@@ -509,7 +509,6 @@ export const viewWeeklyPosition = pgView("view_weekly_position", {
   symbol: varchar("symbol", { length: 50 }),
   securityType: varchar("security_type", { length: 20 }),
   underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
-  expiryDate: date("expiry_date"),
   quantity: decimal("quantity", { precision: 18, scale: 8 }),
   avgCostPerUnit: decimal("avg_cost_per_unit", { precision: 18, scale: 8 }),
   firstTransactionDate: date("first_transaction_date"),
@@ -517,6 +516,7 @@ export const viewWeeklyPosition = pgView("view_weekly_position", {
   positionValue: decimal("position_value", { precision: 18, scale: 8 }),
   positionStatus: varchar("position_status", { length: 10 }),
   unrealizedPnl: decimal("unrealized_pnl", { precision: 18, scale: 8 }),
+  expiryDate: date("expiry_date"),
   optionType: varchar("option_type", { length: 10 }),
   strikePrice: decimal("strike_price", { precision: 18, scale: 8 }),
 }).with({
@@ -573,9 +573,6 @@ export const viewWeeklyPosition = pgView("view_weekly_position", {
     pc.symbol,
     pc.security_type,
     pc.underlying_symbol,
-    ds.option_type,
-    ds.strike_price,
-    ds.expiry_date,
     pc.cumulative_quantity as quantity,
     pc.avg_cost_per_unit,
     pc.first_transaction_date,
@@ -585,7 +582,10 @@ export const viewWeeklyPosition = pgView("view_weekly_position", {
     ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit as position_value,
 
     'OPEN' as position_status,
-    0 as unrealized_pnl
+    0 as unrealized_pnl,
+    ds.expiry_date,
+    ds.option_type,
+    ds.strike_price
 
   FROM position_calculations pc
   LEFT JOIN ${dimSecurity} ds ON pc.symbol = ds.symbol
@@ -605,8 +605,8 @@ export const viewCurrentPosition = pgView("view_current_position", {
   positionValue: decimal("position_value", { precision: 18, scale: 8 }),
   positionStatus: varchar("position_status", { length: 10 }),
   unrealizedPnl: decimal("unrealized_pnl", { precision: 18, scale: 8 }),
-  expiryDate: date("expiry_date"),
   optionType: varchar("option_type", { length: 10 }),
+  expiryDate: date("expiry_date"),
   strikePrice: decimal("strike_price", { precision: 18, scale: 8 }),
 }).with({
   securityInvoker: true,
@@ -616,16 +616,16 @@ export const viewCurrentPosition = pgView("view_current_position", {
     symbol,
     security_type,
     underlying_symbol,
-    option_type,
-    strike_price,
-    expiry_date,
     quantity,
     avg_cost_per_unit,
     first_transaction_date,
     last_transaction_date,
     position_value,
     position_status,
-    unrealized_pnl
+    unrealized_pnl,
+    option_type,
+    expiry_date,
+    strike_price
   FROM ${viewWeeklyPosition}
   WHERE week_start = (SELECT MAX(week_start) FROM ${viewWeeklyPosition})
 `);
