@@ -536,21 +536,25 @@ export const viewPosition = pgView("view_position", {
     SUM(ft.quantity) as quantity_held,
     
     -- Position value: Market exposure/collateral requirement (no fees)
+    -- For stocks: Use average price (cost basis) to show capital deployed
+    -- TODO: Consider using current market price for real-time portfolio valuation
     -- TODO: Option position_value calculation needs refinement:
     -- - Short PUTs: Current logic (strike * 100) is correct for cash-secured puts
     -- - Short CALLs: Should distinguish between covered calls (share collateral) vs naked calls (margin requirement)
     -- - Current approach assumes all options use strike price collateral, which overestimates CALL requirements
+    -- Position value: Market exposure/collateral requirement (no fees)
+    -- For stocks: Use cost basis (absolute quantity * average price)
     SUM(
-      CASE 
+      CASE
         WHEN s.security_type = 'STOCK' THEN ABS(ft.gross_amount)
         WHEN s.security_type = 'OPTION' THEN ABS(ft.quantity) * s.strike_price * 100
         ELSE ABS(ft.gross_amount)
       END
     ) as position_value,
-    
+
     -- Net position value: Same logic but includes fees
     SUM(
-      CASE 
+      CASE
         WHEN s.security_type = 'STOCK' THEN ft.net_amount
         WHEN s.security_type = 'OPTION' THEN ABS(ft.quantity) * s.strike_price * 100 - ft.fees
         ELSE ft.net_amount
@@ -593,6 +597,67 @@ export const viewPosition = pgView("view_position", {
   JOIN ${dimDate} d ON ft.date_key = d.date_key
   WHERE tt.action_category IN ('TRADE', 'CORPORATE')
   GROUP BY a.account_key, s.symbol, s.underlying_symbol, s.strike_price
+`);
+
+// Portfolio Value View - Centralized portfolio value calculation with proper stock accounting
+export const viewPortfolioValue = pgView("view_portfolio_value", {
+  accountKey: integer("account_key"),
+  cashFlows: decimal("cash_flows", { precision: 18, scale: 8 }),
+  stockPositionValue: decimal("stock_position_value", { precision: 18, scale: 8 }),
+  optionCollateralValue: decimal("option_collateral_value", { precision: 18, scale: 8 }),
+  totalPortfolioValue: decimal("total_portfolio_value", { precision: 18, scale: 8 }),
+  availableCash: decimal("available_cash", { precision: 18, scale: 8 }),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  SELECT
+    a.account_key,
+
+    -- Raw cash flows from all transactions
+    SUM(ft.net_amount) as cash_flows,
+
+    -- Stock position values (at cost basis)
+    -- TODO: Replace with market value calculation when ready (current_price * quantity)
+    COALESCE(
+      (SELECT SUM(position_value)
+       FROM ${viewPosition} vp
+       WHERE vp.account_key = a.account_key
+       AND vp.position_status = 'OPEN'
+       AND vp.security_type = 'STOCK'), 0
+    ) as stock_position_value,
+
+    -- Option collateral requirements (cash locked up for margin)
+    COALESCE(
+      (SELECT SUM(position_value)
+       FROM ${viewPosition} vp
+       WHERE vp.account_key = a.account_key
+       AND vp.position_status = 'OPEN'
+       AND vp.security_type = 'OPTION'), 0
+    ) as option_collateral_value,
+
+    -- Total portfolio value = cash flows + stock position values
+    -- Note: Options don't add value, they just require collateral
+    SUM(ft.net_amount) + COALESCE(
+      (SELECT SUM(position_value)
+       FROM ${viewPosition} vp
+       WHERE vp.account_key = a.account_key
+       AND vp.position_status = 'OPEN'
+       AND vp.security_type = 'STOCK'), 0
+    ) as total_portfolio_value,
+
+    -- Available cash = raw cash flows - option collateral requirements
+    SUM(ft.net_amount) - COALESCE(
+      (SELECT SUM(position_value)
+       FROM ${viewPosition} vp
+       WHERE vp.account_key = a.account_key
+       AND vp.position_status = 'OPEN'
+       AND vp.security_type = 'OPTION'), 0
+    ) as available_cash
+
+  FROM ${factTransaction} ft
+  JOIN ${dimAccount} a ON ft.account_key = a.account_key
+  JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+  GROUP BY a.account_key
 `);
 
 // Portfolio Distribution (Your dashboard pie chart)
@@ -750,6 +815,15 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   cashBalance: decimal("cash_balance", { precision: 18, scale: 8 }).default(
     "0"
   ),
+  availableCash: decimal("available_cash", { precision: 18, scale: 8 }).default(
+    "0"
+  ),
+  stockPositionValue: decimal("stock_position_value", { precision: 18, scale: 8 }).default(
+    "0"
+  ),
+  optionCollateralValue: decimal("option_collateral_value", { precision: 18, scale: 8 }).default(
+    "0"
+  ),
   monthlyPnl: decimal("monthly_pnl", { precision: 18, scale: 8 }).default("0"),
   yearlyPnl: decimal("yearly_pnl", { precision: 18, scale: 8 }).default("0"),
   monthlyPnlPercent: decimal("monthly_pnl_percent", {
@@ -767,33 +841,23 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
 }).with({
   securityInvoker: true,
 }).as(sql`
-  WITH portfolio_value_calc AS (
-    -- Calculate total portfolio value from all transaction flows
+  WITH realised_monthly_pnl AS (
+    -- Realised P/L for current month including stock position adjustments
+    -- Note: Stock purchases show as negative cash flow but create equivalent asset value
+    -- This calculation accounts for both to show true realized P&L from trading
     SELECT
       a.account_key,
-      SUM(ft.net_amount) as total_portfolio_value
-    FROM ${factTransaction} ft
-    JOIN ${dimAccount} a ON ft.account_key = a.account_key
-    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    GROUP BY a.account_key
-  ),
-
-  position_values_calc AS (
-    -- Current invested amount (position value of held positions)
-    -- Note: position_value can be negative for short positions, positive for long positions
-    SELECT
-      account_key,
-      SUM(position_value) as total_position_value
-    FROM ${viewPosition}
-    WHERE position_status = 'OPEN'
-    GROUP BY account_key
-  ),
-
-  realised_monthly_pnl AS (
-    -- Realised P/L for current month
-    SELECT
-      a.account_key,
-      SUM(ft.net_amount) as monthly_realised_pnl
+      -- Raw cash flows from trades and income this month
+      SUM(ft.net_amount) + COALESCE(
+        -- Add back stock position values for trades that happened this month
+        -- This prevents stock purchases from appearing as "losses" in P&L
+        (SELECT SUM(position_value)
+         FROM ${viewPosition} vp
+         WHERE vp.account_key = a.account_key
+         AND vp.position_status = 'OPEN'
+         AND vp.security_type = 'STOCK'
+         AND DATE_TRUNC('month', vp.first_transaction_date) = DATE_TRUNC('month', CURRENT_DATE)), 0
+      ) as monthly_realised_pnl
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
@@ -806,10 +870,22 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   ),
 
   realised_yearly_pnl AS (
-    -- Realised P/L for current year
+    -- Realised P/L for current year including stock position adjustments
+    -- Note: Stock purchases show as negative cash flow but create equivalent asset value
+    -- This calculation accounts for both to show true realized P&L from trading
     SELECT
       a.account_key,
-      SUM(ft.net_amount) as yearly_realised_pnl
+      -- Raw cash flows from trades and income this year
+      SUM(ft.net_amount) + COALESCE(
+        -- Add back stock position values for trades that happened this year
+        -- This prevents stock purchases from appearing as "losses" in P&L
+        (SELECT SUM(position_value)
+         FROM ${viewPosition} vp
+         WHERE vp.account_key = a.account_key
+         AND vp.position_status = 'OPEN'
+         AND vp.security_type = 'STOCK'
+         AND EXTRACT(YEAR FROM vp.first_transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE)), 0
+      ) as yearly_realised_pnl
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
@@ -821,7 +897,7 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   ),
 
   total_transfers_calc AS (
-    -- Calculate total transfers (money deposited/withdrawn) to determine initial investment
+    -- Calculate total transfers (money deposited/withdrawn)
     SELECT
       a.account_key,
       SUM(ft.net_amount) as total_transfers
@@ -834,44 +910,57 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   ),
 
   portfolio_value_start_of_month AS (
-    -- Calculate portfolio value at the start of current month
+    -- Calculate portfolio value at start of month using same logic as viewPortfolioValue
     SELECT
       a.account_key,
-      SUM(ft.net_amount) as portfolio_value_start_month
+      SUM(ft.net_amount) + COALESCE(
+        (SELECT SUM(position_value)
+         FROM ${viewPosition} vp
+         WHERE vp.account_key = a.account_key
+         AND vp.position_status = 'OPEN'
+         AND vp.security_type = 'STOCK'
+         AND vp.first_transaction_date < DATE_TRUNC('month', CURRENT_DATE)), 0
+      ) as portfolio_value_start_month
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    WHERE
-      d.full_date < DATE_TRUNC('month', CURRENT_DATE)
+    WHERE d.full_date < DATE_TRUNC('month', CURRENT_DATE)
     GROUP BY a.account_key
   ),
 
   portfolio_value_start_of_year AS (
-    -- Calculate portfolio value at the start of current year
+    -- Calculate portfolio value at start of year using same logic as viewPortfolioValue
     SELECT
       a.account_key,
-      SUM(ft.net_amount) as portfolio_value_start_year
+      SUM(ft.net_amount) + COALESCE(
+        (SELECT SUM(position_value)
+         FROM ${viewPosition} vp
+         WHERE vp.account_key = a.account_key
+         AND vp.position_status = 'OPEN'
+         AND vp.security_type = 'STOCK'
+         AND vp.first_transaction_date < DATE_TRUNC('year', CURRENT_DATE)), 0
+      ) as portfolio_value_start_year
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    WHERE
-      d.full_date < DATE_TRUNC('year', CURRENT_DATE)
+    WHERE d.full_date < DATE_TRUNC('year', CURRENT_DATE)
     GROUP BY a.account_key
   )
 
-  -- Final summary query
+  -- Final summary query using viewPortfolioValue
   SELECT
     a.account_key,
     COALESCE(pv.total_portfolio_value, 0) as portfolio_value,
-    COALESCE(pv.total_portfolio_value - COALESCE(pvs.total_position_value, 0), pv.total_portfolio_value, 0) as cash_balance,
+    COALESCE(pv.cash_flows, 0) as cash_balance,
+    COALESCE(pv.available_cash, 0) as available_cash,
+    COALESCE(pv.stock_position_value, 0) as stock_position_value,
+    COALESCE(pv.option_collateral_value, 0) as option_collateral_value,
     COALESCE(mp.monthly_realised_pnl, 0) as monthly_pnl,
     COALESCE(yp.yearly_realised_pnl, 0) as yearly_pnl,
-    COALESCE(tt.total_transfers, 0) as total_transfers,
 
-    -- Calculate percentage changes based on portfolio value at start of period
-    -- For monthly: if no portfolio value at start of month (started trading this month), use overall return logic
+    -- Calculate percentage changes based on realized P&L vs portfolio value
     CASE
       WHEN COALESCE(pvsm.portfolio_value_start_month, 0) > 0
       THEN (COALESCE(mp.monthly_realised_pnl, 0) / pvsm.portfolio_value_start_month * 100)
@@ -880,7 +969,6 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
       ELSE 0
     END as monthly_pnl_percent,
 
-    -- For yearly: if no portfolio value at start of year (started trading this year), use overall return logic
     CASE
       WHEN COALESCE(pvsy.portfolio_value_start_year, 0) > 0
       THEN (COALESCE(yp.yearly_realised_pnl, 0) / pvsy.portfolio_value_start_year * 100)
@@ -896,8 +984,7 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     END as overall_percent_increase
 
   FROM ${dimAccount} a
-  LEFT JOIN portfolio_value_calc pv ON a.account_key = pv.account_key
-  LEFT JOIN position_values_calc pvs ON a.account_key = pvs.account_key
+  LEFT JOIN ${viewPortfolioValue} pv ON a.account_key = pv.account_key
   LEFT JOIN realised_monthly_pnl mp ON a.account_key = mp.account_key
   LEFT JOIN realised_yearly_pnl yp ON a.account_key = yp.account_key
   LEFT JOIN total_transfers_calc tt ON a.account_key = tt.account_key
@@ -1147,6 +1234,7 @@ export type FactStockPrices = typeof factStockPrices.$inferSelect;
 export type NewFactStockPrices = typeof factStockPrices.$inferInsert;
 
 export type ViewPosition = typeof viewPosition.$inferSelect;
+export type ViewPortfolioValue = typeof viewPortfolioValue.$inferSelect;
 export type ViewPortfolioDistribution =
   typeof viewPortfolioDistribution.$inferSelect;
 export type ViewWeeklyReturn = typeof viewWeeklyReturn.$inferSelect;

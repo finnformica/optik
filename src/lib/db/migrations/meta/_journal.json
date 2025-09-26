@@ -435,6 +435,34 @@
       "when": 1758839272784,
       "tag": "0061_small_gressill",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1758893799761,
+      "tag": "0062_pale_liz_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1758898166483,
+      "tag": "0063_smiling_silvermane",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1758898805517,
+      "tag": "0064_legal_tyger_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1758899511556,
+      "tag": "0065_fluffy_harry_osborn",
+      "breakpoints": true
     }
   ]
 }

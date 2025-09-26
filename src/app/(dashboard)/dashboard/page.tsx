@@ -25,7 +25,7 @@ export default async function DashboardPage() {
     positionsData,
     distributionData,
     profitDistributionData,
-    [{ cashBalance }],
+    [{ availableCash }],
     weeklyReturnsData,
     dailyActivityData,
   ] = await Promise.all([
@@ -43,9 +43,9 @@ export default async function DashboardPage() {
       .from(viewProfitDistribution)
       .where(eq(viewProfitDistribution.accountKey, accountKey))
       .limit(20),
-    // Cash balance
+    // Available cash
     db
-      .select({ cashBalance: viewPortfolioSummary.cashBalance })
+      .select({ availableCash: viewPortfolioSummary.availableCash })
       .from(viewPortfolioSummary)
       .where(eq(viewPortfolioSummary.accountKey, accountKey))
       .limit(1),
@@ -75,7 +75,7 @@ export default async function DashboardPage() {
         <CurrentPositions positions={positionsData} />
         <PortfolioDistribution
           distribution={distributionData}
-          cashBalance={Number(cashBalance)}
+          cashBalance={Number(availableCash)}
         />
       </div>
 
