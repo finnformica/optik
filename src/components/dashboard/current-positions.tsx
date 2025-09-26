@@ -123,8 +123,8 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
                         : "-"}
                     </td>
                     <td>
-                      {parseFloat(position.quantityHeld || "0") > 0 ? "+" : ""}
-                      {parseFloat(position.quantityHeld || "0")}
+                      {parseFloat(position.quantity || "0") > 0 ? "+" : ""}
+                      {parseFloat(position.quantity || "0")}
                     </td>
                     <td>
                       {position.currentPrice
