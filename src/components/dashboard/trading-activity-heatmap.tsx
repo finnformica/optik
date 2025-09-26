@@ -290,7 +290,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
                     <Tooltip key={`${weekIndex}-${dayIndex}`}>
                       <TooltipTrigger asChild>
                         <div
-                          className={`${baseClasses} ${colorClass} hover:ring-2 hover:ring-neutral-50`}
+                          className={`${baseClasses} ${colorClass} hover:ring-1 hover:ring-neutral-50`}
                         >
                           {/* Indicator dots */}
                           <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform gap-1">
