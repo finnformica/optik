@@ -257,6 +257,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
                 style={{
                   width: `${label.span * 40 + (label.span - 1) * 4}px`, // w-10 (40px) * span + gap (4px) * (span - 1)
                   marginRight: index < monthLabels.length - 1 ? "4px" : "0",
+                  paddingLeft: "2px",
                 }}
               >
                 {label.month}
@@ -270,7 +271,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
               <div key={weekIndex} className="flex flex-col gap-1">
                 {week.map((day, dayIndex) => {
                   const baseClasses =
-                    "w-10 h-10 rounded-xs relative cursor-pointer transition-all duration-150";
+                    "w-10 h-10 rounded-[4px] relative cursor-pointer transition-all duration-150";
                   const colorClass = getColorIntensity(day.dailyReturnPercent);
 
                   return (
