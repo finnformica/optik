@@ -917,19 +917,54 @@ export const viewProfitDistribution = pgView("view_profit_distribution", {
 }).with({
   securityInvoker: true,
 }).as(sql`
+  WITH stock_positions AS (
+    -- Calculate net stock positions to identify completed vs open trades
+    SELECT
+      ft.account_key,
+      s.underlying_symbol,
+      s.symbol,
+      SUM(ft.quantity) as net_quantity,
+      SUM(ft.net_amount) as total_net_amount
+    FROM ${factTransaction} ft
+    JOIN ${dimSecurity} s ON ft.security_key = s.security_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE tt.action_category = 'TRADE' AND s.security_type = 'STOCK'
+    GROUP BY ft.account_key, s.underlying_symbol, s.symbol
+  )
   SELECT
     a.account_key,
     s.underlying_symbol,
-    SUM(ft.net_amount) as total_profit,
-    COUNT(*)::integer as trade_count
+    SUM(CASE
+        -- For options: include all net amounts (premiums received/paid)
+        WHEN s.security_type != 'STOCK' THEN ft.net_amount
+        -- For stocks: only include profits from closed positions (net_quantity = 0)
+        WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
+        ELSE 0
+    END) as total_profit,
+    COUNT(CASE
+        WHEN s.security_type != 'STOCK' THEN 1
+        WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN 1
+        ELSE NULL
+    END)::integer as trade_count
   FROM ${factTransaction} ft
   JOIN ${dimSecurity} s ON ft.security_key = s.security_key
   JOIN ${dimAccount} a ON ft.account_key = a.account_key
   JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+  LEFT JOIN stock_positions sp ON ft.account_key = sp.account_key
+    AND s.symbol = sp.symbol
+    AND s.security_type = 'STOCK'
   WHERE tt.action_category = 'TRADE'
   GROUP BY a.account_key, s.underlying_symbol
-  HAVING SUM(ft.net_amount) != 0
-  ORDER BY SUM(ft.net_amount) DESC
+  HAVING SUM(CASE
+      WHEN s.security_type != 'STOCK' THEN ft.net_amount
+      WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
+      ELSE 0
+  END) != 0
+  ORDER BY SUM(CASE
+      WHEN s.security_type != 'STOCK' THEN ft.net_amount
+      WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
+      ELSE 0
+  END) DESC
 `);
 
 // Portfolio Summary View - Aggregates key portfolio metrics for dashboard
@@ -1146,15 +1181,30 @@ export const viewDailyActivity = pgView("view_daily_activity", {
       AND d.full_date <= er.max_expiry_date
       AND EXTRACT(dow FROM d.full_date) BETWEEN 1 AND 5
   ),
+  stock_positions AS (
+    -- Calculate net stock positions to identify completed vs open trades
+    SELECT
+      ft.account_key,
+      s.underlying_symbol,
+      s.symbol,
+      SUM(ft.quantity) as net_quantity
+    FROM ${factTransaction} ft
+    JOIN ${dimSecurity} s ON ft.security_key = s.security_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE tt.action_category = 'TRADE' AND s.security_type = 'STOCK'
+    GROUP BY ft.account_key, s.underlying_symbol, s.symbol
+  ),
   daily_data AS (
     SELECT
         d.full_date,
         d.week_starting_date,
         a.account_key,
         SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as daily_transfers,
-        -- Exclude stock transactions from daily gains since they're balanced by position value
+        -- Use same stock logic as profit distribution: exclude open stock positions, include closed ones
         SUM(CASE
             WHEN tt.action_category NOT IN ('TRANSFER') AND ds.security_type != 'STOCK'
+            THEN ft.net_amount
+            WHEN tt.action_category NOT IN ('TRANSFER') AND ds.security_type = 'STOCK' AND sp.net_quantity = 0
             THEN ft.net_amount
             ELSE 0
         END) as daily_gains,
@@ -1164,6 +1214,9 @@ export const viewDailyActivity = pgView("view_daily_activity", {
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
     JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
+    LEFT JOIN stock_positions sp ON ft.account_key = sp.account_key
+      AND ds.symbol = sp.symbol
+      AND ds.security_type = 'STOCK'
     WHERE d.full_date <= CURRENT_DATE
       AND d.full_date >= CURRENT_DATE - INTERVAL '6 months'
       AND EXTRACT(dow FROM d.full_date) BETWEEN 1 AND 5

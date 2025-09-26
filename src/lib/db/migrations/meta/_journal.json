@@ -547,6 +547,13 @@
       "when": 1758911304777,
       "tag": "0077_gigantic_rockslide",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1758911746988,
+      "tag": "0078_fresh_jubilee",
+      "breakpoints": true
     }
   ]
 }
