@@ -119,8 +119,8 @@ export async function processSchwabTransactions(stgTransactionIds: number[]) {
                         THEN 'sell_to_close' ELSE 'buy_to_close' END
                   ELSE 'other'
                 END
-              ELSE 
-                CASE WHEN COALESCE((pt.security_item->>'amount')::numeric, pt.net_amount, 0) < 0 
+              ELSE
+                CASE WHEN COALESCE(pt.net_amount, 0) < 0
                     THEN 'buy' ELSE 'sell' END
             END
           

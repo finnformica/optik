@@ -45,7 +45,7 @@ const SummaryStats = async () => {
       style: "currency",
       currency: "USD",
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(Math.abs(amount));
   };
 
   // Format currency with sign for P/L
@@ -78,17 +78,17 @@ const SummaryStats = async () => {
       trendLabel: "overall",
     },
     {
-      id: "cash-balance",
-      title: "Cash Balance",
+      id: "available-cash",
+      title: "Available Cash",
       icon: DollarSign,
       iconColor: "text-purple-500",
       value: (summary) =>
-        formatCurrency(parseFloat(summary.cashBalance || "0")),
+        formatCurrency(parseFloat(summary.availableCash || "0")),
       subtitle: (summary) => {
         const portfolioValue = parseFloat(summary.portfolioValue || "0");
-        const cashBalance = parseFloat(summary.cashBalance || "0");
+        const availableCash = parseFloat(summary.availableCash || "0");
         return portfolioValue !== 0
-          ? `${((cashBalance / portfolioValue) * 100).toFixed(1)}% of portfolio`
+          ? `${((availableCash / portfolioValue) * 100).toFixed(1)}% of portfolio`
           : "0% of portfolio";
       },
       subtitleColor: "text-blue-400",

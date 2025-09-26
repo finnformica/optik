@@ -45,7 +45,7 @@ export const rtmSyncProgress = pgTable(
   },
   (table) => [
     uniqueIndex("rtm_sync_progress_account_key_unique").on(table.accountKey),
-  ]
+  ],
 );
 
 // =============================================
@@ -81,11 +81,11 @@ export const stgTransaction = pgTable(
     unique("unique_account_broker_transaction").on(
       table.accountKey,
       table.brokerTransactionId,
-      table.brokerCode
+      table.brokerCode,
     ),
     index("idx_stg_transaction_account_status").on(
       table.accountKey,
-      table.status
+      table.status,
     ),
     index("idx_stg_transaction_broker_id").on(table.brokerTransactionId),
     pgPolicy("users_own_staging_transactions", {
@@ -96,7 +96,7 @@ export const stgTransaction = pgTable(
         WHERE user_id = current_setting('app.current_user_id')::int
       )`,
     }),
-  ]
+  ],
 );
 
 // =============================================
@@ -126,7 +126,7 @@ export const dimUser = pgTable(
       to: "authenticated",
       using: sql`${table.id} = current_setting('app.current_user_id')::int`,
     }),
-  ]
+  ],
 );
 
 // Account Dimension - Represents an account of a user
@@ -138,7 +138,7 @@ export const dimAccount = pgTable(
       .notNull()
       .references(() => dimUser.id, { onDelete: "cascade" }),
     accountName: varchar("account_name", { length: 100 }).default(
-      "Primary Account"
+      "Primary Account",
     ),
     accountType: varchar("account_type", { length: 50 }).default("INDIVIDUAL"), // INDIVIDUAL, JOINT, CORPORATE, IRA, ROTH, 401K, 403B, 529, OTHER
     currency: varchar("currency", { length: 3 }).default("USD"),
@@ -152,7 +152,7 @@ export const dimAccount = pgTable(
       to: "authenticated",
       using: sql`${table.userId} = current_setting('app.current_user_id')::int`,
     }),
-  ]
+  ],
 );
 
 // Account Access Token Dimension
@@ -176,7 +176,7 @@ export const dimAccountAccessToken = pgTable(
   (table) => [
     unique("unique_account_broker_token").on(
       table.accountKey,
-      table.brokerCode
+      table.brokerCode,
     ),
     pgPolicy("users_own_account_tokens", {
       for: "all",
@@ -186,7 +186,7 @@ export const dimAccountAccessToken = pgTable(
         WHERE user_id = current_setting('app.current_user_id')::int
       )`,
     }),
-  ]
+  ],
 );
 
 // Date Dimension
@@ -217,7 +217,7 @@ export const dimDate = pgTable(
       to: "authenticated",
       using: sql`true`,
     }),
-  ]
+  ],
 );
 
 // Time Dimension
@@ -244,7 +244,7 @@ export const dimTime = pgTable(
       to: "authenticated",
       using: sql`true`,
     }),
-  ]
+  ],
 );
 
 // Security Dimension - Handles stocks and options with company grouping
@@ -280,14 +280,14 @@ export const dimSecurity = pgTable(
     (security_type = 'STOCK' AND underlying_symbol = symbol AND option_type IS NULL AND strike_price IS NULL AND expiry_date IS NULL)
     OR
     (security_type = 'OPTION' AND underlying_symbol != symbol AND option_type IS NOT NULL AND strike_price IS NOT NULL AND expiry_date IS NOT NULL)
-  `
+  `,
     ),
     pgPolicy("authenticated_can_read_securities", {
       for: "select",
       to: "authenticated",
       using: sql`true`,
     }),
-  ]
+  ],
 );
 
 // Transaction Type Dimension
@@ -309,7 +309,7 @@ export const dimTransactionType = pgTable(
       to: "authenticated",
       using: sql`true`,
     }),
-  ]
+  ],
 );
 
 // Broker Dimension
@@ -330,7 +330,7 @@ export const dimBroker = pgTable(
       to: "authenticated",
       using: sql`true`,
     }),
-  ]
+  ],
 );
 
 // Broker Account Dimension - Maps broker accounts to user accounts
@@ -360,11 +360,11 @@ export const dimBrokerAccount = pgTable(
     unique("unique_broker_account").on(
       table.accountKey,
       table.brokerKey,
-      table.brokerAccountNumber
+      table.brokerAccountNumber,
     ),
     index("idx_broker_account_account_broker").on(
       table.accountKey,
-      table.brokerKey
+      table.brokerKey,
     ),
     index("idx_broker_account_hash").on(table.brokerAccountHash),
     pgPolicy("users_own_broker_accounts", {
@@ -375,7 +375,7 @@ export const dimBrokerAccount = pgTable(
         WHERE user_id = current_setting('app.current_user_id')::int
       )`,
     }),
-  ]
+  ],
 );
 
 // =============================================
@@ -400,7 +400,7 @@ export const factTransaction = pgTable(
       .notNull()
       .references(() => dimAccount.accountKey, { onDelete: "cascade" }),
     securityKey: integer("security_key").references(
-      () => dimSecurity.securityKey
+      () => dimSecurity.securityKey,
     ),
     transactionTypeKey: integer("transaction_type_key")
       .notNull()
@@ -440,7 +440,7 @@ export const factTransaction = pgTable(
     unique("unique_account_transaction").on(
       table.accountKey,
       table.brokerTransactionId,
-      table.originalTransactionId
+      table.originalTransactionId,
     ),
 
     // Performance indexes
@@ -459,7 +459,7 @@ export const factTransaction = pgTable(
         WHERE user_id = current_setting('app.current_user_id')::int
       )`,
     }),
-  ]
+  ],
 );
 
 // Stock Prices Fact Table - Caches stock prices in 15-minute intervals
@@ -480,13 +480,13 @@ export const factStockPrices = pgTable(
     unique("unique_symbol_time_cache").on(
       table.symbol,
       table.dateKey,
-      table.quarterHour
+      table.quarterHour,
     ),
     // Performance indexes
     index("idx_fact_stock_prices_symbol").on(table.symbol),
     index("idx_fact_stock_prices_date_time").on(
       table.dateKey,
-      table.quarterHour
+      table.quarterHour,
     ),
     index("idx_fact_stock_prices_created_at").on(table.createdAt),
     // RLS Policy - all authenticated users can read stock prices
@@ -495,104 +495,302 @@ export const factStockPrices = pgTable(
       to: "authenticated",
       using: sql`true`,
     }),
-  ]
+  ],
 );
 
 // =============================================
 // ANALYTICAL VIEWS
 // =============================================
 
-// Simplified positions view based purely on transaction aggregation
-export const viewPosition = pgView("view_position", {
+// Weekly Position View - Time-aware position calculations for each week
+export const viewWeeklyPosition = pgView("view_weekly_position", {
   accountKey: integer("account_key"),
+  weekStart: date("week_start"),
   symbol: varchar("symbol", { length: 50 }),
-  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
   securityType: varchar("security_type", { length: 20 }),
-  optionType: varchar("option_type", { length: 10 }),
-  strikePrice: decimal("strike_price", { precision: 18, scale: 8 }),
-  quantityHeld: decimal("quantity_held", { precision: 18, scale: 8 }),
-  positionValue: decimal("position_value", { precision: 18, scale: 8 }),
-  netPositionValue: decimal("net_position_value", { precision: 18, scale: 8 }),
-  averagePrice: decimal("average_price", { precision: 18, scale: 8 }),
-  totalFees: decimal("total_fees", { precision: 18, scale: 8 }),
-  daysToExpiry: integer("days_to_expiry"),
-  positionStatus: varchar("position_status", { length: 10 }),
+  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
+  quantity: decimal("quantity", { precision: 18, scale: 8 }),
+  avgCostPerUnit: decimal("avg_cost_per_unit", { precision: 18, scale: 8 }),
   firstTransactionDate: date("first_transaction_date"),
   lastTransactionDate: date("last_transaction_date"),
-  transactionCount: integer("transaction_count"),
+  positionValue: decimal("position_value", { precision: 18, scale: 8 }),
+  positionStatus: varchar("position_status", { length: 10 }),
+  unrealizedPnl: decimal("unrealized_pnl", { precision: 18, scale: 8 }),
   expiryDate: date("expiry_date"),
+  optionType: varchar("option_type", { length: 10 }),
+  strikePrice: decimal("strike_price", { precision: 18, scale: 8 }),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  WITH weekly_date_series AS (
+    -- Get all unique weeks where transactions occurred
+    SELECT DISTINCT
+      d.week_starting_date as week_start,
+      ft.account_key
+    FROM ${factTransaction} ft
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    WHERE a.is_active = true
+  ),
+
+  position_calculations AS (
+    SELECT
+      wds.account_key,
+      wds.week_start,
+      ds.symbol,
+      ds.security_type,
+      ds.underlying_symbol,
+
+      -- Sum all transactions for this symbol up to and including this week
+      SUM(ft.quantity) as cumulative_quantity,
+      SUM(ABS(ft.net_amount)) as total_cost,
+      SUM(ABS(ft.quantity)) as total_quantity,
+
+      -- Calculate average cost per unit
+      CASE
+        WHEN SUM(ABS(ft.quantity)) > 0
+        THEN SUM(ABS(ft.net_amount)) / SUM(ABS(ft.quantity))
+        ELSE 0
+      END as avg_cost_per_unit,
+
+      MIN(d.full_date) as first_transaction_date,
+      MAX(d.full_date) as last_transaction_date
+
+    FROM weekly_date_series wds
+    JOIN ${factTransaction} ft ON ft.account_key = wds.account_key
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE d.week_starting_date <= wds.week_start  -- Only transactions up to this week
+    AND tt.action_category IN ('TRADE', 'CORPORATE')
+    GROUP BY wds.account_key, wds.week_start, ds.symbol, ds.security_type, ds.underlying_symbol
+    HAVING SUM(ft.quantity) != 0  -- Only positions that are open
+  )
+
+  SELECT
+    pc.account_key,
+    pc.week_start,
+    pc.symbol,
+    pc.security_type,
+    pc.underlying_symbol,
+    pc.cumulative_quantity as quantity,
+    pc.avg_cost_per_unit,
+    pc.first_transaction_date,
+    pc.last_transaction_date,
+
+    -- Position value: stocks use cost basis, options use collateral value
+    CASE
+      WHEN ds.security_type = 'STOCK' THEN ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
+      WHEN ds.security_type = 'OPTION' THEN ABS(pc.cumulative_quantity) * ds.strike_price * 100
+      ELSE ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
+    END as position_value,
+
+    'OPEN' as position_status,
+    0 as unrealized_pnl,
+    ds.expiry_date,
+    ds.option_type,
+    ds.strike_price
+
+  FROM position_calculations pc
+  LEFT JOIN ${dimSecurity} ds ON pc.symbol = ds.symbol
+  ORDER BY pc.account_key, pc.week_start, pc.symbol
+`);
+
+// Current Position View - Shows current positions from latest week of viewWeeklyPosition
+export const viewCurrentPosition = pgView("view_current_position", {
+  accountKey: integer("account_key"),
+  symbol: varchar("symbol", { length: 50 }),
+  securityType: varchar("security_type", { length: 20 }),
+  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
+  quantity: decimal("quantity", { precision: 18, scale: 8 }),
+  avgCostPerUnit: decimal("avg_cost_per_unit", { precision: 18, scale: 8 }),
+  firstTransactionDate: date("first_transaction_date"),
+  lastTransactionDate: date("last_transaction_date"),
+  positionValue: decimal("position_value", { precision: 18, scale: 8 }),
+  positionStatus: varchar("position_status", { length: 10 }),
+  unrealizedPnl: decimal("unrealized_pnl", { precision: 18, scale: 8 }),
+  optionType: varchar("option_type", { length: 10 }),
+  expiryDate: date("expiry_date"),
+  strikePrice: decimal("strike_price", { precision: 18, scale: 8 }),
 }).with({
   securityInvoker: true,
 }).as(sql`
   SELECT
-    a.account_key,
-    s.symbol,
-    s.underlying_symbol,
-    MAX(s.security_type) as security_type,
-    MAX(s.option_type) as option_type,
-    s.strike_price,
-    
-    -- Core position metrics from transaction aggregation
-    SUM(ft.quantity) as quantity_held,
-    
-    -- Position value: Market exposure/collateral requirement (no fees)
-    -- TODO: Option position_value calculation needs refinement:
-    -- - Short PUTs: Current logic (strike * 100) is correct for cash-secured puts
-    -- - Short CALLs: Should distinguish between covered calls (share collateral) vs naked calls (margin requirement)
-    -- - Current approach assumes all options use strike price collateral, which overestimates CALL requirements
-    SUM(
-      CASE 
-        WHEN s.security_type = 'STOCK' THEN ABS(ft.gross_amount)
-        WHEN s.security_type = 'OPTION' THEN ABS(ft.quantity) * s.strike_price * 100
-        ELSE ABS(ft.gross_amount)
-      END
-    ) as position_value,
-    
-    -- Net position value: Same logic but includes fees
-    SUM(
-      CASE 
-        WHEN s.security_type = 'STOCK' THEN ft.net_amount
-        WHEN s.security_type = 'OPTION' THEN ABS(ft.quantity) * s.strike_price * 100 - ft.fees
-        ELSE ft.net_amount
-      END
-    ) as net_position_value,
-    SUM(ABS(ft.quantity * ft.price_per_unit)) / NULLIF(SUM(ABS(ft.quantity)), 0) as average_price,
-    SUM(ft.fees) as total_fees,
-    
-    -- Days to expiry calculation
-    CASE 
-      WHEN MAX(s.expiry_date) IS NOT NULL 
-      THEN (MAX(s.expiry_date) - CURRENT_DATE)::integer
-      ELSE NULL
-    END as days_to_expiry,
-    
-    -- Position status
-    CASE 
-      -- Different thresholds for different asset types
-      WHEN MAX(s.security_type) = 'OPTION' AND ABS(SUM(ft.quantity)) > 0.001 THEN 'OPEN'
-      WHEN MAX(s.security_type) = 'STOCK' AND ABS(SUM(ft.quantity)) > 0.0001 THEN 'OPEN'
-      ELSE 'CLOSED' 
-    END as position_status,
-    
-    -- Transaction metadata
-    MIN(d.full_date) as first_transaction_date,
-    MAX(d.full_date) as last_transaction_date,
-    COUNT(*)::integer as transaction_count,
+    account_key,
+    symbol,
+    security_type,
+    underlying_symbol,
+    quantity,
+    avg_cost_per_unit,
+    first_transaction_date,
+    last_transaction_date,
+    position_value,
+    position_status,
+    unrealized_pnl,
+    option_type,
+    expiry_date,
+    strike_price
+  FROM ${viewWeeklyPosition}
+  WHERE week_start = (SELECT MAX(week_start) FROM ${viewWeeklyPosition})
+`);
 
-    -- Expiration date
-    CASE
-      WHEN MAX(s.expiry_date) IS NOT NULL 
-      THEN MAX(s.expiry_date)
-      ELSE NULL
-    END as expiry_date
+// Weekly Portfolio Value View - Time-series portfolio values using viewWeeklyPosition
+export const viewWeeklyPortfolioValue = pgView("view_weekly_portfolio_value", {
+  accountKey: integer("account_key"),
+  weekStart: date("week_start"),
+  cashFlows: decimal("cash_flows", { precision: 18, scale: 8 }),
+  stockPositionValue: decimal("stock_position_value", {
+    precision: 18,
+    scale: 8,
+  }),
+  optionCollateralValue: decimal("option_collateral_value", {
+    precision: 18,
+    scale: 8,
+  }),
+  cumulativeTransfers: decimal("cumulative_transfers", {
+    precision: 18,
+    scale: 8,
+  }),
+  totalPortfolioValue: decimal("total_portfolio_value", {
+    precision: 18,
+    scale: 8,
+  }),
+  availableCash: decimal("available_cash", { precision: 18, scale: 8 }),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  WITH weekly_date_series AS (
+    -- Generate all weeks from earliest transaction to current date
+    SELECT DISTINCT
+      week_start,
+      account_key
+    FROM ${viewWeeklyPosition}
+  ),
 
-  FROM ${factTransaction} ft
-  JOIN ${dimSecurity} s ON ft.security_key = s.security_key
-  JOIN ${dimAccount} a ON ft.account_key = a.account_key
-  JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-  JOIN ${dimDate} d ON ft.date_key = d.date_key
-  WHERE tt.action_category IN ('TRADE', 'CORPORATE')
-  GROUP BY a.account_key, s.symbol, s.underlying_symbol, s.strike_price
+  weekly_cash_flows AS (
+    -- Calculate cumulative cash flows up to each week
+    SELECT
+      wds.account_key,
+      wds.week_start,
+      COALESCE(SUM(ft.net_amount), 0) as cash_flows_to_date
+    FROM weekly_date_series wds
+    LEFT JOIN ${factTransaction} ft ON ft.account_key = wds.account_key
+    LEFT JOIN ${dimDate} d ON ft.date_key = d.date_key
+    WHERE d.week_starting_date <= wds.week_start OR ft.transaction_key IS NULL
+    GROUP BY wds.account_key, wds.week_start
+  ),
+
+  weekly_transfers AS (
+    -- Calculate cumulative transfers up to each week
+    SELECT
+      wds.account_key,
+      wds.week_start,
+      COALESCE(SUM(
+        CASE WHEN tt.action_category = 'TRANSFER'
+        THEN ft.net_amount
+        ELSE 0 END
+      ), 0) as cumulative_transfers
+    FROM weekly_date_series wds
+    LEFT JOIN ${factTransaction} ft ON ft.account_key = wds.account_key
+    LEFT JOIN ${dimDate} d ON ft.date_key = d.date_key
+    LEFT JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE d.week_starting_date <= wds.week_start OR ft.transaction_key IS NULL
+    GROUP BY wds.account_key, wds.week_start
+  )
+
+  SELECT
+    wcf.account_key,
+    wcf.week_start,
+    wcf.cash_flows_to_date as cash_flows,
+
+    -- Stock position values from weekly positions (use premium cost basis)
+    COALESCE(
+      (SELECT SUM(vwp.position_value)
+       FROM ${viewWeeklyPosition} vwp
+       WHERE vwp.account_key = wcf.account_key
+       AND vwp.week_start = wcf.week_start
+       AND vwp.security_type = 'STOCK'
+       AND vwp.position_status = 'OPEN'), 0
+    ) as stock_position_value,
+
+    -- Option collateral values using strike_price * 100 (matching viewPosition logic)
+    COALESCE(
+      (SELECT SUM(ds.strike_price * ABS(vwp.quantity) * 100)
+       FROM ${viewWeeklyPosition} vwp
+       JOIN ${dimSecurity} ds ON vwp.symbol = ds.symbol
+       WHERE vwp.account_key = wcf.account_key
+       AND vwp.week_start = wcf.week_start
+       AND vwp.security_type = 'OPTION'
+       AND vwp.position_status = 'OPEN'), 0
+    ) as option_collateral_value,
+
+    -- Cumulative transfers
+    wt.cumulative_transfers,
+
+    -- Total portfolio value = cash flows + stock position values
+    wcf.cash_flows_to_date + COALESCE(
+      (SELECT SUM(vwp.position_value)
+       FROM ${viewWeeklyPosition} vwp
+       WHERE vwp.account_key = wcf.account_key
+       AND vwp.week_start = wcf.week_start
+       AND vwp.security_type = 'STOCK'
+       AND vwp.position_status = 'OPEN'), 0
+    ) as total_portfolio_value,
+
+    -- Available cash = cash flows - option collateral
+    wcf.cash_flows_to_date - COALESCE(
+      (SELECT SUM(ds.strike_price * ABS(vwp.quantity) * 100)
+       FROM ${viewWeeklyPosition} vwp
+       JOIN ${dimSecurity} ds ON vwp.symbol = ds.symbol
+       WHERE vwp.account_key = wcf.account_key
+       AND vwp.week_start = wcf.week_start
+       AND vwp.security_type = 'OPTION'
+       AND vwp.position_status = 'OPEN'), 0
+    ) as available_cash
+
+  FROM weekly_cash_flows wcf
+  JOIN weekly_transfers wt ON wcf.account_key = wt.account_key
+    AND wcf.week_start = wt.week_start
+  ORDER BY wcf.account_key, wcf.week_start
+`);
+
+// Current Portfolio Value View - Shows current portfolio value from latest week
+export const viewCurrentPortfolioValue = pgView(
+  "view_current_portfolio_value",
+  {
+    accountKey: integer("account_key"),
+    cashFlows: decimal("cash_flows", { precision: 18, scale: 8 }),
+    stockPositionValue: decimal("stock_position_value", {
+      precision: 18,
+      scale: 8,
+    }),
+    optionCollateralValue: decimal("option_collateral_value", {
+      precision: 18,
+      scale: 8,
+    }),
+    cumulativeTransfers: decimal("cumulative_transfers", {
+      precision: 18,
+      scale: 8,
+    }),
+    totalPortfolioValue: decimal("total_portfolio_value", {
+      precision: 18,
+      scale: 8,
+    }),
+    availableCash: decimal("available_cash", { precision: 18, scale: 8 }),
+  },
+).with({
+  securityInvoker: true,
+}).as(sql`
+  SELECT
+    account_key,
+    cash_flows,
+    stock_position_value,
+    option_collateral_value,
+    cumulative_transfers,
+    total_portfolio_value,
+    available_cash
+  FROM ${viewWeeklyPortfolioValue}
+  WHERE week_start = (SELECT MAX(week_start) FROM ${viewWeeklyPortfolioValue})
 `);
 
 // Portfolio Distribution (Your dashboard pie chart)
@@ -615,7 +813,7 @@ export const viewPortfolioDistribution = pgView("view_portfolio_distribution", {
     COUNT(*)::integer as instrument_count,
     (ABS(SUM(position_value)) / SUM(ABS(SUM(position_value))) OVER (PARTITION BY account_key)) * 100 as portfolio_percentage
 
-  FROM ${viewPosition}
+  FROM ${viewCurrentPosition}
   WHERE position_status = 'OPEN'
   GROUP BY account_key, underlying_symbol
   ORDER BY ABS(SUM(position_value)) DESC
@@ -644,74 +842,68 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
 }).with({
   securityInvoker: true,
 }).as(sql`
-  WITH weekly_data AS (
-      SELECT
-          a.account_key,
-          d.week_starting_date as week_start,
-          -- Weekly transfers (money wire in/out)
-          SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
-          -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
-          SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_gains
-      FROM ${factTransaction} ft
-      JOIN ${dimDate} d ON ft.date_key = d.date_key
-      JOIN ${dimAccount} a ON ft.account_key = a.account_key
-      JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-      WHERE d.full_date <= CURRENT_DATE
-      GROUP BY a.account_key, d.week_starting_date
+  WITH weekly_transfers AS (
+    -- Calculate weekly transfers separately for returns calculation
+    SELECT
+      a.account_key,
+      d.week_starting_date as week_start,
+      SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
+      SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_gains
+    FROM ${factTransaction} ft
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE d.full_date <= CURRENT_DATE
+    GROUP BY a.account_key, d.week_starting_date
   ),
 
-  cumulative_data AS (
-      SELECT
-          account_key,
-          week_start,
-          weekly_transfers,
-          weekly_gains,
-          -- Cumulative calculations
-          SUM(weekly_transfers) OVER (PARTITION BY account_key ORDER BY week_start) as cumulative_transfers,
-          SUM(weekly_transfers + weekly_gains) OVER (PARTITION BY account_key ORDER BY week_start) as cumulative_portfolio_value
-      FROM weekly_data
-  ),
-
-  lagged_data AS (
-      SELECT
-          account_key,
-          week_start,
-          weekly_gains,
-          weekly_transfers,
-          cumulative_portfolio_value,
-          cumulative_transfers,
-          -- LAG calculation for previous week's portfolio value
-          LAG(cumulative_portfolio_value, 1) OVER (PARTITION BY account_key ORDER BY week_start) as prev_week_portfolio_value
-      FROM cumulative_data
+  portfolio_with_transfers AS (
+    -- Combine portfolio values with transfer data
+    SELECT
+      wpv.account_key,
+      wpv.week_start,
+      wpv.total_portfolio_value as cumulative_portfolio_value,
+      wpv.cumulative_transfers,
+      COALESCE(wt.weekly_transfers, 0) as weekly_transfers,
+      COALESCE(wt.weekly_gains, 0) as weekly_gains
+    FROM ${viewWeeklyPortfolioValue} wpv
+    LEFT JOIN weekly_transfers wt ON wpv.account_key = wt.account_key
+      AND wpv.week_start = wt.week_start
   ),
 
   returns_calculation AS (
-      SELECT
-          account_key,
-          week_start,
-          weekly_transfers,
-          cumulative_portfolio_value,
-          cumulative_transfers,
-          prev_week_portfolio_value,
-          weekly_gains as weekly_return_absolute,
-          -- Weekly return calculation: subtract transfers to avoid spikes
-          CASE 
-              WHEN prev_week_portfolio_value > 0 
-              THEN ((cumulative_portfolio_value - weekly_transfers - prev_week_portfolio_value) 
-                    / prev_week_portfolio_value) * 100
-              ELSE NULL
-          END as weekly_return_percent
-      FROM lagged_data
-      WHERE prev_week_portfolio_value IS NOT NULL
-  )
-
-  SELECT
+    SELECT
       account_key,
       week_start,
       cumulative_portfolio_value,
       cumulative_transfers,
-      weekly_return_percent,
-      weekly_return_absolute
+      weekly_transfers,
+      weekly_gains as weekly_return_absolute,
+      -- LAG calculation for previous week's portfolio value
+      LAG(cumulative_portfolio_value, 1) OVER (
+        PARTITION BY account_key
+        ORDER BY week_start
+      ) as prev_week_portfolio_value
+    FROM portfolio_with_transfers
+  )
+
+  SELECT
+    account_key,
+    week_start,
+    cumulative_portfolio_value,
+    cumulative_transfers,
+    weekly_return_absolute,
+    -- Weekly return calculation: handle first week properly
+    CASE
+      WHEN prev_week_portfolio_value > 0 THEN
+        -- Normal case: previous week portfolio value exists
+        ((cumulative_portfolio_value - weekly_transfers - prev_week_portfolio_value)
+          / prev_week_portfolio_value) * 100
+      WHEN prev_week_portfolio_value IS NULL AND cumulative_transfers > 0 THEN
+        -- First week case: use weekly gains relative to transfers
+        (weekly_return_absolute / cumulative_transfers) * 100
+      ELSE NULL
+    END as weekly_return_percent
   FROM returns_calculation
   ORDER BY account_key, week_start
 `);
@@ -725,19 +917,54 @@ export const viewProfitDistribution = pgView("view_profit_distribution", {
 }).with({
   securityInvoker: true,
 }).as(sql`
+  WITH stock_positions AS (
+    -- Calculate net stock positions to identify completed vs open trades
+    SELECT
+      ft.account_key,
+      s.underlying_symbol,
+      s.symbol,
+      SUM(ft.quantity) as net_quantity,
+      SUM(ft.net_amount) as total_net_amount
+    FROM ${factTransaction} ft
+    JOIN ${dimSecurity} s ON ft.security_key = s.security_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE tt.action_category = 'TRADE' AND s.security_type = 'STOCK'
+    GROUP BY ft.account_key, s.underlying_symbol, s.symbol
+  )
   SELECT
     a.account_key,
     s.underlying_symbol,
-    SUM(ft.net_amount) as total_profit,
-    COUNT(*)::integer as trade_count
+    SUM(CASE
+        -- For options: include all net amounts (premiums received/paid)
+        WHEN s.security_type != 'STOCK' THEN ft.net_amount
+        -- For stocks: only include profits from closed positions (net_quantity = 0)
+        WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
+        ELSE 0
+    END) as total_profit,
+    COUNT(CASE
+        WHEN s.security_type != 'STOCK' THEN 1
+        WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN 1
+        ELSE NULL
+    END)::integer as trade_count
   FROM ${factTransaction} ft
   JOIN ${dimSecurity} s ON ft.security_key = s.security_key
   JOIN ${dimAccount} a ON ft.account_key = a.account_key
   JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+  LEFT JOIN stock_positions sp ON ft.account_key = sp.account_key
+    AND s.symbol = sp.symbol
+    AND s.security_type = 'STOCK'
   WHERE tt.action_category = 'TRADE'
   GROUP BY a.account_key, s.underlying_symbol
-  HAVING SUM(ft.net_amount) != 0
-  ORDER BY SUM(ft.net_amount) DESC
+  HAVING SUM(CASE
+      WHEN s.security_type != 'STOCK' THEN ft.net_amount
+      WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
+      ELSE 0
+  END) != 0
+  ORDER BY SUM(CASE
+      WHEN s.security_type != 'STOCK' THEN ft.net_amount
+      WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
+      ELSE 0
+  END) DESC
 `);
 
 // Portfolio Summary View - Aggregates key portfolio metrics for dashboard
@@ -748,8 +975,19 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
     scale: 8,
   }).default("0"),
   cashBalance: decimal("cash_balance", { precision: 18, scale: 8 }).default(
-    "0"
+    "0",
   ),
+  availableCash: decimal("available_cash", { precision: 18, scale: 8 }).default(
+    "0",
+  ),
+  stockPositionValue: decimal("stock_position_value", {
+    precision: 18,
+    scale: 8,
+  }).default("0"),
+  optionCollateralValue: decimal("option_collateral_value", {
+    precision: 18,
+    scale: 8,
+  }).default("0"),
   monthlyPnl: decimal("monthly_pnl", { precision: 18, scale: 8 }).default("0"),
   yearlyPnl: decimal("yearly_pnl", { precision: 18, scale: 8 }).default("0"),
   monthlyPnlPercent: decimal("monthly_pnl_percent", {
@@ -767,33 +1005,24 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
 }).with({
   securityInvoker: true,
 }).as(sql`
-  WITH portfolio_value_calc AS (
-    -- Calculate total portfolio value from all transaction flows
+  WITH realised_monthly_pnl AS (
+    -- Realised P/L for current month including stock position adjustments
+    -- Note: Stock purchases show as negative cash flow but create equivalent asset value
+    -- This calculation accounts for both to show true realized P&L from trading
     SELECT
       a.account_key,
-      SUM(ft.net_amount) as total_portfolio_value
-    FROM ${factTransaction} ft
-    JOIN ${dimAccount} a ON ft.account_key = a.account_key
-    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    GROUP BY a.account_key
-  ),
-
-  position_values_calc AS (
-    -- Current invested amount (position value of held positions)
-    -- Note: position_value can be negative for short positions, positive for long positions
-    SELECT
-      account_key,
-      SUM(position_value) as total_position_value
-    FROM ${viewPosition}
-    WHERE position_status = 'OPEN'
-    GROUP BY account_key
-  ),
-
-  realised_monthly_pnl AS (
-    -- Realised P/L for current month
-    SELECT
-      a.account_key,
-      SUM(ft.net_amount) as monthly_realised_pnl
+      -- Raw cash flows from trades and income this month
+      SUM(ft.net_amount) + COALESCE(
+        -- Add back stock position values for trades that happened this month
+        -- This prevents stock purchases from appearing as "losses" in P&L
+        (SELECT SUM(vwp.position_value)
+         FROM ${viewWeeklyPosition} vwp
+         WHERE vwp.account_key = a.account_key
+         AND vwp.position_status = 'OPEN'
+         AND vwp.security_type = 'STOCK'
+         AND DATE_TRUNC('month', vwp.first_transaction_date) = DATE_TRUNC('month', CURRENT_DATE)
+         AND vwp.week_start = (SELECT MAX(week_start) FROM ${viewWeeklyPosition} WHERE account_key = a.account_key)), 0
+      ) as monthly_realised_pnl
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
@@ -806,10 +1035,23 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   ),
 
   realised_yearly_pnl AS (
-    -- Realised P/L for current year
+    -- Realised P/L for current year including stock position adjustments
+    -- Note: Stock purchases show as negative cash flow but create equivalent asset value
+    -- This calculation accounts for both to show true realized P&L from trading
     SELECT
       a.account_key,
-      SUM(ft.net_amount) as yearly_realised_pnl
+      -- Raw cash flows from trades and income this year
+      SUM(ft.net_amount) + COALESCE(
+        -- Add back stock position values for trades that happened this year
+        -- This prevents stock purchases from appearing as "losses" in P&L
+        (SELECT SUM(vwp.position_value)
+         FROM ${viewWeeklyPosition} vwp
+         WHERE vwp.account_key = a.account_key
+         AND vwp.position_status = 'OPEN'
+         AND vwp.security_type = 'STOCK'
+         AND EXTRACT(YEAR FROM vwp.first_transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+         AND vwp.week_start = (SELECT MAX(week_start) FROM ${viewWeeklyPosition} WHERE account_key = a.account_key)), 0
+      ) as yearly_realised_pnl
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
@@ -821,7 +1063,7 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   ),
 
   total_transfers_calc AS (
-    -- Calculate total transfers (money deposited/withdrawn) to determine initial investment
+    -- Calculate total transfers (money deposited/withdrawn)
     SELECT
       a.account_key,
       SUM(ft.net_amount) as total_transfers
@@ -834,70 +1076,69 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   ),
 
   portfolio_value_start_of_month AS (
-    -- Calculate portfolio value at the start of current month
+    -- Calculate portfolio value at start of month using viewWeeklyPortfolioValue
     SELECT
-      a.account_key,
-      SUM(ft.net_amount) as portfolio_value_start_month
-    FROM ${factTransaction} ft
-    JOIN ${dimDate} d ON ft.date_key = d.date_key
-    JOIN ${dimAccount} a ON ft.account_key = a.account_key
-    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    WHERE
-      d.full_date < DATE_TRUNC('month', CURRENT_DATE)
-    GROUP BY a.account_key
+      wpv.account_key,
+      wpv.total_portfolio_value as portfolio_value_start_month
+    FROM ${viewWeeklyPortfolioValue} wpv
+    WHERE wpv.week_start = (
+      SELECT MAX(week_start)
+      FROM ${viewWeeklyPortfolioValue} wpv2
+      WHERE wpv2.account_key = wpv.account_key
+      AND wpv2.week_start < DATE_TRUNC('month', CURRENT_DATE)
+    )
   ),
 
   portfolio_value_start_of_year AS (
-    -- Calculate portfolio value at the start of current year
+    -- Calculate portfolio value at start of year using viewWeeklyPortfolioValue
     SELECT
-      a.account_key,
-      SUM(ft.net_amount) as portfolio_value_start_year
-    FROM ${factTransaction} ft
-    JOIN ${dimDate} d ON ft.date_key = d.date_key
-    JOIN ${dimAccount} a ON ft.account_key = a.account_key
-    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    WHERE
-      d.full_date < DATE_TRUNC('year', CURRENT_DATE)
-    GROUP BY a.account_key
+      wpv.account_key,
+      wpv.total_portfolio_value as portfolio_value_start_year
+    FROM ${viewWeeklyPortfolioValue} wpv
+    WHERE wpv.week_start = (
+      SELECT MAX(week_start)
+      FROM ${viewWeeklyPortfolioValue} wpv2
+      WHERE wpv2.account_key = wpv.account_key
+      AND wpv2.week_start < DATE_TRUNC('year', CURRENT_DATE)
+    )
   )
 
-  -- Final summary query
+  -- Final summary query using viewWeeklyPortfolioValue
   SELECT
     a.account_key,
     COALESCE(pv.total_portfolio_value, 0) as portfolio_value,
-    COALESCE(pv.total_portfolio_value - COALESCE(pvs.total_position_value, 0), pv.total_portfolio_value, 0) as cash_balance,
+    COALESCE(pv.cash_flows, 0) as cash_balance,
+    COALESCE(pv.available_cash, 0) as available_cash,
+    COALESCE(pv.stock_position_value, 0) as stock_position_value,
+    COALESCE(pv.option_collateral_value, 0) as option_collateral_value,
     COALESCE(mp.monthly_realised_pnl, 0) as monthly_pnl,
     COALESCE(yp.yearly_realised_pnl, 0) as yearly_pnl,
-    COALESCE(tt.total_transfers, 0) as total_transfers,
 
-    -- Calculate percentage changes based on portfolio value at start of period
-    -- For monthly: if no portfolio value at start of month (started trading this month), use overall return logic
+    -- Calculate percentage changes based on realized P&L vs portfolio value
     CASE
       WHEN COALESCE(pvsm.portfolio_value_start_month, 0) > 0
       THEN (COALESCE(mp.monthly_realised_pnl, 0) / pvsm.portfolio_value_start_month * 100)
-      WHEN COALESCE(tt.total_transfers, 0) > 0
-      THEN ((COALESCE(pv.total_portfolio_value, 0) - COALESCE(tt.total_transfers, 0)) / tt.total_transfers * 100)
+      WHEN COALESCE(pv.cumulative_transfers, 0) > 0
+      THEN ((COALESCE(pv.total_portfolio_value, 0) - COALESCE(pv.cumulative_transfers, 0)) / pv.cumulative_transfers * 100)
       ELSE 0
     END as monthly_pnl_percent,
 
-    -- For yearly: if no portfolio value at start of year (started trading this year), use overall return logic
     CASE
       WHEN COALESCE(pvsy.portfolio_value_start_year, 0) > 0
       THEN (COALESCE(yp.yearly_realised_pnl, 0) / pvsy.portfolio_value_start_year * 100)
-      WHEN COALESCE(tt.total_transfers, 0) > 0
-      THEN ((COALESCE(pv.total_portfolio_value, 0) - COALESCE(tt.total_transfers, 0)) / tt.total_transfers * 100)
+      WHEN COALESCE(pv.cumulative_transfers, 0) > 0
+      THEN ((COALESCE(pv.total_portfolio_value, 0) - COALESCE(pv.cumulative_transfers, 0)) / pv.cumulative_transfers * 100)
       ELSE 0
     END as yearly_pnl_percent,
 
     CASE
-      WHEN COALESCE(tt.total_transfers, 0) > 0
-      THEN ((COALESCE(pv.total_portfolio_value, 0) - COALESCE(tt.total_transfers, 0)) / tt.total_transfers * 100)
+      WHEN COALESCE(pv.cumulative_transfers, 0) > 0
+      THEN ((COALESCE(pv.total_portfolio_value, 0) - COALESCE(pv.cumulative_transfers, 0)) / pv.cumulative_transfers * 100)
       ELSE 0
     END as overall_percent_increase
 
   FROM ${dimAccount} a
-  LEFT JOIN portfolio_value_calc pv ON a.account_key = pv.account_key
-  LEFT JOIN position_values_calc pvs ON a.account_key = pvs.account_key
+  LEFT JOIN ${viewCurrentPortfolioValue} pv ON a.account_key = pv.account_key
   LEFT JOIN realised_monthly_pnl mp ON a.account_key = mp.account_key
   LEFT JOIN realised_yearly_pnl yp ON a.account_key = yp.account_key
   LEFT JOIN total_transfers_calc tt ON a.account_key = tt.account_key
@@ -928,8 +1169,8 @@ export const viewDailyActivity = pgView("view_daily_activity", {
         a.account_key,
         COALESCE(MAX(s.expiry_date), CURRENT_DATE) as max_expiry_date
     FROM ${dimAccount} a
-    LEFT JOIN ${viewPosition} vp ON a.account_key = vp.account_key
-    LEFT JOIN ${dimSecurity} s ON s.symbol = vp.symbol AND s.expiry_date IS NOT NULL AND s.expiry_date >= CURRENT_DATE AND ABS(CAST(vp.quantity_held AS DECIMAL)) > 0
+    LEFT JOIN ${viewCurrentPosition} vp ON a.account_key = vp.account_key
+    LEFT JOIN ${dimSecurity} s ON s.symbol = vp.symbol AND s.expiry_date IS NOT NULL AND s.expiry_date >= CURRENT_DATE AND ABS(CAST(vp.quantity AS DECIMAL)) > 0
     WHERE a.is_active = true
     GROUP BY a.account_key
   ),
@@ -940,47 +1181,72 @@ export const viewDailyActivity = pgView("view_daily_activity", {
       AND d.full_date <= er.max_expiry_date
       AND EXTRACT(dow FROM d.full_date) BETWEEN 1 AND 5
   ),
+  stock_positions AS (
+    -- Calculate net stock positions to identify completed vs open trades
+    SELECT
+      ft.account_key,
+      s.underlying_symbol,
+      s.symbol,
+      SUM(ft.quantity) as net_quantity
+    FROM ${factTransaction} ft
+    JOIN ${dimSecurity} s ON ft.security_key = s.security_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE tt.action_category = 'TRADE' AND s.security_type = 'STOCK'
+    GROUP BY ft.account_key, s.underlying_symbol, s.symbol
+  ),
   daily_data AS (
     SELECT
         d.full_date,
+        d.week_starting_date,
         a.account_key,
         SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as daily_transfers,
-        SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as daily_gains,
+        -- Use same stock logic as profit distribution: exclude open stock positions, include closed ones
+        SUM(CASE
+            WHEN tt.action_category NOT IN ('TRANSFER') AND ds.security_type != 'STOCK'
+            THEN ft.net_amount
+            WHEN tt.action_category NOT IN ('TRANSFER') AND ds.security_type = 'STOCK' AND sp.net_quantity = 0
+            THEN ft.net_amount
+            ELSE 0
+        END) as daily_gains,
         COUNT(CASE WHEN tt.action_category = 'TRADE' THEN ft.transaction_key END) as trade_count
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
+    LEFT JOIN stock_positions sp ON ft.account_key = sp.account_key
+      AND ds.symbol = sp.symbol
+      AND ds.security_type = 'STOCK'
     WHERE d.full_date <= CURRENT_DATE
       AND d.full_date >= CURRENT_DATE - INTERVAL '6 months'
       AND EXTRACT(dow FROM d.full_date) BETWEEN 1 AND 5
-    GROUP BY a.account_key, d.full_date
+    GROUP BY a.account_key, d.full_date, d.week_starting_date
   ),
-  cumulative_data AS (
+  -- Get weekly portfolio values using corrected stock position handling
+  weekly_portfolio_data AS (
     SELECT
-        *,
-        SUM(daily_transfers) OVER (PARTITION BY account_key ORDER BY full_date) as cumulative_transfers,
-        SUM(daily_transfers + daily_gains) OVER (PARTITION BY account_key ORDER BY full_date) as cumulative_portfolio_value
-    FROM daily_data
-  ),
-  with_previous_day AS (
-    SELECT
-        *,
-        LAG(cumulative_portfolio_value) OVER (PARTITION BY account_key ORDER BY full_date) as previous_day_portfolio_value
-    FROM cumulative_data
+        account_key,
+        week_start,
+        total_portfolio_value,
+        LAG(total_portfolio_value) OVER (PARTITION BY account_key ORDER BY week_start) as previous_week_portfolio_value
+    FROM ${viewWeeklyPortfolioValue}
+    WHERE week_start >= (CURRENT_DATE - INTERVAL '6 months')::date
   ),
   daily_returns AS (
     SELECT
-        account_key,
-        full_date,
-        trade_count,
-        daily_gains as daily_premium,
+        dd.account_key,
+        dd.full_date,
+        dd.trade_count,
+        dd.daily_gains as daily_premium,
+        -- Use weekly portfolio values for percentage calculation
         CASE
-            WHEN previous_day_portfolio_value IS NOT NULL AND previous_day_portfolio_value != 0
-            THEN ROUND((daily_gains / ABS(previous_day_portfolio_value)) * 100, 2)
+            WHEN wpd.previous_week_portfolio_value IS NOT NULL AND wpd.previous_week_portfolio_value != 0
+            THEN ROUND((dd.daily_gains / ABS(wpd.previous_week_portfolio_value)) * 100, 2)
             ELSE 0
         END as daily_return_percent
-    FROM with_previous_day
+    FROM daily_data dd
+    LEFT JOIN weekly_portfolio_data wpd ON dd.account_key = wpd.account_key
+      AND dd.week_starting_date = wpd.week_start
   ),
   daily_expiries AS (
     SELECT
@@ -988,11 +1254,11 @@ export const viewDailyActivity = pgView("view_daily_activity", {
         vp.account_key,
         COUNT(*) as expiring_contracts,
         STRING_AGG(DISTINCT s.underlying_symbol, ', ') as expiring_symbols
-    FROM ${viewPosition} vp
+    FROM ${viewCurrentPosition} vp
     JOIN ${dimSecurity} s ON s.symbol = vp.symbol
     WHERE s.expiry_date IS NOT NULL
       AND s.expiry_date >= CURRENT_DATE
-      AND ABS(CAST(vp.quantity_held AS DECIMAL)) > 0
+      AND ABS(CAST(vp.quantity AS DECIMAL)) > 0
       AND EXTRACT(dow FROM s.expiry_date) BETWEEN 1 AND 5
     GROUP BY s.expiry_date, vp.account_key
   )
@@ -1037,7 +1303,7 @@ export const dimAccountAccessTokenRelations = relations(
       fields: [dimAccountAccessToken.brokerCode],
       references: [dimBroker.brokerCode],
     }),
-  })
+  }),
 );
 
 export const dimAccountRelations = relations(dimAccount, ({ one, many }) => ({
@@ -1066,7 +1332,7 @@ export const dimBrokerAccountRelations = relations(
       fields: [dimBrokerAccount.brokerKey],
       references: [dimBroker.brokerKey],
     }),
-  })
+  }),
 );
 
 export const factTransactionRelations = relations(
@@ -1096,7 +1362,7 @@ export const factTransactionRelations = relations(
       fields: [factTransaction.securityKey],
       references: [dimSecurity.securityKey],
     }),
-  })
+  }),
 );
 
 // =============================================
@@ -1146,7 +1412,9 @@ export type NewFactTransaction = typeof factTransaction.$inferInsert;
 export type FactStockPrices = typeof factStockPrices.$inferSelect;
 export type NewFactStockPrices = typeof factStockPrices.$inferInsert;
 
-export type ViewPosition = typeof viewPosition.$inferSelect;
+export type ViewCurrentPosition = typeof viewCurrentPosition.$inferSelect;
+export type ViewCurrentPortfolioValue =
+  typeof viewCurrentPortfolioValue.$inferSelect;
 export type ViewPortfolioDistribution =
   typeof viewPortfolioDistribution.$inferSelect;
 export type ViewWeeklyReturn = typeof viewWeeklyReturn.$inferSelect;

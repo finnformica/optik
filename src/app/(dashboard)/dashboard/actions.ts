@@ -4,8 +4,8 @@ import { db } from "@/lib/db/config";
 import {
   factStockPrices,
   NewFactStockPrices,
-  viewPosition,
-  ViewPosition,
+  viewCurrentPosition,
+  ViewCurrentPosition,
 } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -24,7 +24,7 @@ class FinnhubClient {
   async getQuote(symbol: string): Promise<number | null> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/quote?symbol=${symbol}&token=${this.apiKey}`
+        `${this.baseUrl}/quote?symbol=${symbol}&token=${this.apiKey}`,
       );
 
       if (!response.ok) {
@@ -54,13 +54,13 @@ interface StockPrice {
   cached: boolean;
 }
 
-export interface EnrichedPosition extends ViewPosition {
+export interface EnrichedPosition extends ViewCurrentPosition {
   currentPrice?: number;
   itmPercentage?: number;
 }
 
 async function getStockPrices(
-  symbols: string[]
+  symbols: string[],
 ): Promise<Record<string, StockPrice>> {
   if (symbols.length === 0) return {};
 
@@ -69,7 +69,7 @@ async function getStockPrices(
   const currentDateKey = parseInt(
     `${now.getFullYear()}${(now.getMonth() + 1)
       .toString()
-      .padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}`
+      .padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}`,
   );
 
   // Calculate current quarter hour (1-96)
@@ -84,8 +84,8 @@ async function getStockPrices(
       and(
         inArray(factStockPrices.symbol, symbols),
         eq(factStockPrices.dateKey, currentDateKey),
-        eq(factStockPrices.quarterHour, currentQuarterHour)
-      )
+        eq(factStockPrices.quarterHour, currentQuarterHour),
+      ),
     );
 
   const priceMap: Record<string, StockPrice> = {};
@@ -146,17 +146,17 @@ async function getStockPrices(
 }
 
 export async function getPositionsWithPrices(
-  accountKey: number
+  accountKey: number,
 ): Promise<EnrichedPosition[]> {
   // Fetch positions
   const positions = await db
     .select()
-    .from(viewPosition)
+    .from(viewCurrentPosition)
     .where(
       and(
-        eq(viewPosition.accountKey, accountKey),
-        eq(viewPosition.positionStatus, "OPEN")
-      )
+        eq(viewCurrentPosition.accountKey, accountKey),
+        eq(viewCurrentPosition.positionStatus, "OPEN"),
+      ),
     )
     .limit(50);
 
@@ -164,7 +164,7 @@ export async function getPositionsWithPrices(
 
   // Extract unique underlying symbols for stock price lookup
   const underlyingSymbols = Array.from(
-    new Set(positions.map((p) => p.underlyingSymbol).filter(Boolean))
+    new Set(positions.map((p) => p.underlyingSymbol).filter(Boolean)),
   ) as string[];
 
   // Get stock prices for all underlying symbols
