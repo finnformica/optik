@@ -599,6 +599,89 @@ export const viewPosition = pgView("view_position", {
   GROUP BY a.account_key, s.symbol, s.underlying_symbol, s.strike_price
 `);
 
+// Weekly Position View - Time-aware position calculations for each week
+export const viewWeeklyPosition = pgView("view_weekly_position", {
+  accountKey: integer("account_key"),
+  weekStart: date("week_start"),
+  symbol: varchar("symbol", { length: 50 }),
+  securityType: varchar("security_type", { length: 20 }),
+  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
+  quantity: decimal("quantity", { precision: 18, scale: 8 }),
+  avgCostPerUnit: decimal("avg_cost_per_unit", { precision: 18, scale: 8 }),
+  firstTransactionDate: date("first_transaction_date"),
+  lastTransactionDate: date("last_transaction_date"),
+  positionValue: decimal("position_value", { precision: 18, scale: 8 }),
+  positionStatus: varchar("position_status", { length: 10 }),
+  unrealizedPnl: decimal("unrealized_pnl", { precision: 18, scale: 8 }),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  WITH weekly_date_series AS (
+    -- Get all unique weeks where transactions occurred
+    SELECT DISTINCT
+      d.week_starting_date as week_start,
+      ft.account_key
+    FROM ${factTransaction} ft
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    WHERE a.is_active = true
+  ),
+
+  position_calculations AS (
+    SELECT
+      wds.account_key,
+      wds.week_start,
+      ds.symbol,
+      ds.security_type,
+      ds.underlying_symbol,
+
+      -- Sum all transactions for this symbol up to and including this week
+      SUM(ft.quantity) as cumulative_quantity,
+      SUM(ABS(ft.net_amount)) as total_cost,
+      SUM(ABS(ft.quantity)) as total_quantity,
+
+      -- Calculate average cost per unit
+      CASE
+        WHEN SUM(ABS(ft.quantity)) > 0
+        THEN SUM(ABS(ft.net_amount)) / SUM(ABS(ft.quantity))
+        ELSE 0
+      END as avg_cost_per_unit,
+
+      MIN(d.full_date) as first_transaction_date,
+      MAX(d.full_date) as last_transaction_date
+
+    FROM weekly_date_series wds
+    JOIN ${factTransaction} ft ON ft.account_key = wds.account_key
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE d.week_starting_date <= wds.week_start  -- Only transactions up to this week
+    AND tt.action_category IN ('TRADE', 'CORPORATE')
+    GROUP BY wds.account_key, wds.week_start, ds.symbol, ds.security_type, ds.underlying_symbol
+    HAVING SUM(ft.quantity) != 0  -- Only positions that are open
+  )
+
+  SELECT
+    account_key,
+    week_start,
+    symbol,
+    security_type,
+    underlying_symbol,
+    cumulative_quantity as quantity,
+    avg_cost_per_unit,
+    first_transaction_date,
+    last_transaction_date,
+
+    -- Position value at cost basis
+    ABS(cumulative_quantity) * avg_cost_per_unit as position_value,
+
+    'OPEN' as position_status,
+    0 as unrealized_pnl
+
+  FROM position_calculations
+  ORDER BY account_key, week_start, symbol
+`);
+
 // Portfolio Value View - Centralized portfolio value calculation with proper stock accounting
 export const viewPortfolioValue = pgView("view_portfolio_value", {
   accountKey: integer("account_key"),
@@ -660,6 +743,114 @@ export const viewPortfolioValue = pgView("view_portfolio_value", {
   GROUP BY a.account_key
 `);
 
+// Weekly Portfolio Value View - Time-series portfolio values using viewWeeklyPosition
+export const viewWeeklyPortfolioValue = pgView("view_weekly_portfolio_value", {
+  accountKey: integer("account_key"),
+  weekStart: date("week_start"),
+  cashFlows: decimal("cash_flows", { precision: 18, scale: 8 }),
+  stockPositionValue: decimal("stock_position_value", { precision: 18, scale: 8 }),
+  optionCollateralValue: decimal("option_collateral_value", { precision: 18, scale: 8 }),
+  cumulativeTransfers: decimal("cumulative_transfers", { precision: 18, scale: 8 }),
+  totalPortfolioValue: decimal("total_portfolio_value", { precision: 18, scale: 8 }),
+  availableCash: decimal("available_cash", { precision: 18, scale: 8 }),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  WITH weekly_date_series AS (
+    -- Generate all weeks from earliest transaction to current date
+    SELECT DISTINCT
+      week_start,
+      account_key
+    FROM ${viewWeeklyPosition}
+  ),
+
+  weekly_cash_flows AS (
+    -- Calculate cumulative cash flows up to each week
+    SELECT
+      wds.account_key,
+      wds.week_start,
+      COALESCE(SUM(ft.net_amount), 0) as cash_flows_to_date
+    FROM weekly_date_series wds
+    LEFT JOIN ${factTransaction} ft ON ft.account_key = wds.account_key
+    LEFT JOIN ${dimDate} d ON ft.date_key = d.date_key
+    WHERE d.week_starting_date <= wds.week_start OR ft.transaction_key IS NULL
+    GROUP BY wds.account_key, wds.week_start
+  ),
+
+  weekly_transfers AS (
+    -- Calculate cumulative transfers up to each week
+    SELECT
+      wds.account_key,
+      wds.week_start,
+      COALESCE(SUM(
+        CASE WHEN tt.action_category = 'TRANSFER'
+        THEN ft.net_amount
+        ELSE 0 END
+      ), 0) as cumulative_transfers
+    FROM weekly_date_series wds
+    LEFT JOIN ${factTransaction} ft ON ft.account_key = wds.account_key
+    LEFT JOIN ${dimDate} d ON ft.date_key = d.date_key
+    LEFT JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE d.week_starting_date <= wds.week_start OR ft.transaction_key IS NULL
+    GROUP BY wds.account_key, wds.week_start
+  )
+
+  SELECT
+    wcf.account_key,
+    wcf.week_start,
+    wcf.cash_flows_to_date as cash_flows,
+
+    -- Stock position values from weekly positions (use premium cost basis)
+    COALESCE(
+      (SELECT SUM(vwp.position_value)
+       FROM ${viewWeeklyPosition} vwp
+       WHERE vwp.account_key = wcf.account_key
+       AND vwp.week_start = wcf.week_start
+       AND vwp.security_type = 'STOCK'
+       AND vwp.position_status = 'OPEN'), 0
+    ) as stock_position_value,
+
+    -- Option collateral values using strike_price * 100 (matching viewPosition logic)
+    COALESCE(
+      (SELECT SUM(ds.strike_price * ABS(vwp.quantity) * 100)
+       FROM ${viewWeeklyPosition} vwp
+       JOIN ${dimSecurity} ds ON vwp.symbol = ds.symbol
+       WHERE vwp.account_key = wcf.account_key
+       AND vwp.week_start = wcf.week_start
+       AND vwp.security_type = 'OPTION'
+       AND vwp.position_status = 'OPEN'), 0
+    ) as option_collateral_value,
+
+    -- Cumulative transfers
+    wt.cumulative_transfers,
+
+    -- Total portfolio value = cash flows + stock position values
+    wcf.cash_flows_to_date + COALESCE(
+      (SELECT SUM(vwp.position_value)
+       FROM ${viewWeeklyPosition} vwp
+       WHERE vwp.account_key = wcf.account_key
+       AND vwp.week_start = wcf.week_start
+       AND vwp.security_type = 'STOCK'
+       AND vwp.position_status = 'OPEN'), 0
+    ) as total_portfolio_value,
+
+    -- Available cash = cash flows - option collateral
+    wcf.cash_flows_to_date - COALESCE(
+      (SELECT SUM(ds.strike_price * ABS(vwp.quantity) * 100)
+       FROM ${viewWeeklyPosition} vwp
+       JOIN ${dimSecurity} ds ON vwp.symbol = ds.symbol
+       WHERE vwp.account_key = wcf.account_key
+       AND vwp.week_start = wcf.week_start
+       AND vwp.security_type = 'OPTION'
+       AND vwp.position_status = 'OPEN'), 0
+    ) as available_cash
+
+  FROM weekly_cash_flows wcf
+  JOIN weekly_transfers wt ON wcf.account_key = wt.account_key
+    AND wcf.week_start = wt.week_start
+  ORDER BY wcf.account_key, wcf.week_start
+`);
+
 // Portfolio Distribution (Your dashboard pie chart)
 export const viewPortfolioDistribution = pgView("view_portfolio_distribution", {
   accountKey: integer("account_key"),
@@ -709,74 +900,68 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
 }).with({
   securityInvoker: true,
 }).as(sql`
-  WITH weekly_data AS (
-      SELECT
-          a.account_key,
-          d.week_starting_date as week_start,
-          -- Weekly transfers (money wire in/out)
-          SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
-          -- Weekly gains/losses from trading, dividends, and interest (NOT including transfers)
-          SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_gains
-      FROM ${factTransaction} ft
-      JOIN ${dimDate} d ON ft.date_key = d.date_key
-      JOIN ${dimAccount} a ON ft.account_key = a.account_key
-      JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-      WHERE d.full_date <= CURRENT_DATE
-      GROUP BY a.account_key, d.week_starting_date
+  WITH weekly_transfers AS (
+    -- Calculate weekly transfers separately for returns calculation
+    SELECT
+      a.account_key,
+      d.week_starting_date as week_start,
+      SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
+      SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_gains
+    FROM ${factTransaction} ft
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE d.full_date <= CURRENT_DATE
+    GROUP BY a.account_key, d.week_starting_date
   ),
 
-  cumulative_data AS (
-      SELECT
-          account_key,
-          week_start,
-          weekly_transfers,
-          weekly_gains,
-          -- Cumulative calculations
-          SUM(weekly_transfers) OVER (PARTITION BY account_key ORDER BY week_start) as cumulative_transfers,
-          SUM(weekly_transfers + weekly_gains) OVER (PARTITION BY account_key ORDER BY week_start) as cumulative_portfolio_value
-      FROM weekly_data
-  ),
-
-  lagged_data AS (
-      SELECT
-          account_key,
-          week_start,
-          weekly_gains,
-          weekly_transfers,
-          cumulative_portfolio_value,
-          cumulative_transfers,
-          -- LAG calculation for previous week's portfolio value
-          LAG(cumulative_portfolio_value, 1) OVER (PARTITION BY account_key ORDER BY week_start) as prev_week_portfolio_value
-      FROM cumulative_data
+  portfolio_with_transfers AS (
+    -- Combine portfolio values with transfer data
+    SELECT
+      wpv.account_key,
+      wpv.week_start,
+      wpv.total_portfolio_value as cumulative_portfolio_value,
+      wpv.cumulative_transfers,
+      COALESCE(wt.weekly_transfers, 0) as weekly_transfers,
+      COALESCE(wt.weekly_gains, 0) as weekly_gains
+    FROM ${viewWeeklyPortfolioValue} wpv
+    LEFT JOIN weekly_transfers wt ON wpv.account_key = wt.account_key
+      AND wpv.week_start = wt.week_start
   ),
 
   returns_calculation AS (
-      SELECT
-          account_key,
-          week_start,
-          weekly_transfers,
-          cumulative_portfolio_value,
-          cumulative_transfers,
-          prev_week_portfolio_value,
-          weekly_gains as weekly_return_absolute,
-          -- Weekly return calculation: subtract transfers to avoid spikes
-          CASE 
-              WHEN prev_week_portfolio_value > 0 
-              THEN ((cumulative_portfolio_value - weekly_transfers - prev_week_portfolio_value) 
-                    / prev_week_portfolio_value) * 100
-              ELSE NULL
-          END as weekly_return_percent
-      FROM lagged_data
-      WHERE prev_week_portfolio_value IS NOT NULL
-  )
-
-  SELECT
+    SELECT
       account_key,
       week_start,
       cumulative_portfolio_value,
       cumulative_transfers,
-      weekly_return_percent,
-      weekly_return_absolute
+      weekly_transfers,
+      weekly_gains as weekly_return_absolute,
+      -- LAG calculation for previous week's portfolio value
+      LAG(cumulative_portfolio_value, 1) OVER (
+        PARTITION BY account_key
+        ORDER BY week_start
+      ) as prev_week_portfolio_value
+    FROM portfolio_with_transfers
+  )
+
+  SELECT
+    account_key,
+    week_start,
+    cumulative_portfolio_value,
+    cumulative_transfers,
+    weekly_return_absolute,
+    -- Weekly return calculation: handle first week properly
+    CASE
+      WHEN prev_week_portfolio_value > 0 THEN
+        -- Normal case: previous week portfolio value exists
+        ((cumulative_portfolio_value - weekly_transfers - prev_week_portfolio_value)
+          / prev_week_portfolio_value) * 100
+      WHEN prev_week_portfolio_value IS NULL AND cumulative_transfers > 0 THEN
+        -- First week case: use weekly gains relative to transfers
+        (weekly_return_absolute / cumulative_transfers) * 100
+      ELSE NULL
+    END as weekly_return_percent
   FROM returns_calculation
   ORDER BY account_key, week_start
 `);
