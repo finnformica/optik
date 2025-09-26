@@ -41,24 +41,36 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
       Number(day.expiringContracts || 0) === 0,
   }));
 
-  // Get color intensity based on return percentage (0-2% scale)
+  // Make Tailwind color utility classes available at runtime for dynamic calculation
+  // Tailwind safelist: bg-blue-500/20 bg-blue-500/30 bg-blue-500/40 bg-blue-500/50 bg-blue-500/60 bg-blue-500/70 bg-blue-500/80 bg-blue-500/90
+  // Tailwind safelist: bg-red-500/20 bg-red-500/30 bg-red-500/40 bg-red-500/50 bg-red-500/60 bg-red-500/70 bg-red-500/80 bg-red-500/90
+
+  // Get color intensity based on return percentage (interpolated opacity, max at 1.2%)
   const getColorIntensity = (returnPercent: number): string => {
     const absPercent = Math.abs(returnPercent);
     const isPositive = returnPercent >= 0;
 
     if (absPercent === 0) return "bg-gray-800"; // No activity
 
-    // Consistent gradient using single color with opacity
-    if (isPositive) {
-      if (absPercent < 0.5) return "bg-blue-500/30";
-      else if (absPercent < 1.0) return "bg-blue-500/50";
-      else if (absPercent < 1.5) return "bg-blue-500/75";
-      else return "bg-blue-500";
+    // Interpolate opacity from 0 to 100 based on 0% to 1.2% range
+    const maxPercent = 1.2;
+    const normalizedPercent = Math.min(absPercent / maxPercent, 1); // Cap at 1 (100%)
+
+    // Convert to opacity percentage (20% minimum for visibility, 100% maximum)
+    const minOpacity = 20;
+    const calculatedOpacity = Math.round(
+      minOpacity + (100 - minOpacity) * normalizedPercent,
+    );
+
+    // Floor to nearest 10 for Tailwind compatibility
+    const opacity = Math.floor(calculatedOpacity / 10) * 10;
+
+    const baseColor = isPositive ? "bg-blue-500" : "bg-red-500";
+
+    if (opacity >= 100) {
+      return baseColor; // Full opacity, no transparency
     } else {
-      if (absPercent < 0.5) return "bg-red-500/30";
-      else if (absPercent < 1.0) return "bg-red-500/50";
-      else if (absPercent < 1.5) return "bg-red-500/75";
-      else return "bg-red-500";
+      return `${baseColor}/${opacity}`;
     }
   };
 
