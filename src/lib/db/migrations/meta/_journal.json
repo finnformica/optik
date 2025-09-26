@@ -498,6 +498,34 @@
       "when": 1758905816360,
       "tag": "0070_fluffy_firelord",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1758906685768,
+      "tag": "0071_wonderful_goliath",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1758907001371,
+      "tag": "0072_dear_greymalkin",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1758907433741,
+      "tag": "0073_freezing_old_lace",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1758908494451,
+      "tag": "0074_bitter_shinobi_shaw",
+      "breakpoints": true
     }
   ]
 }
