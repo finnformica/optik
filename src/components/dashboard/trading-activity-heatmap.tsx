@@ -7,6 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ViewDailyActivity } from "@/lib/db/schema";
+import { useEffect, useRef } from "react";
 
 interface TradingActivityHeatmapProps {
   dailyData: ViewDailyActivity[];
@@ -24,6 +25,8 @@ interface HeatmapDay {
 }
 
 const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   // Process data into grid format
   const processedData = dailyData.map((day) => ({
     date: day.date || "",
@@ -178,6 +181,26 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
 
   const monthLabels = getMonthLabels();
 
+  // Auto-scroll to right side on mount and when data changes
+  useEffect(() => {
+    const scrollToRight = () => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+      }
+    };
+
+    // Scroll on mount and data change
+    scrollToRight();
+
+    // Scroll on window resize to maintain right position
+    const handleResize = () => {
+      scrollToRight();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [processedData.length]); // Re-run when data changes
+
   // Format tooltip content
   const formatTooltip = (day: HeatmapDay) => {
     const date = new Date(day.date).toLocaleDateString("en-US", {
@@ -207,7 +230,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
   return (
     <DashboardWidget title="Trading Activity" contentClassName="p-4">
       {/* Scrollable container */}
-      <div className="flex overflow-x-scroll scrollbar-hide">
+      <div ref={scrollContainerRef} className="flex overflow-x-scroll scrollbar-hide">
         {/* Sticky day labels */}
         <div className="sticky left-0 z-10 flex flex-col justify-end gap-1 bg-[#1a2236] pr-2 text-xs text-gray-400">
           {dayNames.map((day) => (
