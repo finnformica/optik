@@ -185,7 +185,8 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
   useEffect(() => {
     const scrollToRight = () => {
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+        scrollContainerRef.current.scrollLeft =
+          scrollContainerRef.current.scrollWidth;
       }
     };
 
@@ -197,8 +198,8 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
       scrollToRight();
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [processedData.length]); // Re-run when data changes
 
   // Format tooltip content
@@ -228,13 +229,19 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
   };
 
   return (
-    <DashboardWidget title="Trading Activity" contentClassName="p-4">
+    <DashboardWidget
+      title="Trading Activity"
+      contentClassName="p-4 flex flex-col justify-between"
+    >
       {/* Scrollable container */}
-      <div ref={scrollContainerRef} className="flex overflow-x-scroll scrollbar-hide">
+      <div
+        ref={scrollContainerRef}
+        className="scrollbar-hide flex overflow-x-scroll"
+      >
         {/* Sticky day labels */}
         <div className="sticky left-0 z-10 flex flex-col justify-end gap-1 bg-[#1a2236] pr-2 text-xs text-gray-400">
           {dayNames.map((day) => (
-            <div key={day} className="flex h-8 items-center">
+            <div key={day} className="flex h-10 items-center">
               {day}
             </div>
           ))}
@@ -248,7 +255,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
                 key={index}
                 className="flex-shrink-0 text-left"
                 style={{
-                  width: `${label.span * 32 + (label.span - 1) * 4}px`, // w-8 (32px) * span + gap (4px) * (span - 1)
+                  width: `${label.span * 40 + (label.span - 1) * 4}px`, // w-10 (40px) * span + gap (4px) * (span - 1)
                   marginRight: index < monthLabels.length - 1 ? "4px" : "0",
                 }}
               >
@@ -263,7 +270,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
               <div key={weekIndex} className="flex flex-col gap-1">
                 {week.map((day, dayIndex) => {
                   const baseClasses =
-                    "w-8 h-8 rounded-xs relative cursor-pointer transition-all duration-150";
+                    "w-10 h-10 rounded-xs relative cursor-pointer transition-all duration-150";
                   const colorClass = getColorIntensity(day.dailyReturnPercent);
 
                   return (
@@ -273,14 +280,14 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
                           className={`${baseClasses} ${colorClass} hover:ring-2 hover:ring-neutral-50`}
                         >
                           {/* Indicator dots */}
-                          <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform gap-0.5">
+                          <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform gap-1">
                             {/* Current day dot */}
                             {day.isCurrentDate && (
-                              <div className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                              <div className="h-2 w-2 rounded-full bg-purple-400" />
                             )}
                             {/* Expiry dot */}
                             {day.expiringContracts > 0 && (
-                              <div className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                              <div className="h-2 w-2 rounded-full bg-yellow-400" />
                             )}
                           </div>
                         </div>
@@ -300,7 +307,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
       </div>
 
       {/* Legend */}
-      <div className="mt-4 flex flex-row items-center justify-between text-xs text-gray-400">
+      <div className="flex flex-row items-center justify-between text-xs text-gray-400">
         <div className="flex items-center gap-4">
           <span>Less</span>
           <div className="flex gap-1">
@@ -319,6 +326,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
             </div>
             <span>Today</span>
           </div>
+
           <div className="flex items-center gap-1">
             <div className="relative h-3 w-3 rounded-xs bg-gray-700">
               <div className="absolute inset-1 rounded-full bg-yellow-400" />
