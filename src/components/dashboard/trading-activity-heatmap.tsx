@@ -207,7 +207,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
   return (
     <DashboardWidget title="Trading Activity" contentClassName="p-4">
       {/* Scrollable container */}
-      <div className="flex overflow-x-scroll">
+      <div className="flex overflow-x-scroll scrollbar-hide">
         {/* Sticky day labels */}
         <div className="sticky left-0 z-10 flex flex-col justify-end gap-1 bg-[#1a2236] pr-2 text-xs text-gray-400">
           {dayNames.map((day) => (
@@ -235,7 +235,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
           </div>
 
           {/* Heatmap grid */}
-          <div className="flex gap-1">
+          <div className="flex gap-1 p-0.5">
             {weeks.map((week, weekIndex) => (
               <div key={weekIndex} className="flex flex-col gap-1">
                 {week.map((day, dayIndex) => {
