@@ -578,8 +578,12 @@ export const viewWeeklyPosition = pgView("view_weekly_position", {
     pc.first_transaction_date,
     pc.last_transaction_date,
 
-    -- Position value at cost basis
-    ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit as position_value,
+    -- Position value: stocks use cost basis, options use collateral value
+    CASE
+      WHEN ds.security_type = 'STOCK' THEN ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
+      WHEN ds.security_type = 'OPTION' THEN ABS(pc.cumulative_quantity) * ds.strike_price * 100
+      ELSE ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
+    END as position_value,
 
     'OPEN' as position_status,
     0 as unrealized_pnl,
@@ -1145,44 +1149,51 @@ export const viewDailyActivity = pgView("view_daily_activity", {
   daily_data AS (
     SELECT
         d.full_date,
+        d.week_starting_date,
         a.account_key,
         SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as daily_transfers,
-        SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as daily_gains,
+        -- Exclude stock transactions from daily gains since they're balanced by position value
+        SUM(CASE
+            WHEN tt.action_category NOT IN ('TRANSFER') AND ds.security_type != 'STOCK'
+            THEN ft.net_amount
+            ELSE 0
+        END) as daily_gains,
         COUNT(CASE WHEN tt.action_category = 'TRADE' THEN ft.transaction_key END) as trade_count
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
     WHERE d.full_date <= CURRENT_DATE
       AND d.full_date >= CURRENT_DATE - INTERVAL '6 months'
       AND EXTRACT(dow FROM d.full_date) BETWEEN 1 AND 5
-    GROUP BY a.account_key, d.full_date
+    GROUP BY a.account_key, d.full_date, d.week_starting_date
   ),
-  cumulative_data AS (
+  -- Get weekly portfolio values using corrected stock position handling
+  weekly_portfolio_data AS (
     SELECT
-        *,
-        SUM(daily_transfers) OVER (PARTITION BY account_key ORDER BY full_date) as cumulative_transfers,
-        SUM(daily_transfers + daily_gains) OVER (PARTITION BY account_key ORDER BY full_date) as cumulative_portfolio_value
-    FROM daily_data
-  ),
-  with_previous_day AS (
-    SELECT
-        *,
-        LAG(cumulative_portfolio_value) OVER (PARTITION BY account_key ORDER BY full_date) as previous_day_portfolio_value
-    FROM cumulative_data
+        account_key,
+        week_start,
+        total_portfolio_value,
+        LAG(total_portfolio_value) OVER (PARTITION BY account_key ORDER BY week_start) as previous_week_portfolio_value
+    FROM ${viewWeeklyPortfolioValue}
+    WHERE week_start >= (CURRENT_DATE - INTERVAL '6 months')::date
   ),
   daily_returns AS (
     SELECT
-        account_key,
-        full_date,
-        trade_count,
-        daily_gains as daily_premium,
+        dd.account_key,
+        dd.full_date,
+        dd.trade_count,
+        dd.daily_gains as daily_premium,
+        -- Use weekly portfolio values for percentage calculation
         CASE
-            WHEN previous_day_portfolio_value IS NOT NULL AND previous_day_portfolio_value != 0
-            THEN ROUND((daily_gains / ABS(previous_day_portfolio_value)) * 100, 2)
+            WHEN wpd.previous_week_portfolio_value IS NOT NULL AND wpd.previous_week_portfolio_value != 0
+            THEN ROUND((dd.daily_gains / ABS(wpd.previous_week_portfolio_value)) * 100, 2)
             ELSE 0
         END as daily_return_percent
-    FROM with_previous_day
+    FROM daily_data dd
+    LEFT JOIN weekly_portfolio_data wpd ON dd.account_key = wpd.account_key
+      AND dd.week_starting_date = wpd.week_start
   ),
   daily_expiries AS (
     SELECT
