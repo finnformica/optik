@@ -285,7 +285,7 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
                           </div>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent className="border-gray-600 bg-gray-700">
+                      <TooltipContent className="border-gray-600 bg-gray-700 [&_.bg-primary]:!bg-gray-700 [&_.fill-primary]:!fill-gray-700">
                         <p className="text-sm text-white">
                           {formatTooltip(day)}
                         </p>
