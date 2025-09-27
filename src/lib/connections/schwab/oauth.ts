@@ -1,10 +1,10 @@
 import { and, eq } from "drizzle-orm";
 
-import { getAccountKey } from "@/lib/supabase/server";
 import { TokenEncryption } from "@/lib/auth/token-encryption";
 import { db } from "@/lib/db/config";
 import { SchwabActivity } from "@/lib/db/etl/schwab";
 import { dimAccountAccessToken } from "@/lib/db/schema";
+import { getAccountKey } from "@/lib/supabase/server";
 import { endpoints } from "@/lib/utils";
 
 interface SchwabTokens {
@@ -60,7 +60,7 @@ export class SchwabAuth {
     };
 
     const encryptedTokens = TokenEncryption.encrypt(
-      JSON.stringify(sensitiveData)
+      JSON.stringify(sensitiveData),
     );
 
     try {
@@ -91,7 +91,7 @@ export class SchwabAuth {
       throw new Error(
         `Failed to store tokens: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     }
   }
@@ -107,8 +107,8 @@ export class SchwabAuth {
         .where(
           and(
             eq(dimAccountAccessToken.accountKey, accountKey),
-            eq(dimAccountAccessToken.brokerCode, "schwab")
-          )
+            eq(dimAccountAccessToken.brokerCode, "schwab"),
+          ),
         );
 
       if (!data || data.length === 0) {
@@ -120,7 +120,7 @@ export class SchwabAuth {
       try {
         // Decrypt token data
         const decryptedData = TokenEncryption.decrypt(
-          tokenRecord.encryptedTokens
+          tokenRecord.encryptedTokens,
         );
         const sensitiveTokens = JSON.parse(decryptedData);
 
@@ -128,7 +128,7 @@ export class SchwabAuth {
           access_token: sensitiveTokens.access_token,
           refresh_token: sensitiveTokens.refresh_token,
           expires_in: Math.floor(
-            (tokenRecord.expiresAt.getTime() - Date.now()) / 1000
+            (tokenRecord.expiresAt.getTime() - Date.now()) / 1000,
           ),
           token_type: tokenRecord.tokenType,
           scope: tokenRecord.scope,
@@ -149,7 +149,7 @@ export class SchwabAuth {
 
     if (!tokens) {
       throw new SchwabAuthenticationError(
-        "No tokens found. Schwab account needs to re-authenticate."
+        "No tokens found. Schwab account needs to re-authenticate.",
       );
     }
 
@@ -164,9 +164,8 @@ export class SchwabAuth {
       return newTokens.access_token;
     } catch (error) {
       // If refresh fails, account needs to re-authenticate
-      await this.clearStoredTokens();
       throw new SchwabTokenRefreshError(
-        "Token refresh failed. Schwab account needs to re-authenticate."
+        "Token refresh failed. Schwab account needs to re-authenticate.",
       );
     }
   }
@@ -180,15 +179,15 @@ export class SchwabAuth {
         .where(
           and(
             eq(dimAccountAccessToken.accountKey, accountKey),
-            eq(dimAccountAccessToken.brokerCode, "schwab")
-          )
+            eq(dimAccountAccessToken.brokerCode, "schwab"),
+          ),
         );
     } catch (error) {
       console.error("Failed to clear tokens:", error);
       throw new Error(
         `Failed to clear tokens: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     }
   }
@@ -208,7 +207,7 @@ export class SchwabAuth {
   // Exchange authorization code for access tokens
   async exchangeCodeForTokens(
     authorizationCode: string,
-    redirectUri: string
+    redirectUri: string,
   ): Promise<SchwabTokens> {
     const credentials = btoa(`${this.appKey}:${this.appSecret}`);
 
@@ -229,7 +228,7 @@ export class SchwabAuth {
       const errorText = await response.text();
       console.error("Token exchange error details:", errorText);
       throw new Error(
-        `Token exchange failed: ${response.statusText} - ${errorText}`
+        `Token exchange failed: ${response.statusText} - ${errorText}`,
       );
     }
 
@@ -255,7 +254,7 @@ export class SchwabAuth {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Token refresh failed: ${response.statusText} - ${errorText}`
+        `Token refresh failed: ${response.statusText} - ${errorText}`,
       );
     }
 
@@ -265,7 +264,7 @@ export class SchwabAuth {
   // Make authenticated API request
   async makeAuthenticatedRequest(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<Response> {
     const accessToken = await this.refreshAccessTokenSecurely();
 
@@ -293,13 +292,13 @@ export class SchwabAuth {
   async getAccountNumbers(): Promise<SchwabAccountInfo[]> {
     const response = await this.makeAuthenticatedRequest(
       "/trader/v1/accounts/accountNumbers",
-      { method: "GET" }
+      { method: "GET" },
     );
 
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to get account numbers: ${response.status} ${response.statusText} - ${errorText}`
+        `Failed to get account numbers: ${response.status} ${response.statusText} - ${errorText}`,
       );
     }
 
@@ -310,7 +309,7 @@ export class SchwabAuth {
   async getTransactionHistory(
     accountHash: string, // Schwab Account hash
     fromDate: Date,
-    toDate?: Date
+    toDate?: Date,
   ): Promise<SchwabActivity[]> {
     const endDate = toDate || new Date();
     let allTransactions: SchwabActivity[] = [];
@@ -333,7 +332,7 @@ export class SchwabAuth {
         const batchTransactions = await this.getTransactionHistoryBatch(
           accountHash,
           currentStartDate,
-          currentEndDate
+          currentEndDate,
         );
 
         allTransactions.push(...batchTransactions);
@@ -350,7 +349,7 @@ export class SchwabAuth {
           `Failed to fetch batch ${
             currentStartDate.toISOString().split("T")[0]
           } to ${currentEndDate.toISOString().split("T")[0]}:`,
-          error
+          error,
         );
       }
 
@@ -366,7 +365,7 @@ export class SchwabAuth {
   private async getTransactionHistoryBatch(
     accountHash: string,
     fromDate: Date,
-    toDate: Date
+    toDate: Date,
   ): Promise<SchwabActivity[]> {
     // Schwab expects dates in full ISO string format
     const fromDateStr = fromDate.toISOString();
@@ -391,7 +390,7 @@ export class SchwabAuth {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to get transaction history: ${response.statusText} - ${errorText}`
+        `Failed to get transaction history: ${response.statusText} - ${errorText}`,
       );
     }
 
