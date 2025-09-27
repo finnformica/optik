@@ -31,6 +31,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <script defer src="https://cloud.umami.is/script.js" data-website-id="a2a51957-134b-4531-9ed1-605eefc80392" />
+      </head>
       <body className="min-h-screen bg-background">
         <SWRConfig
           value={{
