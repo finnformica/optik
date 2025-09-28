@@ -136,29 +136,6 @@ export const switchAccount = validatedActionWithUser(
   },
 );
 
-// Function to check if user can downgrade based on current account count
-export async function checkDowngradeEligibility(
-  targetRole: "basic" | "pro",
-): Promise<{
-  canDowngrade: boolean;
-  message?: string;
-  excessAccounts?: number;
-}> {
-  const currentAccounts = await getUserAccounts();
-  const targetLimit = getAccountLimitForRole(targetRole);
-
-  if (currentAccounts.length > targetLimit) {
-    const excessAccounts = currentAccounts.length - targetLimit;
-    return {
-      canDowngrade: false,
-      message: `Cannot downgrade to ${targetRole}. You have ${currentAccounts.length} accounts but ${targetRole} plan allows only ${targetLimit}. Please delete ${excessAccounts} account(s) first.`,
-      excessAccounts,
-    };
-  }
-
-  return { canDowngrade: true };
-}
-
 // Function to check if user has active subscription before account deletion
 export async function checkAccountDeletionEligibility(): Promise<{
   canDelete: boolean;
