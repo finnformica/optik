@@ -1,8 +1,8 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import { getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
 import { stgTransaction } from "@/lib/db/schema";
+import { getAccountKey } from "@/lib/supabase/server";
 import { updateSyncProgress } from "@/lib/sync-progress";
 import { BrokerCode } from "@/types/broker";
 import { processSchwabTransactions, SchwabActivity } from "./schwab";
@@ -38,27 +38,8 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
   return formattedData.length;
 }
 
-// Helper function to get pending transaction IDs in batches
-export async function getPendingTransactionIds(batchSize: number) {
-  const accountKey = await getAccountKey();
-
-  const pendingIds = await db
-    .select({ id: stgTransaction.id })
-    .from(stgTransaction)
-    .where(
-      and(
-        eq(stgTransaction.accountKey, accountKey),
-        inArray(stgTransaction.status, ["PENDING", "FAILED"])
-      )
-    )
-    .orderBy(stgTransaction.id)
-    .limit(batchSize);
-
-  return pendingIds.map((row) => row.id);
-}
-
 // Updated helper to group pending transactions by broker
-export async function getPendingTransactionIdsByBroker(batchSize: number) {
+async function getPendingTransactionIdsByBroker(batchSize: number) {
   const accountKey = await getAccountKey();
 
   const pendingTransactions = await db
@@ -70,8 +51,8 @@ export async function getPendingTransactionIdsByBroker(batchSize: number) {
     .where(
       and(
         eq(stgTransaction.accountKey, accountKey),
-        inArray(stgTransaction.status, ["PENDING", "FAILED"])
-      )
+        inArray(stgTransaction.status, ["PENDING", "FAILED"]),
+      ),
     )
     .orderBy(stgTransaction.brokerCode, stgTransaction.id);
 
@@ -99,7 +80,7 @@ export async function getPendingTransactionIdsByBroker(batchSize: number) {
   return brokerBatches;
 }
 
-export async function getPendingTransactionCount() {
+async function getPendingTransactionCount() {
   const accountKey = await getAccountKey();
 
   const [pendingCount] = await db
@@ -108,8 +89,8 @@ export async function getPendingTransactionCount() {
     .where(
       and(
         eq(stgTransaction.accountKey, accountKey),
-        inArray(stgTransaction.status, ["PENDING", "FAILED"])
-      )
+        inArray(stgTransaction.status, ["PENDING", "FAILED"]),
+      ),
     )
     .limit(1);
   return pendingCount.count;
@@ -130,7 +111,7 @@ export async function processRawTransactionsWithProgress(batchSize: number) {
       // Call broker-specific processing function
       const batchResult = await processBrokerTransactionsBatch(
         brokerCode,
-        batchIds
+        batchIds,
       );
 
       totalProcessed += batchResult.processed;
@@ -156,7 +137,7 @@ export async function processRawTransactionsWithProgress(batchSize: number) {
 // Broker dispatcher function
 async function processBrokerTransactionsBatch(
   brokerCode: BrokerCode,
-  stgTransactionIds: number[]
+  stgTransactionIds: number[],
 ) {
   switch (brokerCode) {
     case "schwab":
