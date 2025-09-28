@@ -1,4 +1,3 @@
-import { getUser } from "@/lib/db/queries";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Stripe from "stripe";
@@ -9,18 +8,12 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 export async function createCheckoutSession({
-  team,
   priceId,
+  userId,
 }: {
-  team: null;
   priceId: string;
+  userId: number;
 }) {
-  const user = await getUser();
-
-  if (!user) {
-    redirect(`${paths.auth.signUp}?redirect=checkout&priceId=${priceId}`);
-  }
-
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     line_items: [
@@ -32,12 +25,12 @@ export async function createCheckoutSession({
     mode: "subscription",
     success_url: `${process.env.BASE_URL}${endpoints.stripe.checkout}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.BASE_URL}${paths.pricing}`,
-    // customer: team.stripeCustomerId || undefined,
-    client_reference_id: user.id.toString(),
+    client_reference_id: userId.toString(),
     allow_promotion_codes: true,
-    subscription_data: {
-      trial_period_days: 14,
-    },
+    // Note: Trial period can be configured per-price in Stripe dashboard
+    // subscription_data: {
+    //   trial_period_days: 14,
+    // },
   });
 
   redirect(session.url!);

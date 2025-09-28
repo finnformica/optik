@@ -1,9 +1,31 @@
 "use server";
 
-// TODO: Replace with account-based payment actions
-// These functions need to be reimplemented to work with user accounts instead of teams
+import { getUser } from "@/lib/db/queries";
+import { createCheckoutSession } from "@/lib/payments/stripe";
+import { redirect } from "next/navigation";
 
-// export const checkoutAction = ...
-// export const customerPortalAction = ...
+export const checkoutAction = async (formData: FormData) => {
+  const priceId = formData.get("priceId") as string;
 
-export const checkoutAction = async (formData: FormData) => {};
+  if (!priceId) {
+    throw new Error("Price ID is required");
+  }
+
+  // Get the current user
+  const user = await getUser();
+  if (!user) {
+    // Redirect to sign in with the pricing page as return URL
+    redirect(`/sign-in?redirect=/pricing`);
+  }
+
+  // Create checkout session and redirect
+  await createCheckoutSession({
+    priceId,
+    userId: user.id,
+  });
+};
+
+export const customerPortalAction = async () => {
+  // TODO: Implement customer portal action
+  throw new Error("Customer portal not implemented yet");
+};

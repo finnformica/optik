@@ -1,9 +1,8 @@
 import { db } from "@/lib/db/config";
-import { dimAccount, dimUser } from "@/lib/db/schema";
+import { dimUser } from "@/lib/db/schema";
 import { stripe } from "@/lib/payments/stripe";
-import { updateAccountKey } from "@/lib/supabase/server";
 import { paths } from "@/lib/utils";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -55,40 +54,28 @@ export async function GET(request: NextRequest) {
       throw new Error("No user ID found in session's client_reference_id.");
     }
 
-    const user = await db
-      .select({
-        id: dimUser.id,
-        name: sql`${dimUser.firstName} ${dimUser.lastName}`,
-        email: dimUser.email,
-        role: dimUser.role,
-        createdAt: dimUser.createdAt,
-        updatedAt: dimUser.updatedAt,
-        deletedAt: dimUser.deletedAt,
-        accountKey: dimAccount.accountKey,
-      })
+    const [user] = await db
+      .select()
       .from(dimUser)
-      .innerJoin(dimAccount, eq(dimUser.id, dimAccount.userId))
       .where(eq(dimUser.id, Number(userId)))
       .limit(1);
 
-    if (user.length === 0) {
+    if (!user) {
       throw new Error("User not found in database.");
     }
 
-    // await db
-    //   .update(teams)
-    //   .set({
-    //     stripeCustomerId: customerId,
-    //     stripeSubscriptionId: subscriptionId,
-    //     stripeProductId: productId,
-    //     planName: (plan.product as Stripe.Product).name,
-    //     subscriptionStatus: subscription.status,
-    //     updatedAt: new Date(),
-    //   })
-    //   .where(eq(teams.id, userTeam[0].teamId));
+    // Update user subscription data - this will automatically compute the role
+    await db
+      .update(dimUser)
+      .set({
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
+        planName: (plan.product as Stripe.Product).name,
+        subscriptionStatus: subscription.status,
+        updatedAt: new Date(),
+      })
+      .where(eq(dimUser.id, Number(userId)));
 
-    // Update the authenticated user's account key
-    await updateAccountKey(user[0].accountKey);
     return NextResponse.redirect(new URL(paths.dashboard, request.url));
   } catch (error) {
     console.error("Error handling successful checkout:", error);
