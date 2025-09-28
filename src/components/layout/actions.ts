@@ -13,7 +13,7 @@ import {
 } from "@/lib/db/queries";
 import { dimAccount } from "@/lib/db/schema";
 import { getAccountKey, updateAccountKey } from "@/lib/supabase/server";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 const createAccountSchema = z.object({
   accountName: z
@@ -163,3 +163,62 @@ export async function checkAccountDeletionEligibility(): Promise<{
 
   return { canDelete: true, hasActiveSubscription: false };
 }
+
+const deleteMultipleAccountsSchema = z.object({
+  accountKeys: z.string().transform((val) => JSON.parse(val) as number[]),
+});
+
+export const deleteMultipleAccounts = validatedActionWithUser(
+  deleteMultipleAccountsSchema,
+  async (data, _, user, supabaseUser) => {
+    const { accountKeys } = data;
+
+    if (accountKeys.length === 0) {
+      return { error: "No accounts selected for deletion." };
+    }
+
+    const currentAccountKey = await getAccountKey();
+
+    // Check if current account is being deleted
+    const currentAccountBeingDeleted = accountKeys.includes(currentAccountKey);
+
+    // If current account is being deleted, find a replacement
+    let newAccountKey = null;
+    if (currentAccountBeingDeleted) {
+      const allUserAccounts = await getUserAccounts();
+      const remainingAccount = allUserAccounts.find(
+        account => !accountKeys.includes(account.accountKey) && account.isActive
+      );
+
+      if (!remainingAccount) {
+        return { error: "Cannot delete all accounts. At least one account must remain." };
+      }
+
+      newAccountKey = remainingAccount.accountKey;
+    }
+
+    try {
+      // Switch to new account first if needed
+      if (newAccountKey) {
+        await updateAccountKey(newAccountKey);
+      }
+
+      // Bulk delete all selected accounts using inArray
+      await db
+        .update(dimAccount)
+        .set({
+          isActive: false,
+          updatedAt: new Date(),
+        })
+        .where(inArray(dimAccount.accountKey, accountKeys));
+
+      return {
+        success: `Successfully deleted ${accountKeys.length} account(s).`,
+        switchedAccount: newAccountKey ? true : false
+      };
+    } catch (error) {
+      console.error("Failed to delete accounts:", error);
+      return { error: "Failed to delete accounts. Please try again." };
+    }
+  },
+);
