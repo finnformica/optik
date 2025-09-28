@@ -106,7 +106,7 @@ export async function getUserSubscriptionInfo(): Promise<UserSubscription> {
   const role = await getUserRole();
 
   const defaultInfo: UserSubscription = {
-    role: "basic",
+    role,
     hasActiveSubscription: false,
     subscriptionStatus: null,
     currentPeriodEnd: null,
