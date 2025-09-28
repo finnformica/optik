@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,8 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
   const redirect = searchParams.get("redirect");
   const priceId = searchParams.get("priceId");
   const inviteId = searchParams.get("inviteId");
+  const confirmation = searchParams.get("confirmation");
+  const verified = searchParams.get("verified");
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     mode === "signin" ? signIn : signUp,
     { error: "" },
@@ -35,6 +38,20 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        {confirmation === "true" && (
+          <Alert variant="info" className="mb-6">
+            <AlertDescription>
+              Email confirmation sent. Please check your email to confirm your account.
+            </AlertDescription>
+          </Alert>
+        )}
+        {verified === "true" && (
+          <Alert variant="success" className="mb-6">
+            <AlertDescription>
+              Email verified successfully! You can now sign in to your account.
+            </AlertDescription>
+          </Alert>
+        )}
         <form className="space-y-6" action={formAction}>
           <input type="hidden" name="redirect" value={redirect || ""} />
           <input type="hidden" name="priceId" value={priceId || ""} />

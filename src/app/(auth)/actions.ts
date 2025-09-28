@@ -114,7 +114,7 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     email,
     password,
     options: {
-      emailRedirectTo: `${process.env.BASE_URL}${paths.auth.signIn}`,
+      emailRedirectTo: `${process.env.BASE_URL}${paths.auth.signIn}?verified=true`,
     },
   });
 
@@ -187,7 +187,7 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     data: { accountKey: createdAccount.accountKey },
   });
 
-  redirect(paths.dashboard);
+  redirect(`${paths.auth.signIn}?confirmation=true`);
 });
 
 export async function signOut() {
