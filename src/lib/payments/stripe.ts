@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/db/queries";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Stripe from "stripe";
 import { endpoints, paths } from "../utils";
@@ -111,7 +112,7 @@ export async function createCustomerPortalSession(team: any) {
 }
 
 export async function handleSubscriptionChange(
-  subscription: Stripe.Subscription
+  subscription: Stripe.Subscription,
 ) {
   const customerId = subscription.customer as string;
   const subscriptionId = subscription.id;
@@ -176,4 +177,83 @@ export async function getStripeProducts() {
         ? product.default_price
         : product.default_price?.id,
   }));
+}
+
+// New functions that query from Supabase Stripe schema
+export async function getStripePlans() {
+  const supabase = await createClient();
+
+  // Query prices and products separately since foreign key relationship isn't exposed
+  const [pricesResult, productsResult] = await Promise.all([
+    supabase
+      .schema("stripe")
+      .from("prices")
+      .select(
+        `
+        id,
+        product,
+        unit_amount,
+        currency,
+        recurring,
+        active,
+        type
+      `,
+      )
+      .eq("active", true)
+      .eq("type", "recurring"),
+
+    supabase
+      .schema("stripe")
+      .from("products")
+      .select(
+        `
+        id,
+        name,
+        description,
+        active
+      `,
+      )
+      .eq("active", true),
+  ]);
+
+  if (pricesResult.error) {
+    console.error("Error fetching prices from database:", pricesResult.error);
+    throw new Error("Failed to fetch prices from database");
+  }
+
+  if (productsResult.error) {
+    console.error(
+      "Error fetching products from database:",
+      productsResult.error,
+    );
+    throw new Error("Failed to fetch products from database");
+  }
+
+  // Create a map of products for easy lookup
+  const productsMap = new Map(
+    productsResult.data?.map((product: any) => [product.id, product]) || [],
+  );
+
+  return (
+    pricesResult.data
+      ?.map((price: any) => {
+        const product = productsMap.get(price.product);
+        return {
+          id: price.id,
+          productId: price.product,
+          unitAmount: price.unit_amount,
+          currency: price.currency,
+          interval: price.recurring?.interval,
+          trialPeriodDays: price.recurring?.trial_period_days,
+          product: product
+            ? {
+                id: product.id,
+                name: product.name,
+                description: product.description,
+              }
+            : null,
+        };
+      })
+      .filter((price: any) => price.product !== null) || []
+  ); // Only return prices with valid products
 }

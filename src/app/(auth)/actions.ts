@@ -149,7 +149,7 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     firstName,
     lastName,
     email,
-    role: "basic",
+    // role is computed automatically based on subscription_status and role_override
   };
 
   const [createdUser] = await db.insert(dimUser).values(newUser).returning();
