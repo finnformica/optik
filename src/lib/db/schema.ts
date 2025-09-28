@@ -114,7 +114,11 @@ export const dimUser = pgTable(
     firstName: varchar("first_name", { length: 50 }),
     lastName: varchar("last_name", { length: 50 }),
     email: varchar("email", { length: 255 }).notNull().unique(),
-    role: varchar("role", { length: 20 }).notNull().default("basic"),
+
+    // Subscription and role management
+    stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+    roleOverride: varchar("role_override", { length: 20 }), // basic, pro, admin - manual override
+
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     deletedAt: timestamp("deleted_at"),

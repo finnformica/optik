@@ -1,9 +1,10 @@
 "use server";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { checkAccountDeletionEligibility } from "@/components/layout/actions";
 import {
   validatedAction,
   validatedActionWithUser,
@@ -18,6 +19,10 @@ const signInSchema = z.object({
   password: z.string().min(8).max(100),
 });
 
+const resendConfirmationSchema = z.object({
+  email: z.email("Invalid email address"),
+});
+
 export const signIn = validatedAction(signInSchema, async (data) => {
   const { email, password } = data;
 
@@ -29,7 +34,7 @@ export const signIn = validatedAction(signInSchema, async (data) => {
     })
     .from(dimUser)
     .innerJoin(dimAccount, eq(dimUser.id, dimAccount.userId))
-    .where(eq(dimUser.email, email))
+    .where(and(eq(dimUser.email, email), isNull(dimUser.deletedAt)))
     .limit(1);
 
   if (!foundUser) {
@@ -55,6 +60,7 @@ export const signIn = validatedAction(signInSchema, async (data) => {
           "Please confirm your email address before signing in. Check your email for a confirmation link.",
         email,
         password,
+        code: error.code,
       };
     }
 
@@ -62,6 +68,7 @@ export const signIn = validatedAction(signInSchema, async (data) => {
       error: "Invalid email or password. Please try again.",
       email,
       password,
+      code: error.code,
     };
   }
 
@@ -149,7 +156,7 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     firstName,
     lastName,
     email,
-    role: "basic",
+    // role is computed automatically based on subscription_status and role_override
   };
 
   const [createdUser] = await db.insert(dimUser).values(newUser).returning();
@@ -224,32 +231,49 @@ export const updatePassword = validatedActionWithUser(
     return {
       success: "Password updated successfully.",
     };
-  }
+  },
 );
 
 const deleteUserSchema = z.object({
-  confirmDelete: z.string().refine((val) => val === "DELETE", {
-    message: "Please type DELETE to confirm account deletion",
-  }),
+  confirmEmail: z.email("Please enter a valid email address"),
 });
 
 export const deleteUser = validatedActionWithUser(
   deleteUserSchema,
   async (data, _, user, supabaseUser) => {
-    // Delete user from Supabase Auth
-    // This will cascade delete all related data in our database automatically
-    const supabase = await createClient();
-    const { error } = await supabase.auth.admin.deleteUser(supabaseUser.id);
+    const { confirmEmail } = data;
 
-    if (error) {
+    // Verify the email matches the user's email
+    if (confirmEmail !== user.email) {
       return {
-        confirmDelete: "",
-        error: "Failed to delete user account. Please try again.",
+        confirmEmail: "",
+        error: "Email confirmation does not match your account email.",
       };
     }
 
+    // Check if user has active subscription before allowing deletion
+    const deletionEligibility = await checkAccountDeletionEligibility();
+    if (!deletionEligibility.canDelete) {
+      return {
+        confirmEmail: "",
+        error:
+          deletionEligibility.message ||
+          "Cannot delete account with active subscription.",
+      };
+    }
+
+    // Mark user as deleted in our database - this will trigger deletion in auth schema
+    await db
+      .update(dimUser)
+      .set({ deletedAt: new Date() })
+      .where(eq(dimUser.id, user.id));
+
+    // Sign out the user to prevent further access
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+
     redirect(paths.auth.signIn);
-  }
+  },
 );
 
 const updateUserSchema = z.object({
@@ -294,5 +318,5 @@ export const updateUser = validatedActionWithUser(
       lastName,
       success: "User account updated successfully.",
     };
-  }
+  },
 );

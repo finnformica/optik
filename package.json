@@ -5,11 +5,14 @@
     "build": "next build",
     "start": "next start",
     "ngrok": "ngrok http --domain=prawn-verified-oddly.ngrok-free.app 3000",
-    "db:reset": "npx supabase db reset",
+    "db:start": "npx supabase start",
+    "db:reset": "npx supabase db reset --linked=false",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:restart": "npx supabase stop && npx supabase start",
+    "stripe:serve": "npx supabase functions serve stripe-webhook-sync",
+    "stripe:listen": "stripe listen --forward-to http://127.0.0.1:54321/functions/v1/stripe-webhook-sync",
     "knip": "knip"
   },
   "dependencies": {
@@ -42,6 +45,7 @@
     "zod": "^4.1.8"
   },
   "devDependencies": {
+    "@supabase/stripe-sync-engine": "^0.45.0",
     "@tailwindcss/postcss": "4.1.7",
     "@types/lodash": "^4.17.20",
     "@types/node": "^22.15.18",

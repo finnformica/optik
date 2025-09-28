@@ -2,8 +2,15 @@
   "ignore": [
     "src/components/ui/**",
     "src/api/fetchers.ts",
-    "src/lib/db/reset.ts"
+    "src/lib/db/reset.ts",
+    "src/scripts/**",
+    "supabase/**"
   ],
-  "ignoreDependencies": ["drizzle-seed", "tw-animate-css"],
-  "ignoreBinaries": ["ngrok", "supabase"]
+  "ignoreDependencies": [
+    "drizzle-seed",
+    "tw-animate-css",
+    "tailwind-scrollbar-hide",
+    "@supabase/stripe-sync-engine"
+  ],
+  "ignoreBinaries": ["ngrok", "supabase", "stripe"]
 }

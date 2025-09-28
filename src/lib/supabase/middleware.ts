@@ -2,7 +2,7 @@ import { endpoints, paths } from "@/lib/utils";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const protectedRoutes = paths.dashboard;
+const protectedRoutes = [paths.dashboard, paths.pricing];
 const publicApiRoutes = [endpoints.stripe.webhook];
 
 export async function updateSession(request: NextRequest) {
@@ -20,17 +20,17 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
+            request.cookies.set(name, value),
           );
           supabaseResponse = NextResponse.next({
             request,
           });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options),
           );
         },
       },
-    }
+    },
   );
 
   // Do not run code between createServerClient and
@@ -45,13 +45,18 @@ export async function updateSession(request: NextRequest) {
 
   // Add account key to request headers for easy access in server components
   if (user?.user_metadata?.accountKey) {
-    supabaseResponse.headers.set('x-account-key', user.user_metadata.accountKey.toString())
+    supabaseResponse.headers.set(
+      "x-account-key",
+      user.user_metadata.accountKey.toString(),
+    );
   }
 
-  const isProtectedRoute = pathname.startsWith(protectedRoutes);
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    pathname.startsWith(route),
+  );
   const isApiRoute = pathname.startsWith("/api");
   const isPublicApiRoute = publicApiRoutes.some((route) =>
-    pathname.startsWith(route)
+    pathname.startsWith(route),
   );
   const isProtectedApiRoute = isApiRoute && !isPublicApiRoute;
   const isAuthRoute =

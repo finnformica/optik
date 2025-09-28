@@ -554,6 +554,41 @@
       "when": 1758911746988,
       "tag": "0078_fresh_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1759058713998,
+      "tag": "0079_shocking_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1759058830289,
+      "tag": "0080_keen_blue_blade",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1759059156308,
+      "tag": "0081_expose-stripe-schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1759068851146,
+      "tag": "0082_brave_mathemanic",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1759077183426,
+      "tag": "0083_delete-user-trigger",
+      "breakpoints": true
     }
   ]
 }

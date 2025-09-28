@@ -11,7 +11,11 @@ export const channels = {
 };
 
 export const endpoints = {
-  user: "/api/user",
+  user: {
+    base: "/api/user",
+    role: "/api/user/role",
+    subscription: "/api/user/subscription",
+  },
   data: "/api/data",
   accounts: "/api/accounts",
   transactions: "/api/transactions",
@@ -38,5 +42,6 @@ export const paths = {
     connections: "/settings/connections",
     general: "/settings/general",
     security: "/settings/security",
+    subscription: "/settings/subscription",
   },
 };

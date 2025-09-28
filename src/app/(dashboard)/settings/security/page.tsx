@@ -17,7 +17,7 @@ type PasswordState = {
 };
 
 type DeleteState = {
-  password?: string;
+  confirmEmail?: string;
   error?: string;
   success?: string;
 };
@@ -124,21 +124,21 @@ export default function SecurityPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-400 mb-4">
-            Account deletion is non-reversable. Please proceed with caution.
+            Account deletion is non-reversible. Please proceed with caution.
+            Enter your email address to confirm deletion.
           </p>
           <form action={deleteAction} className="space-y-4">
             <div>
-              <Label htmlFor="delete-password" className="mb-2 text-white">
-                Confirm Password
+              <Label htmlFor="confirm-email" className="mb-2 text-white">
+                Confirm Email Address
               </Label>
               <Input
-                id="delete-password"
-                name="password"
-                type="password"
+                id="confirm-email"
+                name="confirmEmail"
+                type="email"
                 required
-                minLength={8}
-                maxLength={100}
-                defaultValue={deleteState.password}
+                placeholder="Enter your email address"
+                defaultValue={deleteState.confirmEmail}
                 className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400"
               />
             </div>

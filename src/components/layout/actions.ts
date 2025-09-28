@@ -3,9 +3,16 @@
 import { z } from "zod";
 
 import { validatedActionWithUser } from "@/lib/auth/middleware";
-import { updateAccountKey, getAccountKey } from "@/lib/supabase/server";
 import { db } from "@/lib/db/config";
+import {
+  getAccountLimitForRole,
+  getUser,
+  getUserAccounts,
+  getUserRole,
+  getUserSubscriptionInfo,
+} from "@/lib/db/queries";
 import { dimAccount } from "@/lib/db/schema";
+import { getAccountKey, updateAccountKey } from "@/lib/supabase/server";
 import { eq } from "drizzle-orm";
 
 const createAccountSchema = z.object({
@@ -19,6 +26,24 @@ export const createAccount = validatedActionWithUser(
   createAccountSchema,
   async (data, _, user, supabaseUser) => {
     const { accountName } = data;
+
+    // Check user's role and account limits
+    const userRole = await getUserRole();
+    const accountLimit = getAccountLimitForRole(userRole);
+    const currentAccounts = await getUserAccounts();
+
+    // Enforce account limits
+    if (currentAccounts.length >= accountLimit) {
+      if (userRole === "basic") {
+        return {
+          error: `Basic plan allows only ${accountLimit} account. Upgrade to Pro to add more accounts.`,
+        };
+      } else if (userRole === "pro") {
+        return {
+          error: `Pro plan allows up to a maximum of ${accountLimit} accounts.`,
+        };
+      }
+    }
 
     await db.insert(dimAccount).values({
       userId: user.id,
@@ -110,3 +135,31 @@ export const switchAccount = validatedActionWithUser(
     return { success: "Account switched successfully." };
   },
 );
+
+// Function to check if user has active subscription before account deletion
+export async function checkAccountDeletionEligibility(): Promise<{
+  canDelete: boolean;
+  hasActiveSubscription: boolean;
+  message?: string;
+}> {
+  const user = await getUser();
+  if (!user) {
+    return { canDelete: true, hasActiveSubscription: false };
+  }
+
+  // Check if user has active subscription using new function
+  const subscriptionInfo = await getUserSubscriptionInfo();
+  const hasActiveSubscription =
+    !subscriptionInfo.cancelAtPeriodEnd &&
+    subscriptionInfo.hasActiveSubscription;
+
+  if (hasActiveSubscription) {
+    return {
+      canDelete: false,
+      hasActiveSubscription: true,
+      message: `You have an active ${subscriptionInfo.subscriptionStatus} subscription. Please cancel your subscription before deleting your account.`,
+    };
+  }
+
+  return { canDelete: true, hasActiveSubscription: false };
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Link as LinkIcon, Settings, Shield } from "lucide-react";
+import { Link as LinkIcon, Settings, Shield, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -15,6 +15,7 @@ export default function SettingsLayout({
   const navItems = [
     { href: "/settings/general", icon: Settings, label: "General" },
     { href: "/settings/connections", icon: LinkIcon, label: "Connections" },
+    { href: "/settings/subscription", icon: CreditCard, label: "Subscription" },
     { href: "/settings/security", icon: Shield, label: "Security" },
   ];
 
