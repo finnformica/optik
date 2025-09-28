@@ -19,7 +19,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { authUsers } from "drizzle-orm/supabase";
+import { authUsers, authenticatedRole } from "drizzle-orm/supabase";
 
 // =============================================
 // REALTIME TABLES
@@ -90,10 +90,11 @@ export const stgTransaction = pgTable(
     index("idx_stg_transaction_broker_id").on(table.brokerTransactionId),
     pgPolicy("users_own_staging_transactions", {
       for: "all",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`${table.accountKey} IN (
-        SELECT account_key FROM dim_account
-        WHERE user_id = current_setting('app.current_user_id')::int
+        SELECT account_key FROM dim_account da
+        JOIN dim_user du ON da.user_id = du.id
+        WHERE du.auth_user_id = auth.uid()
       )`,
     }),
   ],
@@ -127,8 +128,8 @@ export const dimUser = pgTable(
     index("idx_dim_user_auth_user_id").on(table.authUserId),
     pgPolicy("users_own_data", {
       for: "all",
-      to: "authenticated",
-      using: sql`${table.id} = current_setting('app.current_user_id')::int`,
+      to: authenticatedRole,
+      using: sql`${table.authUserId} = auth.uid()`,
     }),
   ],
 );
@@ -153,8 +154,10 @@ export const dimAccount = pgTable(
   (table) => [
     pgPolicy("users_own_accounts", {
       for: "all",
-      to: "authenticated",
-      using: sql`${table.userId} = current_setting('app.current_user_id')::int`,
+      to: authenticatedRole,
+      using: sql`${table.userId} IN (
+        SELECT id FROM dim_user WHERE auth_user_id = auth.uid()
+      )`,
     }),
   ],
 );
@@ -184,10 +187,11 @@ export const dimAccountAccessToken = pgTable(
     ),
     pgPolicy("users_own_account_tokens", {
       for: "all",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`${table.accountKey} IN (
-        SELECT account_key FROM dim_account
-        WHERE user_id = current_setting('app.current_user_id')::int
+        SELECT account_key FROM dim_account da
+        JOIN dim_user du ON da.user_id = du.id
+        WHERE du.auth_user_id = auth.uid()
       )`,
     }),
   ],
@@ -218,7 +222,7 @@ export const dimDate = pgTable(
     index("idx_dim_date_year_month").on(table.year, table.monthNumber),
     pgPolicy("authenticated_can_read_dates", {
       for: "select",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`true`,
     }),
   ],
@@ -245,7 +249,7 @@ export const dimTime = pgTable(
     index("idx_dim_time_time_value").on(table.timeValue),
     pgPolicy("authenticated_can_read_times", {
       for: "select",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`true`,
     }),
   ],
@@ -288,7 +292,7 @@ export const dimSecurity = pgTable(
     ),
     pgPolicy("authenticated_can_read_securities", {
       for: "select",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`true`,
     }),
   ],
@@ -310,7 +314,7 @@ export const dimTransactionType = pgTable(
   (table) => [
     pgPolicy("authenticated_can_read_transaction_types", {
       for: "select",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`true`,
     }),
   ],
@@ -331,7 +335,7 @@ export const dimBroker = pgTable(
   () => [
     pgPolicy("authenticated_can_read_brokers", {
       for: "select",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`true`,
     }),
   ],
@@ -373,10 +377,11 @@ export const dimBrokerAccount = pgTable(
     index("idx_broker_account_hash").on(table.brokerAccountHash),
     pgPolicy("users_own_broker_accounts", {
       for: "all",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`${table.accountKey} IN (
-        SELECT account_key FROM dim_account
-        WHERE user_id = current_setting('app.current_user_id')::int
+        SELECT account_key FROM dim_account da
+        JOIN dim_user du ON da.user_id = du.id
+        WHERE du.auth_user_id = auth.uid()
       )`,
     }),
   ],
@@ -457,10 +462,11 @@ export const factTransaction = pgTable(
     // RLS Policy
     pgPolicy("users_own_transactions", {
       for: "all",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`${table.accountKey} IN (
-        SELECT account_key FROM dim_account
-        WHERE user_id = current_setting('app.current_user_id')::int
+        SELECT account_key FROM dim_account da
+        JOIN dim_user du ON da.user_id = du.id
+        WHERE du.auth_user_id = auth.uid()
       )`,
     }),
   ],
@@ -496,7 +502,7 @@ export const factStockPrices = pgTable(
     // RLS Policy - all authenticated users can read stock prices
     pgPolicy("authenticated_can_read_stock_prices", {
       for: "select",
-      to: "authenticated",
+      to: authenticatedRole,
       using: sql`true`,
     }),
   ],
