@@ -3,10 +3,16 @@
 import { z } from "zod";
 
 import { validatedActionWithUser } from "@/lib/auth/middleware";
-import { updateAccountKey, getAccountKey } from "@/lib/supabase/server";
-import { getUserRole, getAccountLimitForRole, getUserAccounts, getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db/config";
+import {
+  getAccountLimitForRole,
+  getUser,
+  getUserAccounts,
+  getUserRole,
+  getUserSubscriptionInfo,
+} from "@/lib/db/queries";
 import { dimAccount } from "@/lib/db/schema";
+import { getAccountKey, updateAccountKey } from "@/lib/supabase/server";
 import { eq } from "drizzle-orm";
 
 const createAccountSchema = z.object({
@@ -28,13 +34,13 @@ export const createAccount = validatedActionWithUser(
 
     // Enforce account limits
     if (currentAccounts.length >= accountLimit) {
-      if (userRole === 'basic') {
+      if (userRole === "basic") {
         return {
-          error: `Basic plan allows only ${accountLimit} account. Upgrade to Pro to add more accounts.`
+          error: `Basic plan allows only ${accountLimit} account. Upgrade to Pro to add more accounts.`,
         };
-      } else if (userRole === 'pro') {
+      } else if (userRole === "pro") {
         return {
-          error: `${userRole} plan allows up to ${accountLimit} accounts. You currently have ${currentAccounts.length}.`
+          error: `Pro plan allows up to a maximum of ${accountLimit} accounts.`,
         };
       }
     }
@@ -131,7 +137,13 @@ export const switchAccount = validatedActionWithUser(
 );
 
 // Function to check if user can downgrade based on current account count
-export async function checkDowngradeEligibility(targetRole: 'basic' | 'pro'): Promise<{ canDowngrade: boolean; message?: string; excessAccounts?: number }> {
+export async function checkDowngradeEligibility(
+  targetRole: "basic" | "pro",
+): Promise<{
+  canDowngrade: boolean;
+  message?: string;
+  excessAccounts?: number;
+}> {
   const currentAccounts = await getUserAccounts();
   const targetLimit = getAccountLimitForRole(targetRole);
 
@@ -140,7 +152,7 @@ export async function checkDowngradeEligibility(targetRole: 'basic' | 'pro'): Pr
     return {
       canDowngrade: false,
       message: `Cannot downgrade to ${targetRole}. You have ${currentAccounts.length} accounts but ${targetRole} plan allows only ${targetLimit}. Please delete ${excessAccounts} account(s) first.`,
-      excessAccounts
+      excessAccounts,
     };
   }
 
@@ -148,20 +160,27 @@ export async function checkDowngradeEligibility(targetRole: 'basic' | 'pro'): Pr
 }
 
 // Function to check if user has active subscription before account deletion
-export async function checkAccountDeletionEligibility(): Promise<{ canDelete: boolean; hasActiveSubscription: boolean; message?: string }> {
+export async function checkAccountDeletionEligibility(): Promise<{
+  canDelete: boolean;
+  hasActiveSubscription: boolean;
+  message?: string;
+}> {
   const user = await getUser();
   if (!user) {
     return { canDelete: true, hasActiveSubscription: false };
   }
 
-  // Check if user has active subscription
-  const hasActiveSubscription = user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing';
+  // Check if user has active subscription using new function
+  const subscriptionInfo = await getUserSubscriptionInfo();
+  const hasActiveSubscription =
+    !subscriptionInfo.cancelAtPeriodEnd &&
+    subscriptionInfo.hasActiveSubscription;
 
   if (hasActiveSubscription) {
     return {
       canDelete: false,
       hasActiveSubscription: true,
-      message: `You have an active ${user.subscriptionStatus} subscription. Please cancel your subscription first or contact support to delete your account.`
+      message: `You have an active ${subscriptionInfo.subscriptionStatus} subscription. Please cancel your subscription before deleting your account.`,
     };
   }
 
