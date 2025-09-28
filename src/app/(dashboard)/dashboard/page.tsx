@@ -5,66 +5,24 @@ import ProfitDistribution from "@/components/dashboard/profit-distribution";
 import SummaryStats from "@/components/dashboard/summary-stats";
 import TradingActivityHeatmap from "@/components/dashboard/trading-activity-heatmap";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
-import { getAccountKey } from "@/lib/supabase/server";
-import { db } from "@/lib/db/config";
-import {
-  viewDailyActivity,
-  viewPortfolioDistribution,
-  viewPortfolioSummary,
-  viewProfitDistribution,
-  viewWeeklyReturn,
-} from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { getPositionsWithPrices } from "./actions";
+import { getDashboardData } from "./actions";
 
 export default async function DashboardPage() {
-  const accountKey = await getAccountKey();
+  // Fetch all dashboard data in a single optimized call (includes getAccountKey)
+  const {
+    positions: positionsData,
+    portfolioDistribution: distributionData,
+    profitDistribution: profitDistributionData,
+    portfolioSummary,
+    weeklyReturns: weeklyReturnsData,
+    dailyActivity: dailyActivityData,
+  } = await getDashboardData();
 
-  // Fetch all analytics data in parallel
-  const [
-    positionsData,
-    distributionData,
-    profitDistributionData,
-    [{ availableCash }],
-    weeklyReturnsData,
-    dailyActivityData,
-  ] = await Promise.all([
-    // Current positions with stock prices
-    getPositionsWithPrices(accountKey),
-    // Portfolio distribution
-    db
-      .select()
-      .from(viewPortfolioDistribution)
-      .where(eq(viewPortfolioDistribution.accountKey, accountKey))
-      .limit(20),
-    // Profit distribution
-    db
-      .select()
-      .from(viewProfitDistribution)
-      .where(eq(viewProfitDistribution.accountKey, accountKey))
-      .limit(20),
-    // Available cash
-    db
-      .select({ availableCash: viewPortfolioSummary.availableCash })
-      .from(viewPortfolioSummary)
-      .where(eq(viewPortfolioSummary.accountKey, accountKey))
-      .limit(1),
-    // Weekly returns
-    db
-      .select()
-      .from(viewWeeklyReturn)
-      .where(eq(viewWeeklyReturn.accountKey, accountKey))
-      .limit(52),
-    // Daily trading activity
-    db
-      .select()
-      .from(viewDailyActivity)
-      .where(eq(viewDailyActivity.accountKey, accountKey)),
-  ]);
+  const availableCash = portfolioSummary?.availableCash || "0";
 
   return (
     <div className="space-y-6">
-      <SummaryStats />
+      <SummaryStats portfolioSummary={portfolioSummary} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <WeeklyReturnsChart weeklyData={weeklyReturnsData} />

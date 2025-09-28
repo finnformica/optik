@@ -1,8 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { db } from "@/lib/db/config";
-import { viewPortfolioSummary, ViewPortfolioSummary } from "@/lib/db/schema";
-import { getAccountKey } from "@/lib/supabase/server";
-import { eq } from "drizzle-orm";
+import { ViewPortfolioSummary } from "@/lib/db/schema";
 import {
   Calendar,
   ChartNoAxesColumn,
@@ -24,20 +21,11 @@ interface SummaryCard {
   trendLabel?: string;
 }
 
-async function getSummary() {
-  const accountKey = await getAccountKey();
-
-  const [row] = await db
-    .select()
-    .from(viewPortfolioSummary)
-    .where(eq(viewPortfolioSummary.accountKey, accountKey))
-    .limit(1);
-
-  return row;
+interface SummaryStatsProps {
+  portfolioSummary: ViewPortfolioSummary;
 }
 
-const SummaryStats = async () => {
-  const summary = await getSummary();
+const SummaryStats = ({ portfolioSummary: summary }: SummaryStatsProps) => {
 
   // Format currency
   const formatCurrency = (amount: number) => {
