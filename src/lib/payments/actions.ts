@@ -1,7 +1,8 @@
 "use server";
 
 import { getUser } from "@/lib/db/queries";
-import { createCheckoutSession } from "@/lib/payments/stripe";
+import { createCheckoutSession, createCustomerPortalSession } from "@/lib/payments/stripe";
+import { paths } from "@/lib/utils";
 import { redirect } from "next/navigation";
 
 export const checkoutAction = async (formData: FormData) => {
@@ -26,6 +27,17 @@ export const checkoutAction = async (formData: FormData) => {
 };
 
 export const customerPortalAction = async () => {
-  // TODO: Implement customer portal action
-  throw new Error("Customer portal not implemented yet");
+  // Get the current user
+  const user = await getUser();
+  if (!user) {
+    redirect(`${paths.auth.signIn}?redirect=/settings`);
+  }
+
+  // Check if user has a Stripe customer ID
+  if (!user.stripeCustomerId) {
+    throw new Error("No subscription found. Please subscribe to a plan first.");
+  }
+
+  // Create customer portal session and redirect
+  await createCustomerPortalSession(user.stripeCustomerId);
 };

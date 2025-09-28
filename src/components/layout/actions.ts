@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { validatedActionWithUser } from "@/lib/auth/middleware";
 import { updateAccountKey, getAccountKey } from "@/lib/supabase/server";
+import { getUserRole, getAccountLimitForRole, getUserAccounts, getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db/config";
 import { dimAccount } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -19,6 +20,24 @@ export const createAccount = validatedActionWithUser(
   createAccountSchema,
   async (data, _, user, supabaseUser) => {
     const { accountName } = data;
+
+    // Check user's role and account limits
+    const userRole = await getUserRole();
+    const accountLimit = getAccountLimitForRole(userRole);
+    const currentAccounts = await getUserAccounts();
+
+    // Enforce account limits
+    if (currentAccounts.length >= accountLimit) {
+      if (userRole === 'basic') {
+        return {
+          error: `Basic plan allows only ${accountLimit} account. Upgrade to Pro to add more accounts.`
+        };
+      } else if (userRole === 'pro') {
+        return {
+          error: `${userRole} plan allows up to ${accountLimit} accounts. You currently have ${currentAccounts.length}.`
+        };
+      }
+    }
 
     await db.insert(dimAccount).values({
       userId: user.id,
@@ -110,3 +129,41 @@ export const switchAccount = validatedActionWithUser(
     return { success: "Account switched successfully." };
   },
 );
+
+// Function to check if user can downgrade based on current account count
+export async function checkDowngradeEligibility(targetRole: 'basic' | 'pro'): Promise<{ canDowngrade: boolean; message?: string; excessAccounts?: number }> {
+  const currentAccounts = await getUserAccounts();
+  const targetLimit = getAccountLimitForRole(targetRole);
+
+  if (currentAccounts.length > targetLimit) {
+    const excessAccounts = currentAccounts.length - targetLimit;
+    return {
+      canDowngrade: false,
+      message: `Cannot downgrade to ${targetRole}. You have ${currentAccounts.length} accounts but ${targetRole} plan allows only ${targetLimit}. Please delete ${excessAccounts} account(s) first.`,
+      excessAccounts
+    };
+  }
+
+  return { canDowngrade: true };
+}
+
+// Function to check if user has active subscription before account deletion
+export async function checkAccountDeletionEligibility(): Promise<{ canDelete: boolean; hasActiveSubscription: boolean; message?: string }> {
+  const user = await getUser();
+  if (!user) {
+    return { canDelete: true, hasActiveSubscription: false };
+  }
+
+  // Check if user has active subscription
+  const hasActiveSubscription = user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing';
+
+  if (hasActiveSubscription) {
+    return {
+      canDelete: false,
+      hasActiveSubscription: true,
+      message: `You have an active ${user.subscriptionStatus} subscription. Please cancel your subscription first or contact support to delete your account.`
+    };
+  }
+
+  return { canDelete: true, hasActiveSubscription: false };
+}

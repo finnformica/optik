@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { checkoutAction } from "@/lib/payments/actions";
 import { getStripePlans } from "@/lib/payments/stripe";
-import { ArrowLeft, Check } from "lucide-react";
-import Link from "next/link";
+import { Check } from "lucide-react";
+import BackButton from "./back-button";
 import { SubmitButton } from "./submit-button";
 
 // Prices are fresh for one hour max
@@ -27,15 +27,7 @@ export default async function PricingPage() {
     <div className="flex min-h-screen flex-col bg-[#0a101e]">
       {/* Back Button - Top of page */}
       <div className="p-6">
-        <Link href="/dashboard">
-          <Button
-            variant="ghost"
-            className="text-gray-400 hover:bg-gray-800 hover:text-white"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Button>
-        </Link>
+        <BackButton />
       </div>
 
       <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">

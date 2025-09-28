@@ -117,17 +117,7 @@ export const dimUser = pgTable(
 
     // Subscription and role management
     stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
-    stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
-    subscriptionStatus: varchar("subscription_status", { length: 20 }), // active, trialing, past_due, canceled, etc.
-    planName: varchar("plan_name", { length: 50 }), // Basic, Pro
     roleOverride: varchar("role_override", { length: 20 }), // basic, pro, admin - manual override
-    role: varchar("role", { length: 20 }).notNull().generatedAlwaysAs(sql`
-      CASE
-        WHEN role_override IS NOT NULL THEN role_override
-        WHEN subscription_status IN ('active', 'trialing') THEN 'pro'
-        ELSE 'basic'
-      END
-    `), // Computed column based on subscription_status and role_override
 
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),

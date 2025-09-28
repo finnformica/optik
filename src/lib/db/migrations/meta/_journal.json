@@ -575,6 +575,13 @@
       "when": 1759059156308,
       "tag": "0081_expose-stripe-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1759068851146,
+      "tag": "0082_brave_mathemanic",
+      "breakpoints": true
     }
   ]
 }
