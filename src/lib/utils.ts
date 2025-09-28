@@ -42,5 +42,6 @@ export const paths = {
     connections: "/settings/connections",
     general: "/settings/general",
     security: "/settings/security",
+    subscription: "/settings/subscription",
   },
 };

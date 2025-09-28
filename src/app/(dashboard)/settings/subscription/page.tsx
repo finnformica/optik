@@ -1,37 +1,38 @@
 "use client";
 
-import { useUser, useUserRole, useUserSubscription } from "@/api/user";
+import { useUserSubscription } from "@/api/user";
+import { Loading } from "@/components/global/loading";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { customerPortalAction } from "@/lib/payments/actions";
+import { UserRole } from "@/types/user";
 import { CreditCard, Crown, Loader2, User } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
 function SubscriptionInfo() {
-  const { user } = useUser();
-  const { role: currentPlan, isLoading: roleLoading } = useUserRole();
-  const { subscription, isLoading: subscriptionLoading } = useUserSubscription();
   const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const { subscription, isLoading } = useUserSubscription();
 
   const handleManageSubscription = async () => {
     try {
       setIsRedirecting(true);
       await customerPortalAction();
     } catch (error) {
-      console.error("Error opening customer portal:", error);
       toast.error("Error opening subscription management. Please try again.");
     } finally {
       setIsRedirecting(false);
     }
   };
 
-  if (!user || roleLoading || subscriptionLoading || !currentPlan || !subscription) {
-    return <div className="text-gray-400">Loading user information...</div>;
+  if (isLoading || !subscription) {
+    return <Loading message="Loading subscription data..." />;
   }
 
-  const getPlanIcon = (plan: string) => {
-    switch (plan) {
+  const getPlanIcon = (role: UserRole) => {
+    switch (role) {
       case "admin":
         return <Crown className="h-5 w-5 text-yellow-500" />;
       case "pro":
@@ -41,8 +42,8 @@ function SubscriptionInfo() {
     }
   };
 
-  const getPlanBadgeColor = (plan: string) => {
-    switch (plan) {
+  const getPlanBadgeColor = (role: UserRole) => {
+    switch (role) {
       case "admin":
         return "bg-yellow-600 text-yellow-100";
       case "pro":
@@ -52,8 +53,8 @@ function SubscriptionInfo() {
     }
   };
 
-  const getAccountLimit = (plan: string) => {
-    switch (plan) {
+  const getAccountLimit = (role: UserRole) => {
+    switch (role) {
       case "admin":
         return "Unlimited";
       case "pro":
@@ -66,45 +67,64 @@ function SubscriptionInfo() {
   return (
     <div className="space-y-6">
       {/* Current Plan Card */}
-      <Card className="border-gray-800 bg-[#1a2236]">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            {getPlanIcon(currentPlan)}
-            Current Plan
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-300">Plan:</span>
-            <span
-              className={`rounded-full px-2 py-1 text-sm font-medium capitalize ${getPlanBadgeColor(currentPlan)}`}
+      <Card className="border-gray-800 bg-[#1a2236] shadow-xl">
+        <CardContent className="px-6">
+          <div className="mb-6 flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className={`rounded-xl p-3 ${subscription.role === "admin" ? "bg-yellow-500/20" : subscription.role === "pro" ? "bg-blue-500/20" : "bg-gray-500/20"}`}
+              >
+                {getPlanIcon(subscription.role)}
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-white">
+                  Current Plan
+                </h3>
+                <p className="text-sm text-gray-400">
+                  Your active subscription
+                </p>
+              </div>
+            </div>
+            <Badge
+              variant="secondary"
+              className={`px-4 py-2 text-sm font-semibold capitalize ${getPlanBadgeColor(subscription.role)}`}
             >
-              {currentPlan}
-            </span>
+              {subscription.role}
+            </Badge>
           </div>
 
-          {subscription.subscriptionStatus && (
-            <div className="flex items-center justify-between">
-              <span className="text-gray-300">Status:</span>
-              <span className="font-medium text-white capitalize">
-                {subscription.subscriptionStatus}
-              </span>
+          <div className="flex justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium tracking-wide text-gray-400 uppercase">
+                Account Limit
+              </p>
+              <p className="text-lg font-semibold text-white">
+                {getAccountLimit(subscription.role)}
+              </p>
             </div>
-          )}
 
-          <div className="flex items-center justify-between">
-            <span className="text-gray-300">Account Limit:</span>
-            <span className="font-medium text-white">
-              {getAccountLimit(currentPlan)}
-            </span>
+            {subscription.currentPeriodEnd && (
+              <div className="space-y-1 text-right">
+                <p className="text-xs font-medium tracking-wide text-gray-400 uppercase">
+                  {subscription.subscriptionStatus === "canceled" ||
+                  subscription.cancelAtPeriodEnd
+                    ? "Access Until"
+                    : "Next Billing"}
+                </p>
+                <p className="text-lg font-semibold text-white">
+                  {subscription.currentPeriodEnd &&
+                    new Date(subscription.currentPeriodEnd).toLocaleDateString(
+                      "en-GB",
+                      {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      },
+                    )}
+                </p>
+              </div>
+            )}
           </div>
-
-          {subscription.planName && (
-            <div className="flex items-center justify-between">
-              <span className="text-gray-300">Stripe Plan:</span>
-              <span className="font-medium text-white">{subscription.planName}</span>
-            </div>
-          )}
         </CardContent>
       </Card>
 

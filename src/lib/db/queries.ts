@@ -1,5 +1,5 @@
 import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
-import { UserRole } from "@/types/user";
+import { UserRole, UserSubscription } from "@/types/user";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "./config";
 import { dimAccount, dimUser } from "./schema";
@@ -64,8 +64,11 @@ export async function getUserRole(): Promise<UserRole> {
 
     if (subscription) {
       // Use cancel_at for canceled subscriptions, otherwise current_period_end
-      const endTimestamp = subscription.cancel_at || subscription.current_period_end;
-      const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000) : null;
+      const endTimestamp =
+        subscription.cancel_at || subscription.current_period_end;
+      const currentPeriodEnd = endTimestamp
+        ? new Date(endTimestamp * 1000)
+        : null;
 
       const isActive =
         subscription.status === "active" || subscription.status === "trialing";
@@ -98,64 +101,41 @@ export function getAccountLimitForRole(role: UserRole): number {
 }
 
 // Get subscription information from Stripe schema
-export async function getUserSubscriptionInfo() {
+export async function getUserSubscriptionInfo(): Promise<UserSubscription> {
   const user = await getUser();
+  const role = await getUserRole();
 
-  if (!user?.stripeCustomerId) {
-    return {
-      hasActiveSubscription: false,
-      subscriptionStatus: null,
-      planName: null,
-      currentPeriodEnd: null,
-    };
-  }
+  const defaultInfo: UserSubscription = {
+    role: "basic",
+    hasActiveSubscription: false,
+    subscriptionStatus: null,
+    currentPeriodEnd: null,
+    cancelAtPeriodEnd: false,
+  };
+
+  if (!user?.stripeCustomerId) return defaultInfo;
 
   const supabase = await createClient();
 
   const { data: subscription } = await supabase
     .schema("stripe")
     .from("subscriptions")
-    .select("status, current_period_end, canceled_at, cancel_at, plan")
+    .select("status, canceled_at, cancel_at, cancel_at_period_end, plan, items")
     .eq("customer", user.stripeCustomerId)
-    .eq("livemode", false) // Adjust based on your environment
     .order("created", { ascending: false })
     .limit(1)
     .single();
 
-  if (!subscription) {
-    return {
-      hasActiveSubscription: false,
-      subscriptionStatus: null,
-      planName: null,
-      currentPeriodEnd: null,
-    };
+  if (!subscription) return defaultInfo;
+
+  // Extract current_period_end from items data
+  let currentPeriodEndTimestamp = null;
+  if (subscription.items?.data?.[0]?.current_period_end) {
+    currentPeriodEndTimestamp = subscription.items.data[0].current_period_end;
   }
 
-  // Get product name from the plan's product ID
-  let planName = null;
-  if (subscription.plan) {
-    try {
-      const planData = typeof subscription.plan === 'string'
-        ? JSON.parse(subscription.plan)
-        : subscription.plan;
-
-      if (planData?.product) {
-        const { data: product } = await supabase
-          .schema("stripe")
-          .from("products")
-          .select("name")
-          .eq("id", planData.product)
-          .single();
-
-        planName = product?.name || null;
-      }
-    } catch (error) {
-      console.error("Error parsing plan JSON:", error);
-    }
-  }
-
-  // Determine the actual end date - use cancel_at for canceled subscriptions, otherwise current_period_end
-  const endTimestamp = subscription.cancel_at || subscription.current_period_end;
+  // Determine the actual end date - use cancel_at for canceled subscriptions, otherwise current_period_end from items
+  const endTimestamp = subscription.cancel_at || currentPeriodEndTimestamp;
   const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000) : null;
 
   const isActive =
@@ -166,9 +146,10 @@ export async function getUserSubscriptionInfo() {
     currentPeriodEnd > new Date();
 
   return {
-    hasActiveSubscription: isActive || isInPaidPeriod,
+    role,
+    hasActiveSubscription: isActive || isInPaidPeriod || false,
     subscriptionStatus: subscription.status,
-    planName,
     currentPeriodEnd,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
   };
 }
