@@ -1,4 +1,5 @@
 import Sidebar from "@/components/layout/sidebar";
+import { AccountLimitChecker } from "@/components/layout/account-limit-checker";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import React from "react";
 
@@ -18,6 +19,7 @@ export default async function DashboardLayout({
           {children}
         </main>
       </div>
+      <AccountLimitChecker />
     </>
   );
 }
