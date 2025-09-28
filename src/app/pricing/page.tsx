@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { checkoutAction } from "@/lib/payments/actions";
+import { getUserRole } from "@/lib/db/queries";
+import { checkoutAction, customerPortalAction } from "@/lib/payments/actions";
 import { getStripePlans } from "@/lib/payments/stripe";
 import { Check } from "lucide-react";
 import BackButton from "./back-button";
@@ -10,6 +11,7 @@ export const revalidate = 3600;
 
 export default async function PricingPage() {
   const prices = await getStripePlans();
+  const userRole = await getUserRole();
 
   // Look for Basic and Pro plans (more flexible product name matching)
   const basicPrice = prices.find(
@@ -48,7 +50,6 @@ export default async function PricingPage() {
               name={basicPrice?.product?.name || "Basic"}
               price={basicPrice?.unitAmount || 0}
               interval={basicPrice?.interval || "month"}
-              trialDays={basicPrice?.trialPeriodDays || 0}
               features={[
                 "1 Account",
                 "Advanced Analytics",
@@ -57,12 +58,13 @@ export default async function PricingPage() {
               ]}
               priceId={basicPrice?.id}
               isFree={!basicPrice?.unitAmount || basicPrice.unitAmount === 0}
+              userRole={userRole}
+              planType="basic"
             />
             <PricingCard
               name={proPrice?.product?.name || "Pro"}
               price={proPrice?.unitAmount || 1200}
               interval={proPrice?.interval || "month"}
-              trialDays={proPrice?.trialPeriodDays || 7}
               features={[
                 "Up to 5 Accounts",
                 "Advanced Analytics",
@@ -71,6 +73,8 @@ export default async function PricingPage() {
               ]}
               priceId={proPrice?.id}
               featured={true}
+              userRole={userRole}
+              planType="pro"
             />
           </div>
         </div>
@@ -83,33 +87,47 @@ function PricingCard({
   name,
   price,
   interval,
-  trialDays,
   features,
   priceId,
   featured = false,
   isFree = false,
+  userRole,
+  planType,
 }: {
   name: string;
   price: number;
   interval: string;
-  trialDays: number;
   features: string[];
   priceId?: string;
   featured?: boolean;
   isFree?: boolean;
+  userRole: "basic" | "pro" | "admin";
+  planType: "basic" | "pro";
 }) {
+  const isCurrentPlan = userRole === planType;
+  const isDowngrade = userRole === "pro" && planType === "basic";
+  const isUpgrade = userRole === "basic" && planType === "pro";
   return (
     <div
-      className={`relative rounded-lg border border-gray-800 bg-[#1a2236] p-8 ${
-        featured ? "ring-opacity-50 ring-2 ring-blue-500" : ""
-      }`}
+      className={`relative rounded-lg border p-8 ${
+        isCurrentPlan
+          ? "border-blue-500 bg-gradient-to-br from-blue-900/20 to-[#1a2236] ring-2 ring-blue-500/50"
+          : "border-gray-800 bg-[#1a2236]"
+      } ${featured && !isCurrentPlan ? "ring-opacity-50 ring-2 ring-blue-500" : ""}`}
     >
-      {featured && (
+      {isCurrentPlan && (
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 transform rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white">
+          Current Plan
+        </div>
+      )}
+      {featured && !isCurrentPlan && (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 transform rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white">
           Most Popular
         </div>
       )}
-      <h2 className="text-2xl font-medium text-white">{name}</h2>
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="text-2xl font-medium text-white">{name}</h2>
+      </div>
       <p className="mb-4 text-sm text-gray-400">
         {isFree
           ? "Helping track your investment journey"
@@ -135,14 +153,33 @@ function PricingCard({
           </li>
         ))}
       </ul>
-      {isFree ? (
+      {isCurrentPlan ? (
         <Button variant="outline" className="w-full rounded-full" disabled>
           Current Plan
         </Button>
+      ) : isFree ? (
+        userRole === "pro" || userRole === "admin" ? (
+          <form action={customerPortalAction}>
+            <SubmitButton text="Manage Subscription" />
+          </form>
+        ) : (
+          <form action={checkoutAction}>
+            <input type="hidden" name="priceId" value={priceId} />
+            <SubmitButton text="Get Started" />
+          </form>
+        )
       ) : (
         <form action={checkoutAction}>
           <input type="hidden" name="priceId" value={priceId} />
-          <SubmitButton />
+          <SubmitButton
+            text={
+              isUpgrade
+                ? "Upgrade to Pro"
+                : isDowngrade
+                  ? "Downgrade to Basic"
+                  : "Get Started"
+            }
+          />
         </form>
       )}
     </div>

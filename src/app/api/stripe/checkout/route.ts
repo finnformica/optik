@@ -69,9 +69,6 @@ export async function GET(request: NextRequest) {
       .update(dimUser)
       .set({
         stripeCustomerId: customerId,
-        stripeSubscriptionId: subscriptionId,
-        planName: (plan.product as Stripe.Product).name,
-        subscriptionStatus: subscription.status,
         updatedAt: new Date(),
       })
       .where(eq(dimUser.id, Number(userId)));

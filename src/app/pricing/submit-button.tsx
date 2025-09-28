@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useFormStatus } from "react-dom";
 
-export function SubmitButton() {
+export function SubmitButton({ text = "Get Started" }: { text?: string }) {
   const { pending } = useFormStatus();
 
   return (
@@ -21,7 +21,7 @@ export function SubmitButton() {
         </>
       ) : (
         <>
-          Get Started
+          {text}
           <ArrowRight className="ml-2 h-4 w-4" />
         </>
       )}
