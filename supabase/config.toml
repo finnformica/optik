@@ -312,7 +312,7 @@ inspector_port = 8083
 deno_version = 1
 
 [edge_runtime.secrets]
-DATABASE_URL = "env(SUPABASE_DB_URL)"
+DATABASE_URL = "env(DATABASE_URL)"
 STRIPE_SECRET_KEY = "env(STRIPE_SECRET_KEY)"
 STRIPE_WEBHOOK_SECRET = "env(STRIPE_WEBHOOK_SECRET)"
 
