@@ -1,20 +1,9 @@
 "use client";
 
-import { Edit, Loader2, Plus, Trash2, Users } from "lucide-react";
-import { useState } from "react";
+import { Edit, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { useGetUserAccounts } from "@/api/accounts";
-import { useAccountKey } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,17 +19,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAccountKey } from "@/lib/supabase/client";
 import { useSWRConfig } from "swr";
+import AccountDeleteModal from "./account-delete-modal";
 import AccountForm from "./account-form";
-import { deleteAccount, switchAccount } from "./actions";
+import { switchAccount } from "./actions";
 
 export function AccountMenu() {
   const { mutate: globalMutate } = useSWRConfig();
   const { accounts, mutate } = useGetUserAccounts();
   const { accountKey, refresh } = useAccountKey();
-
-  const [loading, setLoading] = useState(false);
-  const [accountToDelete, setAccountToDelete] = useState<number | null>(null);
 
   const handleAccountSwitch = async (accountKey: number) => {
     const formData = new FormData();
@@ -53,25 +41,12 @@ export function AccountMenu() {
     });
   };
 
-  const handleDeleteConfirm = async () => {
-    if (accountToDelete) {
-      setLoading(true);
-      const formData = new FormData();
-      formData.append("accountKey", accountToDelete.toString());
-      await deleteAccount({}, formData).then(() => {
-        mutate();
-        setAccountToDelete(null);
-        setLoading(false);
-      });
-    }
-  };
-
   return (
     <DropdownMenu>
       <Tooltip key="accounts">
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <div className="flex items-center justify-center p-4 mb-2 mx-2 rounded-lg cursor-pointer transition-all hover:bg-gray-800">
+            <div className="mx-2 mb-2 flex cursor-pointer items-center justify-center rounded-lg p-4 transition-all hover:bg-gray-800">
               <Users className="h-5 w-5" />
             </div>
           </DropdownMenuTrigger>
@@ -90,15 +65,15 @@ export function AccountMenu() {
           {accounts?.map((account) => (
             <div
               key={account.accountKey}
-              className="flex items-center rounded-sm justify-between hover:bg-accent hover:text-accent-foreground"
+              className="hover:bg-accent hover:text-accent-foreground flex items-center justify-between rounded-sm"
             >
               <DropdownMenuRadioItem
-                className="cursor-pointer flex-1 hover:bg-transparent hover:text-current"
+                className="flex-1 cursor-pointer hover:bg-transparent hover:text-current"
                 value={account.accountKey.toString()}
               >
                 {account.accountName}
               </DropdownMenuRadioItem>
-              <div className="flex mr-0.5">
+              <div className="mr-0.5 flex">
                 <AccountForm
                   mode="edit"
                   account={account}
@@ -112,21 +87,26 @@ export function AccountMenu() {
                     </DropdownMenuItem>
                   }
                 />
-                <DropdownMenuItem
-                  className="cursor-pointer p-1 text-red-600 hover:text-red-700"
-                  onSelect={(e) => {
-                    e.preventDefault();
+                <AccountDeleteModal
+                  accountKey={account.accountKey}
+                  accountName={account.accountName ?? ""}
+                  refresh={() => mutate()}
+                  trigger={
+                    <DropdownMenuItem
+                      className="cursor-pointer p-1 text-red-600 hover:text-red-700"
+                      onSelect={(e) => {
+                        e.preventDefault();
 
-                    if (accountKey === account.accountKey) {
-                      toast.error("Current account cannot be deleted");
-                      return;
-                    }
-
-                    setAccountToDelete(account.accountKey);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </DropdownMenuItem>
+                        if (accountKey === account.accountKey) {
+                          toast.error("Current account cannot be deleted");
+                          return;
+                        }
+                      }}
+                    >
+                      <Trash2 className="text-destructive h-4 w-4" />
+                    </DropdownMenuItem>
+                  }
+                />
               </div>
             </div>
           ))}
@@ -146,34 +126,6 @@ export function AccountMenu() {
           }
         />
       </DropdownMenuContent>
-
-      <Dialog
-        open={!!accountToDelete}
-        onOpenChange={(open) => !open && setAccountToDelete(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Account</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this account? This action cannot
-              be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAccountToDelete(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-              disabled={loading}
-            >
-              {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-              {loading ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </DropdownMenu>
   );
 }
