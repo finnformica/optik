@@ -588,10 +588,11 @@ export const viewWeeklyPosition = pgView("view_weekly_position", {
     pc.first_transaction_date,
     pc.last_transaction_date,
 
-    -- Position value: stocks use cost basis, options use collateral value
+    -- Position value: stocks use cost basis, puts use collateral value, calls use stock as collateral (zero cash)
     CASE
       WHEN ds.security_type = 'STOCK' THEN ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
-      WHEN ds.security_type = 'OPTION' THEN ABS(pc.cumulative_quantity) * ds.strike_price * 100
+      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'PUT' THEN ABS(pc.cumulative_quantity) * ds.strike_price * 100
+      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'CALL' THEN 0
       ELSE ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
     END as position_value,
 
@@ -723,11 +724,10 @@ export const viewWeeklyPortfolioValue = pgView("view_weekly_portfolio_value", {
        AND vwp.position_status = 'OPEN'), 0
     ) as stock_position_value,
 
-    -- Option collateral values using strike_price * 100 (matching viewPosition logic)
+    -- Option collateral values using position_value (accounts for CALL=0, PUT=collateral)
     COALESCE(
-      (SELECT SUM(ds.strike_price * ABS(vwp.quantity) * 100)
+      (SELECT SUM(vwp.position_value)
        FROM ${viewWeeklyPosition} vwp
-       JOIN ${dimSecurity} ds ON vwp.symbol = ds.symbol
        WHERE vwp.account_key = wcf.account_key
        AND vwp.week_start = wcf.week_start
        AND vwp.security_type = 'OPTION'
@@ -747,11 +747,10 @@ export const viewWeeklyPortfolioValue = pgView("view_weekly_portfolio_value", {
        AND vwp.position_status = 'OPEN'), 0
     ) as total_portfolio_value,
 
-    -- Available cash = cash flows - option collateral
+    -- Available cash = cash flows - option collateral (using position_value)
     wcf.cash_flows_to_date - COALESCE(
-      (SELECT SUM(ds.strike_price * ABS(vwp.quantity) * 100)
+      (SELECT SUM(vwp.position_value)
        FROM ${viewWeeklyPosition} vwp
-       JOIN ${dimSecurity} ds ON vwp.symbol = ds.symbol
        WHERE vwp.account_key = wcf.account_key
        AND vwp.week_start = wcf.week_start
        AND vwp.security_type = 'OPTION'

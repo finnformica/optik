@@ -3,6 +3,7 @@
 import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
 import { NoDataOverlay } from "@/components/dashboard/no-data-overlay";
 import { ViewPortfolioDistribution } from "@/lib/db/schema";
+import { useMemo } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 interface PortfolioDistributionProps {
@@ -34,13 +35,15 @@ const PortfolioDistribution = ({
   distribution,
   cashBalance,
 }: PortfolioDistributionProps) => {
+  // Only include cash if it's positive
+  const includeCash = cashBalance > 0;
   const totalValue = distribution.reduce(
     (sum, item) => sum + parseFloat(item.positionValue || "0"),
-    cashBalance,
+    includeCash ? cashBalance : 0,
   );
 
   // Check if there's no data to display
-  const hasNoData = distribution.length === 0 && cashBalance === 0;
+  const hasNoData = distribution.length === 0 && cashBalance <= 0;
 
   // Mock data for empty state
   const emptyStateData = [
@@ -50,16 +53,20 @@ const PortfolioDistribution = ({
     { name: "Cash", value: 40, fill: CASH_COLOR },
   ];
 
-  const data = hasNoData
-    ? emptyStateData
-    : [
-        ...distribution,
-        { symbol: "Cash", positionValue: cashBalance.toString() },
-      ].map((item, index) => ({
-        name: item.symbol,
-        value: parseFloat(item.positionValue || "0"),
-        fill: item.symbol === "Cash" ? CASH_COLOR : getColor(index),
-      }));
+  const data = useMemo(() => {
+    if (hasNoData) return emptyStateData;
+
+    const items = [
+      ...distribution,
+      ...(includeCash ? [{ symbol: "Cash", positionValue: cashBalance.toString() }] : []),
+    ];
+
+    return items.map((item, index) => ({
+      name: item.symbol,
+      value: parseFloat(item.positionValue || "0"),
+      fill: item.symbol === "Cash" ? CASH_COLOR : getColor(index),
+    }));
+  }, [distribution, cashBalance, includeCash, hasNoData]);
 
   // Calculate positions for labels extending from the pie chart
   const renderCustomisedLabel = ({
