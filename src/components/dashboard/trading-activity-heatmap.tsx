@@ -296,11 +296,11 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
                           <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform gap-1">
                             {/* Current day dot */}
                             {day.isCurrentDate && (
-                              <div className="h-2 w-2 rounded-full bg-purple-400" />
+                              <div className="h-2.5 w-2.5 rounded-full border border-[#1f2937] bg-purple-400" />
                             )}
                             {/* Expiry dot */}
                             {day.expiringContracts > 0 && (
-                              <div className="h-2 w-2 rounded-full bg-yellow-400" />
+                              <div className="h-2.5 w-2.5 rounded-full border border-[#1f2937] bg-yellow-400" />
                             )}
                           </div>
                         </div>
