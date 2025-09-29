@@ -1,9 +1,13 @@
+import { ArrowLeft, Check } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { getUserRole } from "@/lib/db/queries";
 import { checkoutAction, customerPortalAction } from "@/lib/payments/actions";
 import { getStripePlans } from "@/lib/payments/stripe";
-import { Check } from "lucide-react";
-import BackButton from "./back-button";
+import { UserRole } from "@/types/user";
+
+import { paths } from "@/lib/utils";
+import Link from "next/link";
 import { SubmitButton } from "./submit-button";
 
 // Prices are fresh for one hour max
@@ -29,7 +33,15 @@ export default async function PricingPage() {
     <div className="flex min-h-screen flex-col bg-[#0a101e]">
       {/* Back Button - Top of page */}
       <div className="p-6">
-        <BackButton />
+        <Link href={paths.settings.subscription}>
+          <Button
+            variant="ghost"
+            className="text-gray-400 hover:bg-gray-800 hover:text-white"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Settings
+          </Button>
+        </Link>
       </div>
 
       <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
@@ -101,28 +113,63 @@ function PricingCard({
   priceId?: string;
   featured?: boolean;
   isFree?: boolean;
-  userRole: "basic" | "pro" | "admin";
+  userRole: UserRole;
   planType: "basic" | "pro";
 }) {
   const isCurrentPlan = userRole === planType;
   const isDowngrade = userRole === "pro" && planType === "basic";
   const isUpgrade = userRole === "basic" && planType === "pro";
+
+  const getButtonText = () => {
+    if (isUpgrade) return "Upgrade to Pro";
+    if (isDowngrade) return "Downgrade to Basic";
+    return "Get Started";
+  };
+
+  const renderActionButton = () => {
+    if (isCurrentPlan) {
+      return (
+        <Button variant="outline" className="w-full rounded-full" disabled>
+          Current Plan
+        </Button>
+      );
+    }
+
+    if (isFree) {
+      if (userRole === "pro") {
+        return (
+          <form action={customerPortalAction}>
+            <SubmitButton text="Manage Subscription" />
+          </form>
+        );
+      }
+      return (
+        <form action={checkoutAction}>
+          <input type="hidden" name="priceId" value={priceId} />
+          <SubmitButton text="Get Started" />
+        </form>
+      );
+    }
+
+    return (
+      <form action={checkoutAction}>
+        <input type="hidden" name="priceId" value={priceId} />
+        <SubmitButton text={getButtonText()} />
+      </form>
+    );
+  };
+
   return (
     <div
       className={`relative rounded-lg border p-8 ${
-        isCurrentPlan
+        featured
           ? "border-blue-500 bg-gradient-to-br from-blue-900/20 to-[#1a2236] ring-2 ring-blue-500/50"
           : "border-gray-800 bg-[#1a2236]"
-      } ${featured && !isCurrentPlan ? "ring-opacity-50 ring-2 ring-blue-500" : ""}`}
+      }`}
     >
-      {isCurrentPlan && (
+      {featured && (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 transform rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white">
-          Current Plan
-        </div>
-      )}
-      {featured && !isCurrentPlan && (
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 transform rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white">
-          Most Popular
+          {isCurrentPlan ? "Current Plan" : "Most Popular"}
         </div>
       )}
       <div className="mb-2 flex items-center gap-2">
@@ -153,35 +200,7 @@ function PricingCard({
           </li>
         ))}
       </ul>
-      {isCurrentPlan ? (
-        <Button variant="outline" className="w-full rounded-full" disabled>
-          Current Plan
-        </Button>
-      ) : isFree ? (
-        userRole === "pro" || userRole === "admin" ? (
-          <form action={customerPortalAction}>
-            <SubmitButton text="Manage Subscription" />
-          </form>
-        ) : (
-          <form action={checkoutAction}>
-            <input type="hidden" name="priceId" value={priceId} />
-            <SubmitButton text="Get Started" />
-          </form>
-        )
-      ) : (
-        <form action={checkoutAction}>
-          <input type="hidden" name="priceId" value={priceId} />
-          <SubmitButton
-            text={
-              isUpgrade
-                ? "Upgrade to Pro"
-                : isDowngrade
-                  ? "Downgrade to Basic"
-                  : "Get Started"
-            }
-          />
-        </form>
-      )}
+      {renderActionButton()}
     </div>
   );
 }
