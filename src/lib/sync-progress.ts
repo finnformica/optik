@@ -1,4 +1,5 @@
 import { getAccountKey } from "@/lib/supabase/server";
+import { cache } from "react";
 import { db } from "@/lib/db/config";
 import { NewRtmSyncProgress, rtmSyncProgress } from "@/lib/db/schema";
 import { SyncStatus } from "@/types/sync-progress";
@@ -51,7 +52,7 @@ export async function updateSyncProgress(
 }
 
 // Get active sync session for account (to prevent multiple concurrent syncs)
-export async function getActiveSyncSession() {
+export const getActiveSyncSession = cache(async () => {
   const accountKey = await getAccountKey();
 
   const [activeSession] = await db
@@ -67,4 +68,4 @@ export async function getActiveSyncSession() {
     .limit(1);
 
   return activeSession;
-}
+});

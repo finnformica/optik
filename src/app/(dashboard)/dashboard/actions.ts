@@ -19,6 +19,7 @@ import {
 } from "@/lib/db/schema";
 import { getAccountKey } from "@/lib/supabase/server";
 import { and, eq, inArray } from "drizzle-orm";
+import { cache } from "react";
 
 class FinnhubClient {
   private baseUrl = "https://finnhub.io/api/v1";
@@ -176,7 +177,7 @@ export interface DashboardData {
   dailyActivity: ViewDailyActivity[];
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+export const getDashboardData = cache(async (): Promise<DashboardData> => {
   // Get account key first
   const accountKey = await getAccountKey();
   // First, get all the database data in a single transaction to minimize connections
@@ -301,9 +302,4 @@ export async function getDashboardData(): Promise<DashboardData> {
     weeklyReturns: dashboardQueries.weeklyReturnsData,
     dailyActivity: dashboardQueries.dailyActivityData,
   };
-}
-
-export async function getPositionsWithPrices(): Promise<EnrichedPosition[]> {
-  const data = await getDashboardData();
-  return data.positions;
-}
+});

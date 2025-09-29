@@ -1,10 +1,11 @@
 import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { UserRole, UserSubscription } from "@/types/user";
 import { and, asc, eq, isNull } from "drizzle-orm";
+import { cache } from "react";
 import { db } from "./config";
 import { dimAccount, dimUser } from "./schema";
 
-export async function getUser() {
+export const getUser = cache(async () => {
   try {
     const supabaseUser = await getAuthenticatedUser();
 
@@ -12,7 +13,10 @@ export async function getUser() {
       .select()
       .from(dimUser)
       .where(
-        and(eq(dimUser.email, supabaseUser.email!), isNull(dimUser.deletedAt)),
+        and(
+          eq(dimUser.email, supabaseUser.email!),
+          isNull(dimUser.deletedAt),
+        ),
       )
       .limit(1);
 
@@ -20,9 +24,9 @@ export async function getUser() {
   } catch {
     return null;
   }
-}
+});
 
-export async function getUserAccounts() {
+export const getUserAccounts = cache(async () => {
   const user = await getUser();
   if (!user) return [];
 
@@ -33,9 +37,9 @@ export async function getUserAccounts() {
     .orderBy(asc(dimAccount.accountKey));
 
   return accounts;
-}
+});
 
-export async function getUserRole(): Promise<UserRole> {
+export const getUserRole = cache(async (): Promise<UserRole> => {
   const user = await getUser();
   if (!user) return "basic"; // Default to basic if no user
 
@@ -71,7 +75,8 @@ export async function getUserRole(): Promise<UserRole> {
         : null;
 
       const isActive =
-        subscription.status === "active" || subscription.status === "trialing";
+        subscription.status === "active" ||
+        subscription.status === "trialing";
       const isInPaidPeriod =
         subscription.status === "canceled" &&
         currentPeriodEnd &&
@@ -84,7 +89,7 @@ export async function getUserRole(): Promise<UserRole> {
   }
 
   return "basic";
-}
+});
 
 // Helper function to get account limits based on role
 export function getAccountLimitForRole(role: UserRole): number {
@@ -101,55 +106,55 @@ export function getAccountLimitForRole(role: UserRole): number {
 }
 
 // Get subscription information from Stripe schema
-export async function getUserSubscriptionInfo(): Promise<UserSubscription> {
-  const user = await getUser();
-  const role = await getUserRole();
+export const getUserSubscriptionInfo = cache(async (): Promise<UserSubscription> => {
+    const user = await getUser();
+    const role = await getUserRole();
 
-  const defaultInfo: UserSubscription = {
-    role,
-    hasActiveSubscription: false,
-    subscriptionStatus: null,
-    currentPeriodEnd: null,
-    cancelAtPeriodEnd: false,
-  };
+    const defaultInfo: UserSubscription = {
+      role,
+      hasActiveSubscription: false,
+      subscriptionStatus: null,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+    };
 
-  if (!user?.stripeCustomerId) return defaultInfo;
+    if (!user?.stripeCustomerId) return defaultInfo;
 
-  const supabase = await createClient();
+    const supabase = await createClient();
 
-  const { data: subscription } = await supabase
-    .schema("stripe")
-    .from("subscriptions")
-    .select("status, canceled_at, cancel_at, cancel_at_period_end, plan, items")
-    .eq("customer", user.stripeCustomerId)
-    .order("created", { ascending: false })
-    .limit(1)
-    .single();
+    const { data: subscription } = await supabase
+      .schema("stripe")
+      .from("subscriptions")
+      .select("status, canceled_at, cancel_at, cancel_at_period_end, plan, items")
+      .eq("customer", user.stripeCustomerId)
+      .order("created", { ascending: false })
+      .limit(1)
+      .single();
 
-  if (!subscription) return defaultInfo;
+    if (!subscription) return defaultInfo;
 
-  // Extract current_period_end from items data
-  let currentPeriodEndTimestamp = null;
-  if (subscription.items?.data?.[0]?.current_period_end) {
-    currentPeriodEndTimestamp = subscription.items.data[0].current_period_end;
-  }
+    // Extract current_period_end from items data
+    let currentPeriodEndTimestamp = null;
+    if (subscription.items?.data?.[0]?.current_period_end) {
+      currentPeriodEndTimestamp = subscription.items.data[0].current_period_end;
+    }
 
-  // Determine the actual end date - use cancel_at for canceled subscriptions, otherwise current_period_end from items
-  const endTimestamp = subscription.cancel_at || currentPeriodEndTimestamp;
-  const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000) : null;
+    // Determine the actual end date - use cancel_at for canceled subscriptions, otherwise current_period_end from items
+    const endTimestamp = subscription.cancel_at || currentPeriodEndTimestamp;
+    const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000) : null;
 
-  const isActive =
-    subscription.status === "active" || subscription.status === "trialing";
-  const isInPaidPeriod =
-    subscription.status === "canceled" &&
-    currentPeriodEnd &&
-    currentPeriodEnd > new Date();
+    const isActive =
+      subscription.status === "active" || subscription.status === "trialing";
+    const isInPaidPeriod =
+      subscription.status === "canceled" &&
+      currentPeriodEnd &&
+      currentPeriodEnd > new Date();
 
-  return {
-    role,
-    hasActiveSubscription: isActive || isInPaidPeriod || false,
-    subscriptionStatus: subscription.status,
-    currentPeriodEnd,
-    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
-  };
-}
+    return {
+      role,
+      hasActiveSubscription: isActive || isInPaidPeriod || false,
+      subscriptionStatus: subscription.status,
+      currentPeriodEnd,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+    };
+});

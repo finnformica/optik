@@ -2,6 +2,7 @@ import { paths } from "@/lib/utils";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -17,7 +18,7 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, options),
             );
           } catch {
             // The `setAll` method was called from a Server Component.
@@ -26,11 +27,11 @@ export async function createClient() {
           }
         },
       },
-    }
+    },
   );
 }
 
-export async function getUser() {
+export const getSupabaseUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -43,17 +44,17 @@ export async function getUser() {
   }
 
   return user;
-}
+});
 
-export async function getAuthenticatedUser() {
-  const user = await getUser();
+export const getAuthenticatedUser = cache(async () => {
+  const user = await getSupabaseUser();
   if (!user) {
     redirect(paths.auth.signIn);
   }
   return user;
-}
+});
 
-export async function getAccountKey(): Promise<number> {
+export const getAccountKey = cache(async (): Promise<number> => {
   const user = await getAuthenticatedUser();
   const accountKey = user.user_metadata?.accountKey;
 
@@ -62,7 +63,7 @@ export async function getAccountKey(): Promise<number> {
   }
 
   return accountKey;
-}
+});
 
 export async function updateAccountKey(accountKey: number) {
   const supabase = await createClient();

@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { cache } from "react";
 
 import { validatedActionWithUser } from "@/lib/auth/middleware";
 import { db } from "@/lib/db/config";
@@ -137,11 +138,11 @@ export const switchAccount = validatedActionWithUser(
 );
 
 // Function to check if user has active subscription before account deletion
-export async function checkAccountDeletionEligibility(): Promise<{
+export const checkAccountDeletionEligibility = cache(async (): Promise<{
   canDelete: boolean;
   hasActiveSubscription: boolean;
   message?: string;
-}> {
+}> => {
   const user = await getUser();
   if (!user) {
     return { canDelete: true, hasActiveSubscription: false };
@@ -162,7 +163,7 @@ export async function checkAccountDeletionEligibility(): Promise<{
   }
 
   return { canDelete: true, hasActiveSubscription: false };
-}
+});
 
 const deleteMultipleAccountsSchema = z.object({
   accountKeys: z.string().transform((val) => JSON.parse(val) as number[]),
