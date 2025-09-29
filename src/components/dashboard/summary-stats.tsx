@@ -1,9 +1,15 @@
 import { Card } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ViewPortfolioSummary } from "@/lib/db/schema";
 import {
   Calendar,
   ChartNoAxesColumn,
   DollarSign,
+  HelpCircle,
   LucideIcon,
   TrendingUp,
 } from "lucide-react";
@@ -19,6 +25,7 @@ interface SummaryCard {
   showTrend?: boolean;
   trendValue?: (summary: ViewPortfolioSummary) => number;
   trendLabel?: string;
+  helpContent?: string;
 }
 
 interface SummaryStatsProps {
@@ -26,7 +33,6 @@ interface SummaryStatsProps {
 }
 
 const SummaryStats = ({ portfolioSummary: summary }: SummaryStatsProps) => {
-
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -52,6 +58,10 @@ const SummaryStats = ({ portfolioSummary: summary }: SummaryStatsProps) => {
     return `${sign}${value.toFixed(1)}%`;
   };
 
+  // Helper for cash balance
+  const cashBalance = parseFloat(summary.availableCash || "0");
+  const portfolioValue = parseFloat(summary.portfolioValue || "0");
+
   // Dynamic card configuration
   const summaryCards: SummaryCard[] = [
     {
@@ -66,20 +76,23 @@ const SummaryStats = ({ portfolioSummary: summary }: SummaryStatsProps) => {
       trendLabel: "overall",
     },
     {
-      id: "available-cash",
-      title: "Available Cash",
+      id: "cash-balance",
+      title: "Cash Balance",
       icon: DollarSign,
       iconColor: "text-purple-500",
       value: (summary) =>
-        formatCurrency(parseFloat(summary.availableCash || "0")),
+        formatCurrencyWithSign(parseFloat(summary.availableCash || "0")),
       subtitle: (summary) => {
-        const portfolioValue = parseFloat(summary.portfolioValue || "0");
-        const availableCash = parseFloat(summary.availableCash || "0");
+        if (cashBalance < 0) {
+          return "Borrowed funds from broker";
+        }
         return portfolioValue !== 0
-          ? `${((availableCash / portfolioValue) * 100).toFixed(1)}% of portfolio`
+          ? `${((cashBalance / portfolioValue) * 100).toFixed(1)}% of portfolio`
           : "0% of portfolio";
       },
-      subtitleColor: "text-blue-400",
+      subtitleColor: cashBalance < 0 ? "text-orange-400" : "text-blue-400",
+      helpContent:
+        "Cash balance may be negative when using margin or buying power provided by your broker",
     },
     {
       id: "monthly-pnl",
@@ -115,9 +128,21 @@ const SummaryStats = ({ portfolioSummary: summary }: SummaryStatsProps) => {
           return (
             <div key={card.id} className="rounded-lg bg-[#14192a] p-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-400">
-                  {card.title}
-                </h3>
+                <div className="flex items-center gap-1">
+                  <h3 className="text-sm font-medium text-gray-400">
+                    {card.title}
+                  </h3>
+                  {card.helpContent && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 cursor-help text-gray-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{card.helpContent}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
                 <Icon className={`h-5 w-5 ${card.iconColor}`} />
               </div>
               <p className="mt-2 text-2xl font-bold text-white">
