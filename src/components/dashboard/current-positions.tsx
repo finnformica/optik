@@ -63,7 +63,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
       contentClassName="py-0 px-2 overflow-x-scroll"
     >
       <table className="min-w-full divide-y divide-gray-700">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-[#1a2236]">
           <tr className="[&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wider [&_th]:text-gray-400 [&_th]:uppercase">
             <th>Symbol</th>
             <th>Type</th>
