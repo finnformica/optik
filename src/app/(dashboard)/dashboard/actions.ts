@@ -6,11 +6,16 @@ import {
   NewFactStockPrices,
   viewCurrentPosition,
   ViewCurrentPosition,
-  viewPortfolioDistribution,
-  viewProfitDistribution,
-  viewPortfolioSummary,
-  viewWeeklyReturn,
   viewDailyActivity,
+  ViewDailyActivity,
+  viewPortfolioDistribution,
+  ViewPortfolioDistribution,
+  viewPortfolioSummary,
+  ViewPortfolioSummary,
+  viewProfitDistribution,
+  ViewProfitDistribution,
+  viewWeeklyReturn,
+  ViewWeeklyReturn,
 } from "@/lib/db/schema";
 import { getAccountKey } from "@/lib/supabase/server";
 import { and, eq, inArray } from "drizzle-orm";
@@ -113,33 +118,40 @@ async function getStockPrices(
   if (symbolsToFetch.length > 0) {
     try {
       // Fetch prices from Finnhub API
-      const fetchPromises = symbolsToFetch.map(async (symbol) => {
-        try {
-          const price = await finnhubClient.getQuote(symbol);
-          if (price !== null) {
-            priceMap[symbol] = {
-              symbol,
-              price,
-              cached: false,
-            };
-            return {
-              symbol,
-              dateKey: currentDateKey,
-              quarterHour: currentQuarterHour,
-              price: price.toString(),
-            };
-          }
-          return null;
-        } catch (error) {
-          console.error(`Failed to fetch price for ${symbol}:`, error);
-          return null;
-        }
-      });
+      const fetchPromises = symbolsToFetch.map(
+        async (symbol): Promise<NewFactStockPrices | null> => {
+          try {
+            const price = await finnhubClient.getQuote(symbol);
+            if (price !== null) {
+              priceMap[symbol] = {
+                symbol,
+                price,
+                cached: false,
+              };
 
-      const fetchedPrices = await Promise.all(fetchPromises);
+              return {
+                symbol,
+                dateKey: currentDateKey,
+                quarterHour: currentQuarterHour,
+                price: price.toString(),
+              };
+            }
+            return null;
+          } catch (error) {
+            console.error(`Failed to fetch price for ${symbol}:`, error);
+            return null;
+          }
+        },
+      );
+
+      const fetchedPrices = await Promise.allSettled(fetchPromises).then(
+        (results) =>
+          results.map((res) => (res.status === "fulfilled" ? res.value : null)),
+      );
 
       // Batch insert all new prices in a single query
-      const newPriceRecords = fetchedPrices.filter(Boolean) as NewFactStockPrices[];
+      const newPriceRecords = fetchedPrices.filter((record) => record !== null);
+
       if (newPriceRecords.length > 0) {
         await db
           .insert(factStockPrices)
@@ -157,11 +169,11 @@ async function getStockPrices(
 // Consolidated dashboard data interface
 export interface DashboardData {
   positions: EnrichedPosition[];
-  portfolioDistribution: any[];
-  profitDistribution: any[];
-  portfolioSummary: any;
-  weeklyReturns: any[];
-  dailyActivity: any[];
+  portfolioDistribution: ViewPortfolioDistribution[];
+  profitDistribution: ViewProfitDistribution[];
+  portfolioSummary: ViewPortfolioSummary;
+  weeklyReturns: ViewWeeklyReturn[];
+  dailyActivity: ViewDailyActivity[];
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
@@ -224,7 +236,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       positions,
       distributionData,
       profitDistributionData,
-      portfolioSummary,
+      portfolioSummary: portfolioSummary || null,
       weeklyReturnsData,
       dailyActivityData,
     };
@@ -235,7 +247,11 @@ export async function getDashboardData(): Promise<DashboardData> {
   if (dashboardQueries.positions.length > 0) {
     // Extract unique underlying symbols for stock price lookup
     const underlyingSymbols = Array.from(
-      new Set(dashboardQueries.positions.map((p) => p.underlyingSymbol).filter(Boolean)),
+      new Set(
+        dashboardQueries.positions
+          .map((p) => p.underlyingSymbol)
+          .filter(Boolean),
+      ),
     ) as string[];
 
     // Get stock prices for all underlying symbols
