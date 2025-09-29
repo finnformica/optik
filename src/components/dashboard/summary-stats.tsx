@@ -84,7 +84,7 @@ const SummaryStats = ({ portfolioSummary: summary }: SummaryStatsProps) => {
         formatCurrencyWithSign(parseFloat(summary.availableCash || "0")),
       subtitle: (summary) => {
         if (cashBalance < 0) {
-          return "Borrowed funds from broker";
+          return "Borrowed cash from broker";
         }
         return portfolioValue !== 0
           ? `${((cashBalance / portfolioValue) * 100).toFixed(1)}% of portfolio`
