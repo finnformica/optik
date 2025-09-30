@@ -22,6 +22,7 @@ import {
 import NextLink from "next/link";
 import { DashboardMockup } from "@/components/landing/dashboard-mockup";
 import { PortfolioMockup } from "@/components/landing/portfolio-mockup";
+import { Features } from "@/components/landing/features";
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -154,74 +155,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center space-y-4 mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold">Powerful Features for Serious Traders</h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Everything you need to track, analyse, and optimise your options trading strategy
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: Link,
-                title: "Direct Broker Integration",
-                description: "Connect directly to your broker for automatic transaction retrieval. No manual CSV uploads required."
-              },
-              {
-                icon: BarChart3,
-                title: "Real-Time Portfolio Analytics",
-                description: "Understand your portfolio composition, P&L, and risk exposure with interactive visualisations updated in real-time."
-              },
-              {
-                icon: Layers,
-                title: "Track Multiple Accounts",
-                description: "Manage multiple brokerage accounts in one place. Switch between portfolios effortlessly."
-              },
-              {
-                icon: Target,
-                title: "Advanced Options Analysis",
-                description: "Deep insights into your options strategies, including Greeks, profit curves, and position breakdowns."
-              },
-              {
-                icon: Clock,
-                title: "Historical Performance",
-                description: "Track your trading performance over time with detailed return analytics and trade history."
-              },
-              {
-                icon: Calculator,
-                title: "UK Tax Calculations",
-                description: "Understand your UK tax liabilities and Capital Gains Tax requirements automatically.",
-                badge: "Coming Soon"
-              }
-            ].map((feature, index) => (
-              <Card key={index} className="group hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
-                <CardHeader>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                      <feature.icon className="h-6 w-6 text-primary" />
-                    </div>
-                    {feature.badge && (
-                      <Badge variant="secondary" className="text-xs">
-                        {feature.badge}
-                      </Badge>
-                    )}
-                  </div>
-                  <CardTitle className="text-xl">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-base leading-relaxed">
-                    {feature.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Features Section */}
+      <Features />
 
       {/* How It Works Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
