@@ -1,18 +1,18 @@
 "use client";
 
 import { signOut } from "@/app/(auth)/actions";
-import { CircleIcon } from "lucide-react";
+import { Logo } from "@/components/global/logo";
 import { useRouter } from "next/navigation";
 
 export default function LogoutPage() {
   const router = useRouter();
   return (
-    <div className="flex items-center justify-center min-h-[100dvh] bg-[#111827]">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-[#111827]">
       <div className="max-w-md space-y-8 p-4 text-center">
         <div className="flex justify-center">
-          <CircleIcon className="size-12 text-blue-400" />
+          <Logo />
         </div>
-        <h1 className="text-4xl font-bold text-white tracking-tight">
+        <h1 className="text-4xl font-bold tracking-tight text-white">
           Sign Out
         </h1>
         <p className="text-base text-gray-400">
@@ -22,14 +22,14 @@ export default function LogoutPage() {
           <form action={signOut}>
             <button
               type="submit"
-              className="w-48 mx-auto flex justify-center py-2 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="mx-auto flex w-48 justify-center rounded-full border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
             >
               Yes, Sign Out
             </button>
           </form>
           <button
             onClick={() => router.back()}
-            className="w-48 mx-auto flex justify-center py-2 px-4 border border-gray-600 rounded-full shadow-sm text-sm font-medium text-white bg-[#1a2236] hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="mx-auto flex w-48 justify-center rounded-full border border-gray-600 bg-[#1a2236] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
           >
             Cancel
           </button>

@@ -1,5 +1,5 @@
+import { Logo } from "@/components/global/logo";
 import { paths } from "@/lib/utils";
-import { CircleIcon } from "lucide-react";
 import Link from "next/link";
 
 export default function NotFound() {
@@ -7,7 +7,7 @@ export default function NotFound() {
     <div className="flex items-center justify-center min-h-[100dvh] bg-[#111827]">
       <div className="max-w-md space-y-8 p-4 text-center">
         <div className="flex justify-center">
-          <CircleIcon className="size-12 text-blue-400" />
+          <Logo />
         </div>
         <h1 className="text-4xl font-bold text-white tracking-tight">
           Page Not Found

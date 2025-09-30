@@ -1,15 +1,10 @@
 "use client";
 
-import {
-  CircleIcon,
-  LayoutDashboard,
-  LogOut,
-  Settings,
-  Table2,
-} from "lucide-react";
+import { LayoutDashboard, LogOut, Settings, Table2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Logo } from "@/components/global/logo";
 import {
   Tooltip,
   TooltipContent,
@@ -53,7 +48,7 @@ const Sidebar = () => {
         <TooltipTrigger asChild>
           <Link
             href={item.href}
-            className={`flex items-center justify-center p-4 mb-2 mx-2 rounded-lg transition-colors ${
+            className={`mx-2 mb-2 flex items-center justify-center rounded-lg p-4 transition-colors ${
               isActive ? "bg-blue-900/50 text-blue-400" : "hover:bg-gray-800"
             }`}
           >
@@ -71,9 +66,9 @@ const Sidebar = () => {
   const bottomMenuItems = menuItems.filter((item) => item.bottom);
 
   return (
-    <div className="w-18 bg-[#0a101e] text-white flex flex-col h-screen fixed left-0 top-0">
-      <div className="m-2 mb-2 rounded-lg p-4 flex justify-center bg-[#111827]">
-        <CircleIcon className="text-blue-400" />
+    <div className="fixed top-0 left-0 flex h-screen w-18 flex-col bg-[#0a101e] text-white">
+      <div className="m-2 mb-2 flex justify-center rounded-lg bg-[#111827] p-4">
+        <Logo size="xs" />
       </div>
       <nav className="flex-1">{topMenuItems.map(renderMenuItem)}</nav>
       <div className="mt-auto pb-4">

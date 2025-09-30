@@ -1,5 +1,6 @@
 import { ArrowLeft, Check } from "lucide-react";
 
+import { Logo } from "@/components/global/logo";
 import { Button } from "@/components/ui/button";
 import { getUserRole } from "@/lib/db/queries";
 import { checkoutAction, customerPortalAction } from "@/lib/payments/actions";
@@ -30,7 +31,7 @@ export default async function PricingPage() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0a101e]">
+    <div className="flex min-h-screen flex-col bg-[#111827]">
       {/* Back Button - Top of page */}
       <div className="p-6">
         <Link href={paths.settings.subscription}>
@@ -47,8 +48,9 @@ export default async function PricingPage() {
       <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
         <div className="w-full max-w-4xl">
           {/* Header */}
-          <div className="mb-12 text-center">
-            <h1 className="mb-4 text-4xl font-bold text-white">
+          <div className="mb-12 flex flex-col items-center">
+            <Logo gutterBottom />
+            <h1 className="mb-2 text-4xl font-bold text-white">
               Choose Your Plan
             </h1>
             <p className="text-lg text-gray-400">
