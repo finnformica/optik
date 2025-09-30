@@ -2,8 +2,10 @@
 
 import { Edit, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useSWRConfig } from "swr";
 
 import { useGetUserAccounts } from "@/api/accounts";
+import { useAccountKey } from "@/api/user";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,8 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useAccountKey } from "@/lib/supabase/client";
-import { useSWRConfig } from "swr";
+
 import AccountDeleteModal from "./account-delete-modal";
 import AccountForm from "./account-form";
 import { switchAccount } from "./actions";

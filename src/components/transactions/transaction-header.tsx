@@ -5,7 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { syncTransactions } from "@/api/transactions";
-import { useAccountKey } from "@/lib/supabase/client";
+import { useAccountKey } from "@/api/user";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
@@ -35,7 +35,7 @@ export function TransactionHeader({
   const [error, setError] = useState<string | null>(null);
   const [showAlert, setShowAlert] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgressData | null>(
-    null
+    null,
   );
 
   const subHeaderText = `${filteredTransactionsLength} of ${transactionsLength} ${
@@ -88,7 +88,7 @@ export function TransactionHeader({
             setShowAlert(false);
             setSyncing(true);
           }
-        }
+        },
       )
       .subscribe();
 
@@ -101,7 +101,7 @@ export function TransactionHeader({
 
   return (
     <>
-      <div className="flex justify-between items-center mb-8">
+      <div className="mb-8 flex items-center justify-between">
         <div>
           <Typography variant="h2">Transactions</Typography>
           <Typography variant="muted">
@@ -115,7 +115,7 @@ export function TransactionHeader({
             disabled={syncing}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
           >
-            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? "Syncing..." : "Sync Data"}
           </Button>
         </div>

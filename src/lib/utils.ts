@@ -16,6 +16,7 @@ export const endpoints = {
     role: "/api/user/role",
     subscription: "/api/user/subscription",
     accountLimitCheck: "/api/user/account-limit-check",
+    accountKey: "/api/user/account-key",
   },
   data: "/api/data",
   accounts: "/api/accounts",

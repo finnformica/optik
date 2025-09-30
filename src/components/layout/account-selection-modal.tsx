@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { mutate as globalMutate } from "swr";
 
+import { useAccountKey } from "@/api/user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,7 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAccountKey } from "@/lib/supabase/client";
 import { cn, endpoints } from "@/lib/utils";
 import { AccountLimitCheck } from "@/types/user";
 

@@ -35,3 +35,17 @@ export function useAccountLimitCheck() {
     mutate
   };
 }
+
+export function useAccountKey() {
+  const { data, error, isLoading, mutate } = useSWR<{ accountKey: number | null }>(
+    endpoints.user.accountKey,
+    fetcher,
+  );
+
+  return {
+    accountKey: data?.accountKey || null,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
+}
