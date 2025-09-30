@@ -603,6 +603,20 @@
       "when": 1759175035889,
       "tag": "0085_elite_malice",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1759258159211,
+      "tag": "0086_spooky_giant_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1759258673389,
+      "tag": "0087_uneven_blue_blade",
+      "breakpoints": true
     }
   ]
 }
