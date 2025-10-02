@@ -12,5 +12,5 @@
     "tailwind-scrollbar-hide",
     "@supabase/stripe-sync-engine"
   ],
-  "ignoreBinaries": ["ngrok", "supabase", "stripe"]
+  "ignoreBinaries": ["ngrok", "supabase", "stripe", "psql"]
 }

@@ -168,7 +168,7 @@ async function getStockPrices(
 }
 
 // Consolidated dashboard data interface
-export interface DashboardData {
+interface DashboardData {
   positions: EnrichedPosition[];
   portfolioDistribution: ViewPortfolioDistribution[];
   profitDistribution: ViewProfitDistribution[];
