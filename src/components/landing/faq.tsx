@@ -1,15 +1,11 @@
-"use client";
-
-import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export function FAQ() {
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
-
-  const toggleFaq = (index: number) => {
-    setExpandedFaq(expandedFaq === index ? null : index);
-  };
-
   const faqs = [
     {
       question: "Which brokers does Optik support?",
@@ -39,39 +35,42 @@ export function FAQ() {
   ];
 
   return (
-    <section className="bg-card/30 px-4 py-20 sm:px-6 lg:px-8">
+    <section className="bg-background relative overflow-hidden py-32 sm:px-6 lg:px-8">
+      {/* Background gradient orbs */}
+      <div className="from-primary/4 absolute top-20 left-1/4 -z-10 h-64 w-64 rounded-full bg-gradient-to-br to-purple-500/3 blur-2xl" />
+      <div className="to-primary/3 absolute right-1/4 bottom-20 -z-10 h-48 w-48 rounded-full bg-gradient-to-tl from-purple-500/5 blur-2xl" />
+
       <div className="mx-auto max-w-4xl">
-        <div className="mb-16 space-y-4 text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">
+        <div className="mb-20 space-y-6 text-center">
+          <h2 className="text-3xl font-bold sm:text-4xl lg:text-5xl">
             Frequently Asked Questions
           </h2>
+          <p className="text-muted-foreground mx-auto max-w-2xl text-xl leading-relaxed">
+            Everything you need to know about Optik. Can't find the answer
+            you're looking for? Contact our support team.
+          </p>
         </div>
 
-        <div className="space-y-4">
+        <Accordion type="single" collapsible className="space-y-3">
           {faqs.map((faq, index) => (
-            <div
+            <AccordionItem
               key={index}
-              className="border-border overflow-hidden rounded-lg border"
+              value={`item-${index}`}
+              className="border-border/50 bg-card/40 hover:border-border data-[state=open]:border-border rounded-2xl border backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-gray-400/10"
             >
-              <button
-                onClick={() => toggleFaq(index)}
-                className="hover:bg-card/50 flex w-full items-center justify-between p-6 text-left transition-colors"
-              >
-                <h3 className="font-semibold">{faq.question}</h3>
-                {expandedFaq === index ? (
-                  <ChevronDown className="text-muted-foreground h-5 w-5" />
-                ) : (
-                  <ChevronRight className="text-muted-foreground h-5 w-5" />
-                )}
-              </button>
-              {expandedFaq === index && (
-                <div className="px-6 pb-6">
-                  <p className="text-muted-foreground">{faq.answer}</p>
+              <AccordionTrigger className="px-6 py-4 text-lg font-semibold hover:no-underline [&[data-state=open]>svg]:rotate-180">
+                {faq.question}
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="border-border/50 border-t pt-4">
+                  <p className="text-muted-foreground leading-relaxed">
+                    {faq.answer}
+                  </p>
                 </div>
-              )}
-            </div>
+              </AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
+        </Accordion>
       </div>
     </section>
   );

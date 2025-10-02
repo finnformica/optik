@@ -28,7 +28,7 @@ export function Hero() {
             <h1 className="text-4xl leading-tight font-bold sm:text-5xl lg:text-6xl xl:text-7xl">
               Take control of your <br className="hidden sm:block" />
               <span className="from-primary bg-gradient-to-r to-purple-500 bg-clip-text text-transparent">
-                financial future
+                Financial Future
               </span>
             </h1>
 

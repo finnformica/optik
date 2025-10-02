@@ -1,31 +1,54 @@
+import DotGrid from "@/components/global/dot-grid";
 import { Button } from "@/components/ui/button";
 import NextLink from "next/link";
 
 export function FinalCTA() {
   return (
-    <section className="relative overflow-hidden px-4 py-20 sm:px-6 lg:px-8">
-      {/* Background gradient orb */}
-      <div className="to-primary/20 absolute right-1/2 bottom-0 h-96 w-96 translate-x-1/2 transform rounded-full bg-gradient-to-r from-purple-500/20 opacity-50 blur-3xl" />
+    <section className="px-4 sm:px-8 lg:px-32">
+      <div className="bg-card/20 relative overflow-hidden rounded-3xl p-32">
+        {/* DotGrid Background */}
+        <div
+          className="absolute inset-0 overflow-hidden rounded-3xl"
+          style={{
+            mask: "linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)",
+            maskComposite: "intersect",
+          }}
+        >
+          <DotGrid
+            dotSize={3}
+            gap={20}
+            baseColor="#1F2937"
+            activeColor="#8B5CF6"
+            proximity={120}
+            shockRadius={250}
+            shockStrength={5}
+            resistance={750}
+            returnDuration={1.5}
+          />
+        </div>
 
-      <div className="relative mx-auto max-w-4xl space-y-8 text-center">
-        <h2 className="text-3xl font-bold sm:text-4xl">
-          Take Control of Your Options Trading Today
-        </h2>
-        <p className="text-muted-foreground text-xl">
-          Join hundreds of traders who trust Optik for smarter portfolio
-          tracking
-        </p>
-        <div className="space-y-4">
-          <Button
-            size="lg"
-            asChild
-            className="bg-primary hover:bg-primary/90 shadow-primary/25 shadow-lg"
-          >
-            <NextLink href="/sign-up">Get Started Free</NextLink>
-          </Button>
-          <p className="text-muted-foreground text-sm">
-            No credit card required • Free tier available forever
+        {/* Overlay for content readability */}
+        <div className="absolute inset-0 rounded-3xl" />
+
+        <div className="relative mx-auto max-w-4xl space-y-8 text-center">
+          <h2 className="text-4xl font-bold text-white sm:text-5xl lg:text-6xl">
+            Take Charge of Your
+            <br />
+            Finances Today
+          </h2>
+          <p className="mx-auto max-w-2xl text-xl leading-relaxed text-gray-300">
+            Join thousands of users who trust Optik for smarter money
+            management.
           </p>
+          <div className="pt-4">
+            <Button
+              size="lg"
+              asChild
+              className="rounded-full bg-white px-8 py-4 text-lg font-semibold text-gray-900 shadow-lg transition-all duration-300 hover:bg-gray-100 hover:shadow-xl"
+            >
+              <NextLink href="/sign-up">Get Started</NextLink>
+            </Button>
+          </div>
         </div>
       </div>
     </section>
