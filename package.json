@@ -9,7 +9,7 @@
     "db:reset": "npx supabase db reset",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:dump": "dotenv -- npx supabase db dump --db-url $SUPABASE_DB_URL_SESSION -f supabase/data.sql --use-copy --data-only",
+    "db:dump": "npx supabase db dump --db-url $SUPABASE_DB_URL_SESSION -f supabase/data.sql --use-copy --data-only",
     "db:load": "psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -f supabase/data.sql",
     "db:restart": "npx supabase stop && npx supabase start",
     "stripe:serve": "npx supabase functions serve stripe-webhook-sync",
