@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,12 +39,31 @@ export function Pricing() {
   ];
 
   return (
-    <section id="pricing" className="bg-card/30 px-4 py-20 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-16 space-y-4 text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">Choose Your Plan</h2>
-          <p className="text-muted-foreground text-xl">
-            Start free, upgrade when you need more accounts
+    <section
+      id="pricing"
+      className="bg-card/30 relative overflow-hidden px-4 py-24 sm:px-6 lg:px-8"
+    >
+      {/* Geometric divider top */}
+      <div className="via-primary/20 absolute top-0 right-0 left-0 h-px bg-gradient-to-r from-transparent to-transparent" />
+
+      {/* Top spacing transition */}
+      <div className="from-background/50 pointer-events-none absolute top-0 right-0 left-0 h-16 bg-gradient-to-b to-transparent" />
+
+      {/* Background gradient orbs - more subtle for background section */}
+      <div className="from-primary/4 absolute top-20 left-1/4 -z-10 h-64 w-64 rounded-full bg-gradient-to-br to-purple-500/3 blur-2xl" />
+      <div className="to-primary/4 absolute right-1/4 bottom-20 -z-10 h-48 w-48 rounded-full bg-gradient-to-tl from-purple-500/5 blur-2xl" />
+
+      <div className="relative mx-auto max-w-7xl">
+        <div className="mb-20 space-y-6 text-center">
+          <h2 className="text-3xl font-bold sm:text-4xl lg:text-5xl">
+            Choose Your{" "}
+            <span className="from-primary bg-gradient-to-r to-purple-500 bg-clip-text text-transparent">
+              Perfect Plan
+            </span>
+          </h2>
+          <p className="text-muted-foreground mx-auto max-w-2xl text-xl leading-relaxed">
+            Start free, upgrade when you need more accounts. Flexible pricing
+            that grows with your trading portfolio.
           </p>
         </div>
 
@@ -53,19 +71,8 @@ export function Pricing() {
           {plans.map((plan, index) => (
             <Card
               key={index}
-              className={`relative ${
-                plan.isPopular
-                  ? "border-primary shadow-primary/20 shadow-lg"
-                  : ""
-              }`}
+              className="group border-border/50 hover:border-border bg-card/60 relative border transition-all duration-300 hover:shadow-lg hover:shadow-gray-400/10"
             >
-              {plan.isPopular && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 transform">
-                  <Badge className="bg-primary text-primary-foreground">
-                    Most Popular
-                  </Badge>
-                </div>
-              )}
               <CardHeader className="space-y-4 text-center">
                 <CardTitle className="text-2xl">{plan.name}</CardTitle>
                 <CardDescription>{plan.description}</CardDescription>
@@ -92,7 +99,7 @@ export function Pricing() {
                 <Button
                   className={`w-full ${
                     plan.isPopular
-                      ? "bg-primary hover:bg-primary/90 shadow-primary/25 shadow-lg"
+                      ? "from-primary hover:from-primary/90 shadow-primary/25 border-0 bg-gradient-to-r to-purple-500 text-white shadow-lg hover:to-purple-500/90"
                       : ""
                   }`}
                   variant={plan.isPopular ? "default" : "outline"}
@@ -105,6 +112,12 @@ export function Pricing() {
           ))}
         </div>
       </div>
+
+      {/* Bottom spacing transition */}
+      <div className="from-background/50 pointer-events-none absolute right-0 bottom-0 left-0 h-16 bg-gradient-to-t to-transparent" />
+
+      {/* Geometric divider bottom */}
+      <div className="via-primary/20 absolute right-0 bottom-0 left-0 h-px bg-gradient-to-r from-transparent to-transparent" />
     </section>
   );
 }

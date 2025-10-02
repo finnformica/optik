@@ -18,7 +18,7 @@ export function HowItWorks() {
   ];
 
   return (
-    <section className="relative overflow-hidden px-4 py-32 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden px-4 pt-32 pb-48 sm:px-6 lg:px-8">
       {/* Top gradient transition */}
       <div className="from-background pointer-events-none absolute top-0 right-0 left-0 h-32 bg-gradient-to-b to-transparent" />
 
@@ -29,10 +29,7 @@ export function HowItWorks() {
       <div className="relative mx-auto max-w-7xl">
         <div className="mb-20 space-y-6 text-center">
           <h2 className="text-3xl font-bold sm:text-4xl lg:text-5xl">
-            Get Started in{" "}
-            <span className="from-primary bg-gradient-to-r to-purple-500 bg-clip-text text-transparent">
-              3 Simple Steps
-            </span>
+            Get Started in 3 Simple Steps
           </h2>
           <p className="text-muted-foreground mx-auto max-w-2xl text-xl leading-relaxed">
             From setup to insights in minutes. Join thousands of traders who've
