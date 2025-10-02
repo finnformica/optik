@@ -1,6 +1,5 @@
 "use client";
 
-import { FeatureCard } from "./feature-card";
 import {
   BrokerIntegrationFeature,
   MultipleAccountsFeature,
@@ -11,11 +10,14 @@ import {
 
 export function Features() {
   return (
-    <section id="features" className="px-4 py-20 sm:px-6 lg:px-8">
+    <section
+      id="features"
+      className="relative z-20 -mt-44 px-4 py-20 sm:px-6 lg:px-8"
+    >
       <div className="mx-auto max-w-7xl">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold sm:text-4xl">
-            Everything You Need to Track Your Options Portfolio
+            Powerful Features to Elevate Your Financial
           </h2>
           <p className="text-muted-foreground mx-auto max-w-3xl text-xl">
             From broker integrations to advanced analytics, Optik provides all
