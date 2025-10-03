@@ -44,7 +44,7 @@ export function FinalCTA() {
             <Button
               size="lg"
               asChild
-              className="rounded-full bg-gradient-to-r from-primary to-purple-500 px-6 py-3 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:from-primary/90 hover:to-purple-500/90 hover:shadow-xl sm:px-8 sm:py-4 sm:text-lg"
+              className="from-primary hover:from-primary/90 bg-gradient-to-r to-purple-500 px-6 py-3 text-base text-white transition-all duration-300 hover:to-purple-500/90 hover:shadow-xl sm:px-8 sm:py-4"
             >
               <NextLink href={paths.auth.signUp}>Start Free Today</NextLink>
             </Button>

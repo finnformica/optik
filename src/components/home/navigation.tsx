@@ -33,12 +33,6 @@ export function Navigation() {
             >
               Pricing
             </a>
-            <a
-              href="#about"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              About
-            </a>
             <Button
               asChild
               className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/25 shadow-lg"
