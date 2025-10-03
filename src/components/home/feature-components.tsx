@@ -1,8 +1,5 @@
 "use client";
 
-import TradingActivityHeatmap from "@/components/dashboard/trading-activity-heatmap";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Building2,
   Calculator,
@@ -11,6 +8,10 @@ import {
   TrendingUp,
   Upload,
 } from "lucide-react";
+
+import TradingActivityHeatmap from "@/components/dashboard/trading-activity-heatmap";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 import { FeatureCard } from "./feature-card";
 import {

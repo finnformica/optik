@@ -1,8 +1,9 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
+
+import { Card, CardContent } from "@/components/ui/card";
 
 export function Testimonials() {
   const [currentIndex, setCurrentIndex] = useState(0);

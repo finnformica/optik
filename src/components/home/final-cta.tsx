@@ -1,6 +1,7 @@
+import NextLink from "next/link";
+
 import DotGrid from "@/components/global/dot-grid";
 import { Button } from "@/components/ui/button";
-import NextLink from "next/link";
 
 export function FinalCTA() {
   return (

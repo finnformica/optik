@@ -1,10 +1,11 @@
 "use client";
 
-import { DashboardMockup } from "@/components/landing/dashboard-mockup";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import NextLink from "next/link";
+
+import { DashboardMockup } from "@/components/home/dashboard-mockup";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export function Hero() {
   return (
