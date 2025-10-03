@@ -30,7 +30,7 @@ export function Hero() {
             <h1 className="text-4xl leading-tight font-bold sm:text-5xl lg:text-6xl xl:text-7xl">
               Take Control of Your <br className="hidden sm:block" />
               <span className="from-primary bg-gradient-to-r to-purple-500 bg-clip-text text-transparent">
-                Trading Performance
+                Options Trading
               </span>
             </h1>
 
