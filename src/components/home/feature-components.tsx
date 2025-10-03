@@ -247,7 +247,7 @@ export function TaxCalculationsFeature() {
       <div className="absolute bottom-0 left-0 h-24 w-24 rounded-full bg-gradient-to-tr from-purple-500/20 to-transparent blur-xl" />
 
       <div className="relative p-8">
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
             <div className="from-primary to-primary/80 shadow-primary/25 rounded-xl bg-gradient-to-br p-3 shadow-lg">
               <Calculator className="text-primary-foreground h-8 w-8" />
@@ -261,7 +261,7 @@ export function TaxCalculationsFeature() {
           </div>
           <Badge
             variant="secondary"
-            className="from-primary/20 text-primary border-primary/30 bg-gradient-to-r to-purple-500/20 shadow-md"
+            className="from-primary/20 text-primary border-primary/30 bg-gradient-to-r to-purple-500/20 shadow-md self-start sm:self-auto"
           >
             <span className="relative mr-2 flex h-2 w-2">
               <span className="bg-primary absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"></span>

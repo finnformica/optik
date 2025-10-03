@@ -37,7 +37,7 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <div className="relative grid gap-12 md:grid-cols-3">
+        <div className="relative grid gap-2 sm:gap-4 md:grid-cols-3 lg:gap-12">
           {/* Stepped connection lines - more diagrammatic */}
           <div className="pointer-events-none absolute top-12 right-0 left-0 hidden md:block">
             {/* Line from step 1 to step 2 */}
@@ -54,7 +54,7 @@ export function HowItWorks() {
           {steps.map((step, index) => (
             <div key={index} className="group relative">
               {/* Card background with hover effect */}
-              <div className="bg-card/40 border-border/50 hover:bg-card/60 hover:border-primary/30 hover:shadow-primary/10 relative rounded-2xl border p-8 text-center backdrop-blur-sm transition-all duration-300 hover:shadow-lg">
+              <div className="bg-card/40 border-border/50 hover:bg-card/60 hover:border-primary/30 hover:shadow-primary/10 relative rounded-2xl border p-4 text-center backdrop-blur-sm transition-all duration-300 hover:shadow-lg lg:p-8">
                 {/* Step number with clean minimal styling */}
                 <div className="relative mx-auto mb-6">
                   <div className="from-primary shadow-primary/25 mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br to-purple-500/90 font-mono text-lg text-white shadow-lg backdrop-blur-sm">

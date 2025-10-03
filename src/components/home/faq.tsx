@@ -4,6 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { ChevronDown } from "lucide-react";
 
 export function FAQ() {
   const faqs = [
@@ -40,19 +41,22 @@ export function FAQ() {
   ];
 
   return (
-    <section className="bg-background relative overflow-hidden py-32 sm:px-6 lg:px-8">
+    <section className="bg-background relative overflow-hidden px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
       {/* Background gradient orbs */}
       <div className="from-primary/4 absolute top-20 left-1/4 -z-10 h-64 w-64 rounded-full bg-gradient-to-br to-purple-500/3 blur-2xl" />
       <div className="to-primary/3 absolute right-1/4 bottom-20 -z-10 h-48 w-48 rounded-full bg-gradient-to-tl from-purple-500/5 blur-2xl" />
 
       <div className="mx-auto max-w-4xl">
-        <div className="mb-20 space-y-6 text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl lg:text-5xl">
-            Frequently Asked Questions
-          </h2>
-          <p className="text-muted-foreground mx-auto max-w-2xl text-xl leading-relaxed">
-            Everything you need to know about Optik. Can't find what you're looking for? Our support team is here to help.
-          </p>
+        {/* Transitional content */}
+        <div className="mb-8 py-8 text-center sm:mb-12 sm:py-12">
+          <div className="flex items-center justify-center space-x-4">
+            <div className="to-primary/30 h-px w-12 bg-gradient-to-r from-transparent"></div>
+            <p className="text-muted-foreground text-lg font-medium sm:text-xl">
+              Still have questions?
+            </p>
+            <div className="to-primary/30 h-px w-12 bg-gradient-to-l from-transparent"></div>
+          </div>
+          <ChevronDown className="text-primary/60 mx-auto mt-4 h-6 w-6" />
         </div>
 
         <Accordion type="single" collapsible className="space-y-3">
@@ -62,12 +66,12 @@ export function FAQ() {
               value={`item-${index}`}
               className="border-border/50 bg-card/40 hover:border-border data-[state=open]:border-border rounded-2xl border backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-gray-400/10"
             >
-              <AccordionTrigger className="px-6 py-4 text-lg font-semibold hover:no-underline [&[data-state=open]>svg]:rotate-180">
+              <AccordionTrigger className="px-4 py-4 text-base font-semibold hover:no-underline sm:px-6 sm:text-lg [&[data-state=open]>svg]:rotate-180">
                 {faq.question}
               </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
+              <AccordionContent className="px-4 pb-4 sm:px-6 sm:pb-6">
                 <div className="border-border/50 border-t pt-4">
-                  <p className="text-muted-foreground leading-relaxed">
+                  <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
                     {faq.answer}
                   </p>
                 </div>

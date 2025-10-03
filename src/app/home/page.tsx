@@ -19,8 +19,8 @@ export default function HomePage() {
       <HowItWorks />
       <Pricing />
       <Testimonials />
-      <FinalCTA />
       <FAQ />
+      <FinalCTA />
       <Footer />
     </>
   );
