@@ -164,7 +164,7 @@ export function TradingActivityFeature() {
   return (
     <FeatureCard
       title="Track Trading Activity"
-      description="Visualize your trading patterns and activity with comprehensive performance analytics and trade history."
+      description="Visualise your trading patterns and activity with comprehensive performance analytics and trade history."
       className="col-span-12 lg:col-span-8"
       contentClassName="h-96"
     >

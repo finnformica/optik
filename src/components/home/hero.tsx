@@ -23,20 +23,21 @@ export function Hero() {
             className="mx-auto inline-flex items-center gap-2"
           >
             <Star className="h-4 w-4 text-yellow-500" />
-            Trusted by options traders across the UK
+            Built by traders, for traders
           </Badge>
 
           <div className="mx-auto max-w-4xl space-y-6">
             <h1 className="text-4xl leading-tight font-bold sm:text-5xl lg:text-6xl xl:text-7xl">
-              Take control of your <br className="hidden sm:block" />
+              Take Control of Your <br className="hidden sm:block" />
               <span className="from-primary bg-gradient-to-r to-purple-500 bg-clip-text text-transparent">
-                Financial Future
+                Trading Performance
               </span>
             </h1>
 
             <p className="text-muted-foreground mx-auto max-w-2xl text-xl leading-relaxed">
-              Optik helps you control spending, track income, and manage savings
-              with an intuitive financial dashboard.
+              Track smarter, trade better. Optik gives retail options traders
+              the clarity they need to optimise their strategies, understand
+              their true performance.
             </p>
           </div>
 
@@ -46,7 +47,7 @@ export function Hero() {
               asChild
               className="bg-primary hover:bg-primary/90 shadow-primary/25 px-8 shadow-lg"
             >
-              <NextLink href={paths.auth.signUp}>Try It Free</NextLink>
+              <NextLink href={paths.auth.signUp}>Start Free Today</NextLink>
             </Button>
           </div>
         </div>

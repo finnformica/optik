@@ -43,7 +43,7 @@ export function Navigation() {
               asChild
               className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/25 shadow-lg"
             >
-              <NextLink href={paths.auth.signUp}>Get Started</NextLink>
+              <NextLink href={paths.auth.signUp}>Start Free Today</NextLink>
             </Button>
           </div>
 
@@ -85,7 +85,7 @@ export function Navigation() {
               About
             </a>
             <Button asChild className="bg-primary hover:bg-primary/90 w-full">
-              <NextLink href={paths.auth.signUp}>Get Started</NextLink>
+              <NextLink href={paths.auth.signUp}>Start Free Today</NextLink>
             </Button>
           </div>
         )}

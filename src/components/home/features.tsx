@@ -17,7 +17,7 @@ export function Features() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold sm:text-4xl lg:text-5xl">
-            Powerful Features to Elevate Your Financial
+            Powerful Features for Options Trading
           </h2>
           <p className="text-muted-foreground mx-auto max-w-3xl text-xl">
             From broker integrations to advanced analytics, Optik provides all

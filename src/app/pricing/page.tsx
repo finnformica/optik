@@ -54,7 +54,7 @@ export default async function PricingPage() {
               Choose Your Plan
             </h1>
             <p className="text-lg text-gray-400">
-              Take control of your financial future
+              Take control of your trading performance
             </p>
           </div>
 
@@ -179,8 +179,8 @@ function PricingCard({
       </div>
       <p className="mb-4 text-sm text-gray-400">
         {isFree
-          ? "Helping track your investment journey"
-          : "Managing multiple investment accounts with ease"}
+          ? "Perfect for testing Optik with real data"
+          : "For serious traders managing multiple accounts"}
       </p>
       <p className="mb-6 text-4xl font-medium text-white">
         {isFree ? (
