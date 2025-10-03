@@ -2,6 +2,7 @@ import NextLink from "next/link";
 
 import DotGrid from "@/components/global/dot-grid";
 import { Button } from "@/components/ui/button";
+import { paths } from "@/lib/utils";
 
 export function FinalCTA() {
   return (
@@ -47,7 +48,7 @@ export function FinalCTA() {
               asChild
               className="rounded-full bg-white px-8 py-4 text-lg font-semibold text-gray-900 shadow-lg transition-all duration-300 hover:bg-gray-100 hover:shadow-xl"
             >
-              <NextLink href="/sign-up">Get Started</NextLink>
+              <NextLink href={paths.auth.signUp}>Get Started</NextLink>
             </Button>
           </div>
         </div>

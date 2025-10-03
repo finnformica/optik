@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { paths } from "@/lib/utils";
 
 export function Pricing() {
   const plans = [
@@ -106,7 +107,7 @@ export function Pricing() {
                   variant={plan.isPopular ? "default" : "outline"}
                   asChild
                 >
-                  <NextLink href="/sign-up">Get Started</NextLink>
+                  <NextLink href={paths.auth.signUp}>Get Started</NextLink>
                 </Button>
               </CardContent>
             </Card>

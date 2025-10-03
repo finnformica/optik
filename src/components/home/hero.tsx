@@ -6,6 +6,7 @@ import NextLink from "next/link";
 import { DashboardMockup } from "@/components/home/dashboard-mockup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { paths } from "@/lib/utils";
 
 export function Hero() {
   return (
@@ -45,10 +46,7 @@ export function Hero() {
               asChild
               className="bg-primary hover:bg-primary/90 shadow-primary/25 px-8 shadow-lg"
             >
-              <NextLink href="/sign-up">Try It Free</NextLink>
-            </Button>
-            <Button size="lg" variant="outline" className="px-8">
-              View Demo
+              <NextLink href={paths.auth.signUp}>Try It Free</NextLink>
             </Button>
           </div>
         </div>
