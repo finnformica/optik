@@ -166,7 +166,7 @@ export function TradingActivityFeature() {
       title="Track Trading Activity"
       description="Visualise your trading patterns and activity with comprehensive performance analytics and trade history."
       className="col-span-12 lg:col-span-8"
-      contentClassName="h-80"
+      contentClassName="h-80 [&_.sticky]:bg-card p-4"
     >
       <TradingActivityHeatmapContent dailyData={mockTradingActivity} />
     </FeatureCard>
