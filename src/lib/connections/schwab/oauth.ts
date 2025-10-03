@@ -163,6 +163,9 @@ export class SchwabAuth {
       await this.storeTokens(newTokens);
       return newTokens.access_token;
     } catch (error) {
+      // Clear invalid tokens when refresh fails
+      await this.clearStoredTokens();
+
       // If refresh fails, account needs to re-authenticate
       throw new SchwabTokenRefreshError(
         "Token refresh failed. Schwab account needs to re-authenticate.",
