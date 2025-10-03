@@ -18,7 +18,7 @@ export function HowItWorks() {
   ];
 
   return (
-    <section className="relative overflow-hidden px-4 pt-32 pb-48 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden px-4 py-20 sm:px-6 sm:pt-32 sm:pb-48 lg:px-8">
       {/* Top gradient transition */}
       <div className="from-background pointer-events-none absolute top-0 right-0 left-0 h-32 bg-gradient-to-b to-transparent" />
 

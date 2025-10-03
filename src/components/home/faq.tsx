@@ -49,14 +49,14 @@ export function FAQ() {
       <div className="mx-auto max-w-4xl">
         {/* Transitional content */}
         <div className="mb-8 py-8 text-center sm:mb-12 sm:py-12">
+          <p className="text-muted-foreground mb-4 text-lg font-medium sm:text-xl">
+            Still have questions?
+          </p>
           <div className="flex items-center justify-center space-x-4">
             <div className="to-primary/30 h-px w-12 bg-gradient-to-r from-transparent"></div>
-            <p className="text-muted-foreground text-lg font-medium sm:text-xl">
-              Still have questions?
-            </p>
+            <ChevronDown className="text-primary/60 h-6 w-6" />
             <div className="to-primary/30 h-px w-12 bg-gradient-to-l from-transparent"></div>
           </div>
-          <ChevronDown className="text-primary/60 mx-auto mt-4 h-6 w-6" />
         </div>
 
         <Accordion type="single" collapsible className="space-y-3">
