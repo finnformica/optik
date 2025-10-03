@@ -1,14 +1,14 @@
 "use client";
 
-import { FAQ } from "@/components/landing/faq";
-import { Features } from "@/components/landing/features";
-import { FinalCTA } from "@/components/landing/final-cta";
-import { Footer } from "@/components/landing/footer";
-import { Hero } from "@/components/landing/hero";
-import { HowItWorks } from "@/components/landing/how-it-works";
-import { Navigation } from "@/components/landing/navigation";
-import { Pricing } from "@/components/landing/pricing";
-import { Testimonials } from "@/components/landing/testimonials";
+import { FAQ } from "@/components/home/faq";
+import { Features } from "@/components/home/features";
+import { FinalCTA } from "@/components/home/final-cta";
+import { Footer } from "@/components/home/footer";
+import { Hero } from "@/components/home/hero";
+import { HowItWorks } from "@/components/home/how-it-works";
+import { Navigation } from "@/components/home/navigation";
+import { Pricing } from "@/components/home/pricing";
+import { Testimonials } from "@/components/home/testimonials";
 
 export default function HomePage() {
   return (

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { customerPortalAction } from "@/lib/payments/actions";
+import { paths } from "@/lib/utils";
 import { UserRole } from "@/types/user";
 import { CreditCard, Crown, Loader2, User } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -165,7 +166,7 @@ function SubscriptionInfo() {
                 more accounts and access advanced features.
               </p>
               <Button
-                onClick={() => (window.location.href = "/pricing")}
+                onClick={() => (window.location.href = paths.pricing)}
                 className="w-full bg-blue-600 text-white hover:bg-blue-700"
               >
                 <Crown className="mr-2 h-4 w-4" />

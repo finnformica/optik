@@ -8,29 +8,34 @@ import {
 export function FAQ() {
   const faqs = [
     {
-      question: "Which brokers does Optik support?",
+      question: "Which brokers do you support?",
       answer:
-        "Optik currently supports major UK and US brokers including Interactive Brokers, Trading 212, IG, Charles Schwab, and more. We're constantly adding new broker integrations based on user demand.",
+        "We currently integrate with Charles Schwab directly, with more brokers being added regularly. Direct connections use OAuth authentication—we never store your broker credentials.",
     },
     {
-      question: "Is my trading data secure?",
+      question: "I'm a US-based trader. Is this still useful for me?",
       answer:
-        "Yes, we take security very seriously. All data is encrypted in transit and at rest, and we use industry-standard security practices. We never store your broker login credentials - connections are made through secure OAuth protocols.",
+        "Definitely. The core platform—performance tracking, P&L calculations, and position monitoring—works for any options market.",
     },
     {
-      question: "Can I cancel my Pro subscription anytime?",
+      question: "How secure is my trading data?",
       answer:
-        "Absolutely. You can cancel your Pro subscription at any time from your account settings. You'll continue to have Pro access until the end of your current billing period.",
+        "We use OAuth connections so we never see or store your broker passwords. All data is hosted on secure servers. We never sell your data, and you can export or delete it anytime.",
     },
     {
-      question: "When will UK tax features be available?",
+      question: "Can I track trades across multiple accounts?",
       answer:
-        "UK tax calculation features are currently in development and will be available in Q2 2025. This will include automatic Capital Gains Tax calculations and Section 104 holding calculations.",
+        "Yes, you can monitor different brokers in one place. All with unified reporting and consolidated performance metrics.",
     },
     {
-      question: "How accurate are the real-time analytics?",
+      question: "What happens if I get assigned early or roll a position?",
       answer:
-        "Our analytics are updated in real-time as market data changes. We source data from reliable market data providers and synchronize with your broker's position data to ensure accuracy.",
+        "Optik handles all the complexity. Early assignments are automatically tracked and P&L is calculated correctly.",
+    },
+    {
+      question: "Do you offer a free trial?",
+      answer:
+        "Our free plan includes one account and full access to core features—no time limit. You can test drive Optik with real data before deciding whether to upgrade for additional accounts. No credit card required to start.",
     },
   ];
 
@@ -46,8 +51,7 @@ export function FAQ() {
             Frequently Asked Questions
           </h2>
           <p className="text-muted-foreground mx-auto max-w-2xl text-xl leading-relaxed">
-            Everything you need to know about Optik. Can't find the answer
-            you're looking for? Contact our support team.
+            Everything you need to know about Optik. Can't find what you're looking for? Our support team is here to help.
           </p>
         </div>
 

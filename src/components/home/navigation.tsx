@@ -1,10 +1,12 @@
 "use client";
 
-import { Logo } from "@/components/global/logo";
-import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import NextLink from "next/link";
 import { useState } from "react";
+
+import { Logo } from "@/components/global/logo";
+import { Button } from "@/components/ui/button";
+import { paths } from "@/lib/utils";
 
 export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -41,7 +43,7 @@ export function Navigation() {
               asChild
               className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/25 shadow-lg"
             >
-              <NextLink href="/sign-up">Get Started</NextLink>
+              <NextLink href={paths.auth.signUp}>Start Free Today</NextLink>
             </Button>
           </div>
 
@@ -83,7 +85,7 @@ export function Navigation() {
               About
             </a>
             <Button asChild className="bg-primary hover:bg-primary/90 w-full">
-              <NextLink href="/sign-up">Get Started</NextLink>
+              <NextLink href={paths.auth.signUp}>Start Free Today</NextLink>
             </Button>
           </div>
         )}

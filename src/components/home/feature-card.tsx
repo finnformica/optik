@@ -1,5 +1,7 @@
 "use client";
 
+import { ReactNode } from "react";
+
 import {
   Card,
   CardContent,
@@ -8,7 +10,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ReactNode } from "react";
 
 interface FeatureCardProps {
   title: string;
@@ -29,7 +30,7 @@ export function FeatureCard({
     <Card
       className={cn(
         "group hover:border-primary/50 hover:shadow-primary/10 overflow-hidden pt-6 transition-all duration-300 hover:shadow-lg",
-        className
+        className,
       )}
     >
       <CardHeader className="px-6 py-0">

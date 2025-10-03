@@ -1,3 +1,6 @@
+import { CheckCircle } from "lucide-react";
+import NextLink from "next/link";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -6,8 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CheckCircle } from "lucide-react";
-import NextLink from "next/link";
+import { paths } from "@/lib/utils";
 
 export function Pricing() {
   const plans = [
@@ -105,7 +107,7 @@ export function Pricing() {
                   variant={plan.isPopular ? "default" : "outline"}
                   asChild
                 >
-                  <NextLink href="/sign-up">Get Started</NextLink>
+                  <NextLink href={paths.auth.signUp}>Get Started</NextLink>
                 </Button>
               </CardContent>
             </Card>

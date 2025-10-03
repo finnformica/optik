@@ -1,29 +1,30 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
+
+import { Card, CardContent } from "@/components/ui/card";
 
 export function Testimonials() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const testimonials = [
     {
       quote:
-        "As a business owner, managing finances was overwhelming. Optik's reporting and analytics helped me optimize my spending and grow my profits.",
-      name: "David Lee",
-      title: "Startup Founder",
+        "I was losing track of which covered call strategies were actually profitable. Optik showed me I was chasing premium in the wrong stocks. Changed my whole approach.",
+      name: "James R.",
+      title: "UK Retail Trader",
     },
     {
       quote:
-        "I love how Optik automatically categorizes my expenses. The interface is user-friendly, and it gives me complete control over my finances.",
-      name: "Sophia Martinez",
-      title: "Marketing Consultant",
+        "The UK tax calculator alone is worth it. I was dreading my self-assessment after trading options all year. Optik generated everything I needed in minutes, and my accountant confirmed the numbers were spot on.",
+      name: "Sarah M.",
+      title: "London",
     },
     {
       quote:
-        "I've tried multiple apps before, but Optik is by far the best. The savings plan and budget tracking features keep me on top of my goals.",
-      name: "Michael Johnson",
-      title: "Startup Founder",
+        "Finally, a platform that understands options traders. The P&L tracking accounts for all the complexity—early assignments, rollovers, multi-leg strategies. This is what Interactive Brokers' reporting should have been.",
+      name: "Michael T.",
+      title: "Manchester",
     },
   ];
 
@@ -49,13 +50,10 @@ export function Testimonials() {
           <div className="space-y-8">
             <div className="space-y-6">
               <h2 className="text-4xl font-bold text-white sm:text-5xl lg:text-6xl">
-                Real Stories,
-                <br />
-                Real Results
+                What Options Traders Are Saying
               </h2>
               <p className="max-w-lg text-xl leading-relaxed text-gray-400">
-                See how Optik is transforming the way people manage their
-                finances.
+                See how Optik is helping traders understand their performance and optimise their strategies.
               </p>
             </div>
 

@@ -1,8 +1,5 @@
 "use client";
 
-import TradingActivityHeatmap from "@/components/dashboard/trading-activity-heatmap";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Building2,
   Calculator,
@@ -11,6 +8,10 @@ import {
   TrendingUp,
   Upload,
 } from "lucide-react";
+
+import TradingActivityHeatmap from "@/components/dashboard/trading-activity-heatmap";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 import { FeatureCard } from "./feature-card";
 import {
@@ -163,7 +164,7 @@ export function TradingActivityFeature() {
   return (
     <FeatureCard
       title="Track Trading Activity"
-      description="Visualize your trading patterns and activity with comprehensive performance analytics and trade history."
+      description="Visualise your trading patterns and activity with comprehensive performance analytics and trade history."
       className="col-span-12 lg:col-span-8"
       contentClassName="h-96"
     >
