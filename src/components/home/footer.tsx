@@ -27,6 +27,7 @@ export function Footer() {
             <p className="text-muted-foreground">Track smarter, trade better</p>
           </div>
 
+          {/* Quick links */}
           <div className="space-y-4">
             <h4 className="font-semibold">Quick Links</h4>
             <div className="space-y-2 text-sm">
@@ -42,6 +43,7 @@ export function Footer() {
             </div>
           </div>
 
+          {/* Legal links */}
           <div className="space-y-4">
             <h4 className="font-semibold">Legal</h4>
             <div className="space-y-2 text-sm">
@@ -57,7 +59,8 @@ export function Footer() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          {/* Support links */}
+          {/* <div className="space-y-4">
             <h4 className="font-semibold">Support</h4>
             <div className="space-y-2 text-sm">
               {supportLinks.map((link) => (
@@ -70,11 +73,11 @@ export function Footer() {
                 </a>
               ))}
             </div>
-          </div>
+          </div> */}
         </div>
 
         <div className="border-border text-muted-foreground mt-12 border-t pt-8 text-center text-sm">
-          © 2025 Optik. All rights reserved.
+          © {new Date().getFullYear()} Optik. All rights reserved.
         </div>
       </div>
     </footer>

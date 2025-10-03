@@ -53,7 +53,8 @@ export function Testimonials() {
                 What Options Traders Are Saying
               </h2>
               <p className="max-w-lg text-xl leading-relaxed text-gray-400">
-                See how Optik is helping traders understand their performance and optimise their strategies.
+                See how Optik is helping traders understand their performance
+                and optimise their strategies.
               </p>
             </div>
 
@@ -77,7 +78,7 @@ export function Testimonials() {
           {/* Right side - Testimonials */}
           <div className="flex flex-col">
             <div className="relative">
-              <div className="grid gap-6">
+              <div className="space-y-4">
                 {testimonials.map((testimonial, index) => {
                   const isActive = index === currentIndex;
                   const isNext =
@@ -90,39 +91,41 @@ export function Testimonials() {
                   let className = "transition-all duration-500 ";
 
                   if (isActive) {
-                    className += "opacity-100 scale-100 translate-y-0 z-10";
+                    className +=
+                      "opacity-100 scale-100 translate-y-0 z-10 relative";
                   } else if (isNext) {
-                    className += "opacity-40 scale-95 translate-y-4 z-5";
+                    className +=
+                      "opacity-40 scale-95 translate-y-4 z-5 absolute top-0 left-0 right-0";
                   } else if (isPrev) {
-                    className += "opacity-20 scale-90 translate-y-8 z-0";
+                    className +=
+                      "opacity-20 scale-90 translate-y-8 z-0 absolute top-0 left-0 right-0";
                   } else {
-                    className += "opacity-0 scale-90 translate-y-12 -z-10";
+                    className +=
+                      "opacity-0 scale-90 translate-y-12 -z-10 absolute top-0 left-0 right-0";
                   }
 
                   return (
                     <Card
                       key={index}
-                      className={`${className} absolute inset-0 border-gray-800 bg-gray-900/50 backdrop-blur-sm`}
+                      className={`${className} border-gray-800 bg-gray-900/50 backdrop-blur-sm`}
                     >
-                      <CardContent className="p-8">
-                        <div className="space-y-6">
-                          <div className="font-serif text-6xl leading-none text-gray-600">
-                            "
+                      <CardContent className="flex flex-col space-y-4 p-6 sm:space-y-6 sm:p-8">
+                        <div className="mb-0 font-serif text-4xl leading-none text-gray-600 sm:text-6xl">
+                          "
+                        </div>
+                        <blockquote className="-mt-2 text-base leading-relaxed text-gray-300 sm:-mt-4 sm:text-lg">
+                          {testimonial.quote}
+                        </blockquote>
+                        <div className="flex items-center gap-4 pt-2">
+                          <div className="from-primary/20 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br to-purple-500/20 sm:h-12 sm:w-12">
+                            <div className="from-primary h-6 w-6 rounded-full bg-gradient-to-br to-purple-500 sm:h-8 sm:w-8"></div>
                           </div>
-                          <blockquote className="-mt-4 text-lg leading-relaxed text-gray-300">
-                            {testimonial.quote}
-                          </blockquote>
-                          <div className="flex items-center gap-4">
-                            <div className="from-primary/20 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br to-purple-500/20">
-                              <div className="from-primary h-8 w-8 rounded-full bg-gradient-to-br to-purple-500"></div>
+                          <div>
+                            <div className="text-sm font-semibold text-white sm:text-base">
+                              {testimonial.name}
                             </div>
-                            <div>
-                              <div className="font-semibold text-white">
-                                {testimonial.name}
-                              </div>
-                              <div className="text-sm text-gray-400">
-                                {testimonial.title}
-                              </div>
+                            <div className="text-xs text-gray-400 sm:text-sm">
+                              {testimonial.title}
                             </div>
                           </div>
                         </div>
@@ -131,8 +134,6 @@ export function Testimonials() {
                   );
                 })}
               </div>
-              {/* Spacer to maintain height */}
-              <div className="h-80"></div>
             </div>
 
             {/* Status dots */}

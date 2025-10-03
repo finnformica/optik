@@ -5,21 +5,14 @@ import type {
   ViewPortfolioSummary,
   ViewWeeklyReturn,
 } from "@/lib/db/schema";
-import {
-  Brain,
-  Shield,
-  Target,
-  Tv,
-  Users,
-  Wallet,
-} from "lucide-react";
+import { Brain, Shield, Target, Tv, Users, Wallet } from "lucide-react";
 
 // Mock portfolio summary data
 export const mockPortfolioSummary: ViewPortfolioSummary = {
   accountKey: 1,
   portfolioValue: "17174.25",
-  cashBalance: "-2926.00",
-  availableCash: "-2926.00",
+  cashBalance: "131.00",
+  availableCash: "131.00",
   stockPositionValue: "4500.00",
   optionCollateralValue: "12674.25",
   monthlyPnl: "1247.30",
@@ -31,30 +24,6 @@ export const mockPortfolioSummary: ViewPortfolioSummary = {
 
 // Mock weekly returns data
 export const mockWeeklyData: ViewWeeklyReturn[] = [
-  {
-    accountKey: 1,
-    weekStart: "2024-07-21",
-    cumulativePortfolioValue: "15000.00",
-    cumulativeTransfers: "0.00",
-    weeklyReturnAbsolute: "322.45",
-    weeklyReturnPercent: "2.6",
-  },
-  {
-    accountKey: 1,
-    weekStart: "2024-07-28",
-    cumulativePortfolioValue: "15356.78",
-    cumulativeTransfers: "0.00",
-    weeklyReturnAbsolute: "356.78",
-    weeklyReturnPercent: "2.1",
-  },
-  {
-    accountKey: 1,
-    weekStart: "2024-08-04",
-    cumulativePortfolioValue: "15781.90",
-    cumulativeTransfers: "0.00",
-    weeklyReturnAbsolute: "425.12",
-    weeklyReturnPercent: "2.5",
-  },
   {
     accountKey: 1,
     weekStart: "2024-08-11",
@@ -166,8 +135,8 @@ export const mockPositions: EnrichedPosition[] = [
     positionValue: "300.00",
     positionStatus: "OPEN",
     unrealizedPnl: "50.00",
-    currentPrice: 26.06,
-    itmPercentage: 4.2,
+    currentPrice: 23.06,
+    itmPercentage: -0.922,
   },
   {
     accountKey: 1,

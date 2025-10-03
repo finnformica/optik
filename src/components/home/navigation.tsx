@@ -33,12 +33,6 @@ export function Navigation() {
             >
               Pricing
             </a>
-            <a
-              href="#about"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              About
-            </a>
             <Button
               asChild
               className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/25 shadow-lg"
@@ -53,42 +47,62 @@ export function Navigation() {
               variant="ghost"
               size="icon"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="hover:bg-accent relative overflow-hidden transition-all duration-200"
             >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              <div className="relative">
+                <Menu
+                  className={`h-6 w-6 transition-all duration-300 ${
+                    mobileMenuOpen
+                      ? "scale-0 rotate-90 opacity-0"
+                      : "scale-100 rotate-0 opacity-100"
+                  }`}
+                />
+                <X
+                  className={`absolute inset-0 h-6 w-6 transition-all duration-300 ${
+                    mobileMenuOpen
+                      ? "scale-100 rotate-0 opacity-100"
+                      : "scale-0 -rotate-90 opacity-0"
+                  }`}
+                />
+              </div>
             </Button>
           </div>
         </div>
 
         {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="bg-card border-border mt-2 space-y-4 rounded-lg border p-4 md:hidden">
-            <a
-              href="#features"
-              className="text-muted-foreground hover:text-foreground block transition-colors"
-            >
-              Features
-            </a>
-            <a
-              href="#pricing"
-              className="text-muted-foreground hover:text-foreground block transition-colors"
-            >
-              Pricing
-            </a>
-            <a
-              href="#about"
-              className="text-muted-foreground hover:text-foreground block transition-colors"
-            >
-              About
-            </a>
-            <Button asChild className="bg-primary hover:bg-primary/90 w-full">
-              <NextLink href={paths.auth.signUp}>Start Free Today</NextLink>
-            </Button>
-          </div>
-        )}
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-in-out md:hidden ${
+            mobileMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          <a
+            href="#features"
+            onClick={() => setMobileMenuOpen(false)}
+            className="text-muted-foreground hover:text-foreground block py-2 transition-all duration-200 hover:translate-x-1"
+          >
+            Features
+          </a>
+          <a
+            href="#pricing"
+            onClick={() => setMobileMenuOpen(false)}
+            className="text-muted-foreground hover:text-foreground block py-2 transition-all duration-200 hover:translate-x-1"
+          >
+            Pricing
+          </a>
+          <a
+            href="#about"
+            onClick={() => setMobileMenuOpen(false)}
+            className="text-muted-foreground hover:text-foreground block py-2 transition-all duration-200 hover:translate-x-1"
+          >
+            About
+          </a>
+          <Button
+            asChild
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/25 mt-4 mb-4 w-full shadow-lg transition-all duration-200 hover:scale-[1.02]"
+          >
+            <NextLink href={paths.auth.signUp}>Start Free Today</NextLink>
+          </Button>
+        </div>
       </div>
     </nav>
   );

@@ -9,7 +9,7 @@ import {
   Upload,
 } from "lucide-react";
 
-import TradingActivityHeatmap from "@/components/dashboard/trading-activity-heatmap";
+import { TradingActivityHeatmapContent } from "@/components/dashboard/trading-activity-heatmap";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -30,7 +30,7 @@ export function BrokerIntegrationFeature() {
       contentClassName="flex-grow"
     >
       <div className="h-full overflow-hidden p-6">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Connected Brokers */}
           <div className="flex flex-col space-y-3">
             <h4 className="text-foreground text-sm font-medium">
@@ -83,7 +83,7 @@ export function BrokerIntegrationFeature() {
           </div>
 
           {/* CSV Upload */}
-          <div className="flex flex-grow flex-col space-y-3">
+          <div className="hidden flex-grow flex-col space-y-3 sm:flex">
             <h4 className="text-foreground text-sm font-medium">
               Manual Upload
             </h4>
@@ -166,9 +166,9 @@ export function TradingActivityFeature() {
       title="Track Trading Activity"
       description="Visualise your trading patterns and activity with comprehensive performance analytics and trade history."
       className="col-span-12 lg:col-span-8"
-      contentClassName="h-96"
+      contentClassName="h-80 [&_.sticky]:bg-card p-4"
     >
-      <TradingActivityHeatmap dailyData={mockTradingActivity} />
+      <TradingActivityHeatmapContent dailyData={mockTradingActivity} />
     </FeatureCard>
   );
 }
@@ -180,9 +180,9 @@ export function StockPricesFeature() {
       title="Real-Time Stock Prices"
       description="Easily evaluate if your options are in-the-money"
       className="col-span-12 lg:col-span-4"
-      contentClassName="h-96"
+      contentClassName="h-80"
     >
-      <div className="h-full space-y-2 overflow-hidden p-6">
+      <div className="h-full space-y-1 overflow-hidden p-6">
         <h4 className="text-foreground mb-4 text-sm font-medium">
           Live Market Data
         </h4>
@@ -193,7 +193,7 @@ export function StockPricesFeature() {
           return (
             <div
               key={stock.symbol}
-              className="bg-card/50 border-border/50 hover:bg-card/70 flex items-center justify-between rounded-lg border p-3 transition-colors duration-200"
+              className="bg-card/50 border-border/50 hover:bg-card/70 flex items-center justify-between rounded-lg border px-3 py-2 transition-colors duration-200"
             >
               <div className="flex flex-grow items-center gap-3">
                 <div
@@ -247,7 +247,7 @@ export function TaxCalculationsFeature() {
       <div className="absolute bottom-0 left-0 h-24 w-24 rounded-full bg-gradient-to-tr from-purple-500/20 to-transparent blur-xl" />
 
       <div className="relative p-8">
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
             <div className="from-primary to-primary/80 shadow-primary/25 rounded-xl bg-gradient-to-br p-3 shadow-lg">
               <Calculator className="text-primary-foreground h-8 w-8" />
@@ -261,7 +261,7 @@ export function TaxCalculationsFeature() {
           </div>
           <Badge
             variant="secondary"
-            className="from-primary/20 text-primary border-primary/30 bg-gradient-to-r to-purple-500/20 shadow-md"
+            className="from-primary/20 text-primary border-primary/30 bg-gradient-to-r to-purple-500/20 shadow-md self-start sm:self-auto"
           >
             <span className="relative mr-2 flex h-2 w-2">
               <span className="bg-primary absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"></span>

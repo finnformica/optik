@@ -24,7 +24,9 @@ interface HeatmapDay {
   isEmpty: boolean;
 }
 
-const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
+export const TradingActivityHeatmapContent = ({
+  dailyData,
+}: TradingActivityHeatmapProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Process data into grid format
@@ -241,17 +243,14 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
   };
 
   return (
-    <DashboardWidget
-      title="Trading Activity"
-      contentClassName="p-4 flex flex-col justify-between"
-    >
+    <div className="flex h-full flex-col justify-between">
       {/* Scrollable container */}
       <div
         ref={scrollContainerRef}
         className="scrollbar-hide flex overflow-x-scroll"
       >
         {/* Sticky day labels */}
-        <div className="sticky left-0 z-10 flex flex-col justify-end gap-1 bg-[#1a2236] pr-2 text-xs text-gray-400">
+        <div className="sticky left-0 z-10 flex flex-col justify-end gap-1 pr-2 text-xs text-gray-400">
           {dayNames.map((day) => (
             <div key={day} className="flex h-10 items-center">
               {day}
@@ -348,6 +347,17 @@ const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
+  return (
+    <DashboardWidget
+      title="Trading Activity"
+      contentClassName="p-4 flex flex-col justify-between [&_.sticky]:bg-[#1a2236]"
+    >
+      <TradingActivityHeatmapContent dailyData={dailyData} />
     </DashboardWidget>
   );
 };
