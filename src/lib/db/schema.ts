@@ -1127,6 +1127,7 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
       ELSE NULL
     END as weekly_return_percent
   FROM returns_calculation
+  WHERE week_start <= CURRENT_DATE
   ORDER BY account_key, week_start
 `);
 
