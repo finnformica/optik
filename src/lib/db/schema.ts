@@ -1160,12 +1160,31 @@ export const viewStockProfit = pgView("view_stock_profit", {
         ROWS UNBOUNDED PRECEDING
       ) as running_quantity,
 
-      -- Running cost basis (only for buys, exclude sells from cost basis)
-      SUM(CASE WHEN st.quantity > 0 THEN ABS(st.net_amount) ELSE 0 END) OVER (
-        PARTITION BY st.account_key, st.symbol
-        ORDER BY st.transaction_sequence
-        ROWS UNBOUNDED PRECEDING
-      ) as running_cost_basis,
+      -- Running cost basis (remaining cost basis of held shares)
+      -- This represents the total cost of shares still owned
+      CASE
+        WHEN SUM(st.quantity) OVER (
+          PARTITION BY st.account_key, st.symbol
+          ORDER BY st.transaction_sequence
+          ROWS UNBOUNDED PRECEDING
+        ) > 0 THEN
+          SUM(st.quantity) OVER (
+            PARTITION BY st.account_key, st.symbol
+            ORDER BY st.transaction_sequence
+            ROWS UNBOUNDED PRECEDING
+          ) * (
+            SUM(CASE WHEN st.quantity > 0 THEN ABS(st.net_amount) ELSE 0 END) OVER (
+              PARTITION BY st.account_key, st.symbol
+              ORDER BY st.transaction_sequence
+              ROWS UNBOUNDED PRECEDING
+            ) / NULLIF(SUM(CASE WHEN st.quantity > 0 THEN st.quantity ELSE 0 END) OVER (
+              PARTITION BY st.account_key, st.symbol
+              ORDER BY st.transaction_sequence
+              ROWS UNBOUNDED PRECEDING
+            ), 0)
+          )
+        ELSE 0
+      END as running_cost_basis,
 
       -- Average cost per share up to this point (for shares still owned)
       CASE
