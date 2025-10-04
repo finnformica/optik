@@ -1,5 +1,12 @@
-import type { Position } from "@/app/(dashboard)/dashboard/actions";
-import { getPositionPrices } from "@/app/(dashboard)/dashboard/actions";
+"use server";
+
+import { HelpCircle } from "lucide-react";
+
+import {
+  getPositionPrices,
+  type EnrichedPosition,
+  type Position,
+} from "@/app/(dashboard)/dashboard/actions";
 import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
 import RefreshPricesButton from "@/components/dashboard/refresh-prices-button";
 import { Badge } from "@/components/ui/badge";
@@ -8,11 +15,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { HelpCircle } from "lucide-react";
-import { Suspense } from "react";
 
 interface CurrentPositionsProps {
   positions: Position[];
+  showPrices?: boolean;
+}
+
+interface PositionsTableProps {
+  positions: Position[];
+  showPrices?: boolean;
 }
 
 const renderBadge = (itmPercentage?: number) => {
@@ -58,93 +69,90 @@ const renderBadge = (itmPercentage?: number) => {
   );
 };
 
-// Component that handles async price loading
-async function PositionRowsWithPrices({
+function PositionRows({ positions, showPrices = false }: PositionsTableProps) {
+  if (positions.length === 0) {
+    return (
+      <>
+        {Array.from({ length: 3 }).map((_, index) => (
+          <tr
+            key={`empty-${index}`}
+            className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-600 [&_td]:opacity-50"
+          >
+            <td>---</td>
+            <td>---</td>
+            <td>---</td>
+            <td>---</td>
+            <td>---</td>
+            <td>---</td>
+            <td>---</td>
+          </tr>
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {positions.map((position, index) => {
+        const enrichedPosition = position as EnrichedPosition;
+        return (
+          <tr
+            key={`${position.underlyingSymbol}-${position.strikePrice}-${index}`}
+            className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-300"
+          >
+            <td className="font-medium text-white">
+              {position.underlyingSymbol}
+            </td>
+            <td>{position.optionType ?? position.securityType ?? "N/A"}</td>
+            <td>
+              {position.strikePrice
+                ? `$${parseFloat(position.strikePrice).toFixed(2)}`
+                : "-"}
+            </td>
+            <td>
+              {position.expiryDate
+                ? new Date(position.expiryDate).toLocaleDateString()
+                : "-"}
+            </td>
+            <td>
+              {parseFloat(position.quantity || "0") > 0 ? "+" : ""}
+              {parseFloat(position.quantity || "0")}
+            </td>
+            <td>
+              {showPrices && enrichedPosition.currentPrice ? (
+                `$${enrichedPosition.currentPrice.toFixed(2)}`
+              ) : showPrices ? (
+                "-"
+              ) : (
+                <div className="h-4 w-12 animate-pulse rounded bg-gray-700"></div>
+              )}
+            </td>
+            <td>
+              {showPrices ? (
+                renderBadge(enrichedPosition.itmPercentage)
+              ) : (
+                <div className="h-5 w-16 animate-pulse rounded bg-gray-700"></div>
+              )}
+            </td>
+          </tr>
+        );
+      })}
+    </>
+  );
+}
+
+const CurrentPositions = async ({
   positions,
-}: {
-  positions: Position[];
-}) {
-  const enrichedPositions = await getPositionPrices(positions);
+  showPrices = false,
+}: CurrentPositionsProps) => {
+  let enrichedPositions = positions;
 
-  await new Promise((resolve) => setTimeout(resolve, 5000));
+  if (showPrices) {
+    enrichedPositions = await getPositionPrices(positions);
 
-  return (
-    <>
-      {enrichedPositions.map((position, index) => (
-        <tr
-          key={`${position.underlyingSymbol}-${position.strikePrice}-${index}`}
-          className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-300"
-        >
-          <td className="font-medium text-white">
-            {position.underlyingSymbol}
-          </td>
-          <td>{position.optionType ?? position.securityType ?? "N/A"}</td>
-          <td>
-            {position.strikePrice
-              ? `$${parseFloat(position.strikePrice).toFixed(2)}`
-              : "-"}
-          </td>
-          <td>
-            {position.expiryDate
-              ? new Date(position.expiryDate).toLocaleDateString()
-              : "-"}
-          </td>
-          <td>
-            {parseFloat(position.quantity || "0") > 0 ? "+" : ""}
-            {parseFloat(position.quantity || "0")}
-          </td>
-          <td>
-            {position.currentPrice
-              ? `$${position.currentPrice.toFixed(2)}`
-              : "-"}
-          </td>
-          <td>{renderBadge(position.itmPercentage)}</td>
-        </tr>
-      ))}
-    </>
-  );
-}
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
 
-// Fallback component showing skeleton for price columns
-function PositionRowsLoading({ positions }: { positions: Position[] }) {
-  return (
-    <>
-      {positions.map((position, index) => (
-        <tr
-          key={`loading-${position.underlyingSymbol}-${position.strikePrice}-${index}`}
-          className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-300"
-        >
-          <td className="font-medium text-white">
-            {position.underlyingSymbol}
-          </td>
-          <td>{position.optionType ?? position.securityType ?? "N/A"}</td>
-          <td>
-            {position.strikePrice
-              ? `$${parseFloat(position.strikePrice).toFixed(2)}`
-              : "-"}
-          </td>
-          <td>
-            {position.expiryDate
-              ? new Date(position.expiryDate).toLocaleDateString()
-              : "-"}
-          </td>
-          <td>
-            {parseFloat(position.quantity || "0") > 0 ? "+" : ""}
-            {parseFloat(position.quantity || "0")}
-          </td>
-          <td>
-            <div className="h-4 w-12 animate-pulse rounded bg-gray-700"></div>
-          </td>
-          <td>
-            <div className="h-5 w-16 animate-pulse rounded bg-gray-700"></div>
-          </td>
-        </tr>
-      ))}
-    </>
-  );
-}
-
-const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
   return (
     <DashboardWidget
       title="Current Positions"
@@ -174,26 +182,7 @@ const CurrentPositions = ({ positions }: CurrentPositionsProps) => {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-700">
-          {positions.length === 0 ? (
-            Array.from({ length: 3 }).map((_, index) => (
-              <tr
-                key={`empty-${index}`}
-                className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-600 [&_td]:opacity-50"
-              >
-                <td>---</td>
-                <td>---</td>
-                <td>---</td>
-                <td>---</td>
-                <td>---</td>
-                <td>---</td>
-                <td>---</td>
-              </tr>
-            ))
-          ) : (
-            <Suspense fallback={<PositionRowsLoading positions={positions} />}>
-              <PositionRowsWithPrices positions={positions} />
-            </Suspense>
-          )}
+          <PositionRows positions={enrichedPositions} showPrices={showPrices} />
         </tbody>
       </table>
     </DashboardWidget>
