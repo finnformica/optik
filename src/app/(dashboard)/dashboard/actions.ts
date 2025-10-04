@@ -1,5 +1,9 @@
 "use server";
 
+import { and, eq, inArray } from "drizzle-orm";
+import { revalidateTag, unstable_cache } from "next/cache";
+import { cache } from "react";
+
 import { db } from "@/lib/db/config";
 import {
   factStockPrices,
@@ -18,8 +22,6 @@ import {
   ViewWeeklyReturn,
 } from "@/lib/db/schema";
 import { getAccountKey } from "@/lib/supabase/server";
-import { and, eq, inArray } from "drizzle-orm";
-import { cache } from "react";
 
 class FinnhubClient {
   private baseUrl = "https://finnhub.io/api/v1";
@@ -65,6 +67,8 @@ interface StockPrice {
   price: number;
   cached: boolean;
 }
+
+export interface Position extends ViewCurrentPosition {}
 
 export interface EnrichedPosition extends ViewCurrentPosition {
   currentPrice?: number;
@@ -169,7 +173,7 @@ async function getStockPrices(
 
 // Consolidated dashboard data interface
 interface DashboardData {
-  positions: EnrichedPosition[];
+  positions: Position[];
   portfolioDistribution: ViewPortfolioDistribution[];
   profitDistribution: ViewProfitDistribution[];
   portfolioSummary: ViewPortfolioSummary;
@@ -243,23 +247,35 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     };
   });
 
-  // Only fetch stock prices if we have positions
-  let enrichedPositions: EnrichedPosition[] = [];
-  if (dashboardQueries.positions.length > 0) {
+  return {
+    positions: dashboardQueries.positions,
+    portfolioDistribution: dashboardQueries.distributionData,
+    profitDistribution: dashboardQueries.profitDistributionData,
+    portfolioSummary: dashboardQueries.portfolioSummary,
+    weeklyReturns: dashboardQueries.weeklyReturnsData,
+    dailyActivity: dashboardQueries.dailyActivityData,
+  };
+});
+
+// Server action for fetching stock prices
+export const getPositionPrices = unstable_cache(
+  async (positions: Position[]): Promise<EnrichedPosition[]> => {
+    if (positions.length === 0) return [];
+
     // Extract unique underlying symbols for stock price lookup
-    const underlyingSymbols = Array.from(
+    const underlyingSymbols: string[] = Array.from(
       new Set(
-        dashboardQueries.positions
+        positions
           .map((p) => p.underlyingSymbol)
-          .filter(Boolean),
+          .filter((item) => item !== null),
       ),
-    ) as string[];
+    );
 
     // Get stock prices for all underlying symbols
     const stockPrices = await getStockPrices(underlyingSymbols);
 
     // Enrich positions with current prices and ITM calculations
-    enrichedPositions = dashboardQueries.positions.map((position) => {
+    const enrichedPositions = positions.map((position) => {
       const enriched: EnrichedPosition = { ...position };
 
       if (position.underlyingSymbol) {
@@ -292,14 +308,20 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
 
       return enriched;
     });
-  }
 
-  return {
-    positions: enrichedPositions,
-    portfolioDistribution: dashboardQueries.distributionData,
-    profitDistribution: dashboardQueries.profitDistributionData,
-    portfolioSummary: dashboardQueries.portfolioSummary,
-    weeklyReturns: dashboardQueries.weeklyReturnsData,
-    dailyActivity: dashboardQueries.dailyActivityData,
-  };
-});
+    return enrichedPositions;
+  },
+  ["position-prices"],
+  {
+    tags: ["position-prices"],
+    revalidate: 300, // 5 minutes default cache
+  },
+);
+
+// Server action for refreshing stock prices with revalidation
+export async function refreshStockPrices() {
+  // Only invalidate the position prices cache
+  revalidateTag("position-prices");
+
+  return { success: true };
+}
