@@ -149,8 +149,6 @@ const CurrentPositions = async ({
 
   if (showPrices) {
     enrichedPositions = await getPositionPrices(positions);
-
-    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 
   return (
