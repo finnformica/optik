@@ -512,6 +512,147 @@ export const factStockPrices = pgTable(
 // ANALYTICAL VIEWS
 // =============================================
 
+// Stock Profit View - Shows running cumulative stock profit calculations with FIFO logic
+export const viewStockProfit = pgView("view_stock_profit", {
+  accountKey: integer("account_key"),
+  symbol: varchar("symbol", { length: 50 }),
+  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
+  transactionDate: date("transaction_date"),
+  transactionKey: integer("transaction_key"),
+  transactionType: varchar("transaction_type", { length: 50 }),
+  quantity: decimal("quantity", { precision: 18, scale: 8 }),
+  pricePerUnit: decimal("price_per_unit", { precision: 18, scale: 8 }),
+  netAmount: decimal("net_amount", { precision: 18, scale: 8 }),
+  runningQuantity: decimal("running_quantity", { precision: 18, scale: 8 }),
+  runningCostBasis: decimal("running_cost_basis", { precision: 18, scale: 8 }),
+  avgCostPerShare: decimal("avg_cost_per_share", { precision: 18, scale: 8 }),
+  realizedProfit: decimal("realized_profit", { precision: 18, scale: 8 }),
+  cumulativeRealizedProfit: decimal("cumulative_realized_profit", {
+    precision: 18,
+    scale: 8,
+  }),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  WITH stock_transactions AS (
+    -- Get all stock transactions ordered by date
+    SELECT
+      ft.transaction_key,
+      ft.account_key,
+      ds.symbol,
+      ds.underlying_symbol,
+      d.full_date as transaction_date,
+      tt.action_code as transaction_type,
+      ft.quantity,
+      ft.price_per_unit,
+      ft.net_amount,
+      ROW_NUMBER() OVER (
+        PARTITION BY ft.account_key, ds.symbol
+        ORDER BY d.full_date, ft.transaction_key
+      ) as transaction_sequence
+    FROM ${factTransaction} ft
+    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE ds.security_type = 'STOCK'
+      AND tt.action_category = 'TRADE'
+  ),
+
+  running_calculations AS (
+    SELECT
+      st.*,
+      -- Running quantity (cumulative shares owned)
+      SUM(st.quantity) OVER (
+        PARTITION BY st.account_key, st.symbol
+        ORDER BY st.transaction_sequence
+        ROWS UNBOUNDED PRECEDING
+      ) as running_quantity,
+
+      -- Running cost basis (remaining cost basis of held shares)
+      -- This represents the total cost of shares still owned
+      CASE
+        WHEN SUM(st.quantity) OVER (
+          PARTITION BY st.account_key, st.symbol
+          ORDER BY st.transaction_sequence
+          ROWS UNBOUNDED PRECEDING
+        ) > 0 THEN
+          SUM(st.quantity) OVER (
+            PARTITION BY st.account_key, st.symbol
+            ORDER BY st.transaction_sequence
+            ROWS UNBOUNDED PRECEDING
+          ) * (
+            SUM(CASE WHEN st.quantity > 0 THEN ABS(st.net_amount) ELSE 0 END) OVER (
+              PARTITION BY st.account_key, st.symbol
+              ORDER BY st.transaction_sequence
+              ROWS UNBOUNDED PRECEDING
+            ) / NULLIF(SUM(CASE WHEN st.quantity > 0 THEN st.quantity ELSE 0 END) OVER (
+              PARTITION BY st.account_key, st.symbol
+              ORDER BY st.transaction_sequence
+              ROWS UNBOUNDED PRECEDING
+            ), 0)
+          )
+        ELSE 0
+      END as running_cost_basis,
+
+      -- Average cost per share up to this point (for shares still owned)
+      CASE
+        WHEN SUM(CASE WHEN st.quantity > 0 THEN st.quantity ELSE 0 END) OVER (
+          PARTITION BY st.account_key, st.symbol
+          ORDER BY st.transaction_sequence
+          ROWS UNBOUNDED PRECEDING
+        ) > 0
+        THEN SUM(CASE WHEN st.quantity > 0 THEN ABS(st.net_amount) ELSE 0 END) OVER (
+          PARTITION BY st.account_key, st.symbol
+          ORDER BY st.transaction_sequence
+          ROWS UNBOUNDED PRECEDING
+        ) / SUM(CASE WHEN st.quantity > 0 THEN st.quantity ELSE 0 END) OVER (
+          PARTITION BY st.account_key, st.symbol
+          ORDER BY st.transaction_sequence
+          ROWS UNBOUNDED PRECEDING
+        )
+        ELSE 0
+      END as avg_cost_per_share
+    FROM stock_transactions st
+  ),
+
+  profit_calculations AS (
+    SELECT
+      rc.*,
+      -- Calculate realized profit for sell transactions only
+      CASE
+        WHEN rc.quantity < 0 THEN
+          -- For sells: (sale_price - avg_cost) * shares_sold
+          (ABS(rc.net_amount) / ABS(rc.quantity)) * ABS(rc.quantity) -
+          (rc.avg_cost_per_share * ABS(rc.quantity))
+        ELSE 0
+      END as realized_profit
+    FROM running_calculations rc
+  )
+
+  SELECT
+    pc.account_key,
+    pc.symbol,
+    pc.underlying_symbol,
+    pc.transaction_date,
+    pc.transaction_key,
+    pc.transaction_type,
+    pc.quantity,
+    pc.price_per_unit,
+    pc.net_amount,
+    pc.running_quantity,
+    pc.running_cost_basis,
+    pc.avg_cost_per_share,
+    pc.realized_profit,
+    -- Cumulative realized profit over time
+    SUM(pc.realized_profit) OVER (
+      PARTITION BY pc.account_key, pc.symbol
+      ORDER BY pc.transaction_sequence
+      ROWS UNBOUNDED PRECEDING
+    ) as cumulative_realized_profit
+  FROM profit_calculations pc
+  ORDER BY pc.account_key, pc.symbol, pc.transaction_sequence
+`);
+
 // Weekly Position View - Time-aware position calculations for each week
 export const viewWeeklyPosition = pgView("view_weekly_position", {
   accountKey: integer("account_key"),
@@ -543,68 +684,118 @@ export const viewWeeklyPosition = pgView("view_weekly_position", {
     WHERE a.is_active = true
   ),
 
-  position_calculations AS (
+  -- For non-stock securities, use the original calculation
+  non_stock_positions AS (
     SELECT
       wds.account_key,
       wds.week_start,
       ds.symbol,
       ds.security_type,
       ds.underlying_symbol,
-
-      -- Sum all transactions for this symbol up to and including this week
       SUM(ft.quantity) as cumulative_quantity,
-      SUM(ABS(ft.net_amount)) as total_cost,
-      SUM(ABS(ft.quantity)) as total_quantity,
-
-      -- Calculate average cost per unit
       CASE
         WHEN SUM(ABS(ft.quantity)) > 0
         THEN SUM(ABS(ft.net_amount)) / SUM(ABS(ft.quantity))
         ELSE 0
       END as avg_cost_per_unit,
-
       MIN(d.full_date) as first_transaction_date,
-      MAX(d.full_date) as last_transaction_date
-
+      MAX(d.full_date) as last_transaction_date,
+      ds.expiry_date,
+      ds.option_type,
+      ds.strike_price
     FROM weekly_date_series wds
     JOIN ${factTransaction} ft ON ft.account_key = wds.account_key
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    WHERE d.week_starting_date <= wds.week_start  -- Only transactions up to this week
-    AND tt.action_category IN ('TRADE', 'CORPORATE')
-    GROUP BY wds.account_key, wds.week_start, ds.symbol, ds.security_type, ds.underlying_symbol
-    HAVING SUM(ft.quantity) != 0  -- Only positions that are open
+    WHERE d.week_starting_date <= wds.week_start
+      AND tt.action_category IN ('TRADE', 'CORPORATE')
+      AND ds.security_type != 'STOCK'  -- Only non-stock securities
+    GROUP BY wds.account_key, wds.week_start, ds.symbol, ds.security_type, ds.underlying_symbol, ds.expiry_date, ds.option_type, ds.strike_price
+    HAVING SUM(ft.quantity) != 0
+  ),
+
+  -- For stocks, use viewStockProfit data aggregated by week
+  stock_positions AS (
+    SELECT
+      wds.account_key,
+      wds.week_start,
+      vsp.symbol,
+      'STOCK'::varchar(20) as security_type,
+      vsp.underlying_symbol,
+      -- Get the final position at the end of each week
+      (SELECT vsp2.running_quantity
+       FROM ${viewStockProfit} vsp2
+       JOIN ${dimDate} d2 ON vsp2.transaction_date = d2.full_date
+       WHERE vsp2.account_key = wds.account_key
+         AND vsp2.symbol = vsp.symbol
+         AND d2.week_starting_date <= wds.week_start
+       ORDER BY vsp2.transaction_date DESC, vsp2.transaction_key DESC
+       LIMIT 1) as cumulative_quantity,
+      -- Get the FIFO average cost at the end of each week
+      (SELECT vsp2.avg_cost_per_share
+       FROM ${viewStockProfit} vsp2
+       JOIN ${dimDate} d2 ON vsp2.transaction_date = d2.full_date
+       WHERE vsp2.account_key = wds.account_key
+         AND vsp2.symbol = vsp.symbol
+         AND d2.week_starting_date <= wds.week_start
+       ORDER BY vsp2.transaction_date DESC, vsp2.transaction_key DESC
+       LIMIT 1) as avg_cost_per_unit,
+      MIN(vsp.transaction_date) as first_transaction_date,
+      MAX(vsp.transaction_date) as last_transaction_date,
+      NULL as expiry_date,
+      NULL as option_type,
+      NULL as strike_price
+    FROM weekly_date_series wds
+    JOIN ${viewStockProfit} vsp ON vsp.account_key = wds.account_key
+    JOIN ${dimDate} d ON vsp.transaction_date = d.full_date
+    WHERE d.week_starting_date <= wds.week_start
+    GROUP BY wds.account_key, wds.week_start, vsp.symbol, vsp.underlying_symbol
+    HAVING (SELECT vsp2.running_quantity
+            FROM ${viewStockProfit} vsp2
+            JOIN ${dimDate} d2 ON vsp2.transaction_date = d2.full_date
+            WHERE vsp2.account_key = wds.account_key
+              AND vsp2.symbol = vsp.symbol
+              AND d2.week_starting_date <= wds.week_start
+            ORDER BY vsp2.transaction_date DESC, vsp2.transaction_key DESC
+            LIMIT 1) > 0  -- Only open positions
   )
 
   SELECT
-    pc.account_key,
-    pc.week_start,
-    pc.symbol,
-    pc.security_type,
-    pc.underlying_symbol,
-    pc.cumulative_quantity as quantity,
-    pc.avg_cost_per_unit,
-    pc.first_transaction_date,
-    pc.last_transaction_date,
+    COALESCE(nsp.account_key, sp.account_key) as account_key,
+    COALESCE(nsp.week_start, sp.week_start) as week_start,
+    COALESCE(nsp.symbol, sp.symbol) as symbol,
+    COALESCE(nsp.security_type, sp.security_type) as security_type,
+    COALESCE(nsp.underlying_symbol, sp.underlying_symbol) as underlying_symbol,
+    COALESCE(nsp.cumulative_quantity, sp.cumulative_quantity) as quantity,
+    COALESCE(nsp.avg_cost_per_unit, sp.avg_cost_per_unit) as avg_cost_per_unit,
+    COALESCE(nsp.first_transaction_date, sp.first_transaction_date) as first_transaction_date,
+    COALESCE(nsp.last_transaction_date, sp.last_transaction_date) as last_transaction_date,
 
-    -- Position value: stocks use cost basis, puts use collateral value, calls use stock as collateral (zero cash)
+    -- Position value calculation
     CASE
-      WHEN ds.security_type = 'STOCK' THEN ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
-      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'PUT' THEN ABS(pc.cumulative_quantity) * ds.strike_price * 100
-      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'CALL' THEN 0
-      ELSE ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
+      WHEN COALESCE(nsp.security_type, sp.security_type) = 'STOCK' THEN
+        ABS(COALESCE(sp.cumulative_quantity, 0)) * COALESCE(sp.avg_cost_per_unit, 0)
+      WHEN nsp.security_type = 'OPTION' AND nsp.option_type = 'PUT' AND nsp.cumulative_quantity < 0 THEN
+        ABS(nsp.cumulative_quantity) * nsp.strike_price * 100
+      WHEN nsp.security_type = 'OPTION' AND nsp.option_type = 'PUT' AND nsp.cumulative_quantity > 0 THEN 0
+      WHEN nsp.security_type = 'OPTION' AND nsp.option_type = 'CALL' AND nsp.cumulative_quantity > 0 THEN
+        ABS(nsp.cumulative_quantity) * nsp.strike_price * 100
+      WHEN nsp.security_type = 'OPTION' AND nsp.option_type = 'CALL' AND nsp.cumulative_quantity < 0 THEN 0
+      ELSE ABS(COALESCE(nsp.cumulative_quantity, 0)) * COALESCE(nsp.avg_cost_per_unit, 0)
     END as position_value,
 
     'OPEN' as position_status,
     0 as unrealized_pnl,
-    ds.expiry_date,
-    ds.option_type,
-    ds.strike_price
+    nsp.expiry_date,
+    nsp.option_type,
+    nsp.strike_price
 
-  FROM position_calculations pc
-  LEFT JOIN ${dimSecurity} ds ON pc.symbol = ds.symbol
-  ORDER BY pc.account_key, pc.week_start, pc.symbol
+  FROM non_stock_positions nsp
+  FULL OUTER JOIN stock_positions sp ON nsp.account_key = sp.account_key
+    AND nsp.week_start = sp.week_start
+    AND nsp.symbol = sp.symbol
+  ORDER BY COALESCE(nsp.account_key, sp.account_key), COALESCE(nsp.week_start, sp.week_start), COALESCE(nsp.symbol, sp.symbol)
 `);
 
 // Current Position View - Shows current positions from latest week of viewWeeklyPosition
@@ -627,22 +818,27 @@ export const viewCurrentPosition = pgView("view_current_position", {
   securityInvoker: true,
 }).as(sql`
   SELECT
-    account_key,
-    symbol,
-    security_type,
-    underlying_symbol,
-    quantity,
-    avg_cost_per_unit,
-    first_transaction_date,
-    last_transaction_date,
-    position_value,
-    position_status,
-    unrealized_pnl,
-    option_type,
-    expiry_date,
-    strike_price
-  FROM ${viewWeeklyPosition}
-  WHERE week_start = (SELECT MAX(week_start) FROM ${viewWeeklyPosition})
+    vwp.account_key,
+    vwp.symbol,
+    vwp.security_type,
+    vwp.underlying_symbol,
+    vwp.quantity,
+    vwp.avg_cost_per_unit,
+    vwp.first_transaction_date,
+    vwp.last_transaction_date,
+    vwp.position_value,
+    vwp.position_status,
+    vwp.unrealized_pnl,
+    vwp.option_type,
+    vwp.expiry_date,
+    vwp.strike_price
+  FROM ${viewWeeklyPosition} vwp
+  INNER JOIN (
+    SELECT account_key, MAX(week_start) as max_week_start
+    FROM ${viewWeeklyPosition}
+    GROUP BY account_key
+  ) latest_weeks ON vwp.account_key = latest_weeks.account_key
+    AND vwp.week_start = latest_weeks.max_week_start
 `);
 
 // Weekly Portfolio Value View - Time-series portfolio values using viewWeeklyPosition
@@ -791,15 +987,20 @@ export const viewCurrentPortfolioValue = pgView(
   securityInvoker: true,
 }).as(sql`
   SELECT
-    account_key,
-    cash_flows,
-    stock_position_value,
-    option_collateral_value,
-    cumulative_transfers,
-    total_portfolio_value,
-    available_cash
-  FROM ${viewWeeklyPortfolioValue}
-  WHERE week_start = (SELECT MAX(week_start) FROM ${viewWeeklyPortfolioValue})
+    wpv.account_key,
+    wpv.cash_flows,
+    wpv.stock_position_value,
+    wpv.option_collateral_value,
+    wpv.cumulative_transfers,
+    wpv.total_portfolio_value,
+    wpv.available_cash
+  FROM ${viewWeeklyPortfolioValue} wpv
+  INNER JOIN (
+    SELECT account_key, MAX(week_start) as max_week_start
+    FROM ${viewWeeklyPortfolioValue}
+    GROUP BY account_key
+  ) latest_weeks ON wpv.account_key = latest_weeks.account_key
+    AND wpv.week_start = latest_weeks.max_week_start
 `);
 
 // Portfolio Distribution (Your dashboard pie chart)
@@ -852,16 +1053,28 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
   securityInvoker: true,
 }).as(sql`
   WITH weekly_transfers AS (
-    -- Calculate weekly transfers separately for returns calculation
+    -- Calculate weekly transfers and gains using viewStockProfit for accurate stock calculations
     SELECT
       a.account_key,
       d.week_starting_date as week_start,
       SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
-      SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_gains
+      -- Separate non-stock gains from stock realized profits
+      SUM(CASE
+        WHEN tt.action_category = 'TRADE' AND ds.security_type != 'STOCK' THEN ft.net_amount
+        WHEN tt.action_category = 'INCOME' THEN ft.net_amount
+        ELSE 0
+      END) +
+      COALESCE(SUM(CASE
+        WHEN tt.action_category = 'TRADE' AND ds.security_type = 'STOCK' THEN vsp.realized_profit
+        ELSE 0
+      END), 0) as weekly_gains
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    LEFT JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    LEFT JOIN ${viewStockProfit} vsp ON ft.account_key = vsp.account_key
+      AND ft.transaction_key = vsp.transaction_key
     WHERE d.full_date <= CURRENT_DATE
     GROUP BY a.account_key, d.week_starting_date
   ),
@@ -917,65 +1130,6 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
   ORDER BY account_key, week_start
 `);
 
-// Profit Distribution View - Shows profit/loss distribution by underlying symbol for pie chart
-export const viewProfitDistribution = pgView("view_profit_distribution", {
-  accountKey: integer("account_key"),
-  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
-  totalProfit: decimal("total_profit", { precision: 18, scale: 8 }),
-  tradeCount: integer("trade_count"),
-}).with({
-  securityInvoker: true,
-}).as(sql`
-  WITH stock_positions AS (
-    -- Calculate net stock positions to identify completed vs open trades
-    SELECT
-      ft.account_key,
-      s.underlying_symbol,
-      s.symbol,
-      SUM(ft.quantity) as net_quantity,
-      SUM(ft.net_amount) as total_net_amount
-    FROM ${factTransaction} ft
-    JOIN ${dimSecurity} s ON ft.security_key = s.security_key
-    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    WHERE tt.action_category = 'TRADE' AND s.security_type = 'STOCK'
-    GROUP BY ft.account_key, s.underlying_symbol, s.symbol
-  )
-  SELECT
-    a.account_key,
-    s.underlying_symbol,
-    SUM(CASE
-        -- For options: include all net amounts (premiums received/paid)
-        WHEN s.security_type != 'STOCK' THEN ft.net_amount
-        -- For stocks: only include profits from closed positions (net_quantity = 0)
-        WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
-        ELSE 0
-    END) as total_profit,
-    COUNT(CASE
-        WHEN s.security_type != 'STOCK' THEN 1
-        WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN 1
-        ELSE NULL
-    END)::integer as trade_count
-  FROM ${factTransaction} ft
-  JOIN ${dimSecurity} s ON ft.security_key = s.security_key
-  JOIN ${dimAccount} a ON ft.account_key = a.account_key
-  JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-  LEFT JOIN stock_positions sp ON ft.account_key = sp.account_key
-    AND s.symbol = sp.symbol
-    AND s.security_type = 'STOCK'
-  WHERE tt.action_category = 'TRADE'
-  GROUP BY a.account_key, s.underlying_symbol
-  HAVING SUM(CASE
-      WHEN s.security_type != 'STOCK' THEN ft.net_amount
-      WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
-      ELSE 0
-  END) != 0
-  ORDER BY SUM(CASE
-      WHEN s.security_type != 'STOCK' THEN ft.net_amount
-      WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
-      ELSE 0
-  END) DESC
-`);
-
 // Portfolio Summary View - Aggregates key portfolio metrics for dashboard
 export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   accountKey: integer("account_key"),
@@ -1015,27 +1169,26 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   securityInvoker: true,
 }).as(sql`
   WITH realised_monthly_pnl AS (
-    -- Realised P/L for current month including stock position adjustments
-    -- Note: Stock purchases show as negative cash flow but create equivalent asset value
-    -- This calculation accounts for both to show true realized P&L from trading
+    -- Realised P/L for current month using viewStockProfit for stocks
     SELECT
       a.account_key,
-      -- Raw cash flows from trades and income this month
-      SUM(ft.net_amount) + COALESCE(
-        -- Add back stock position values for trades that happened this month
-        -- This prevents stock purchases from appearing as "losses" in P&L
-        (SELECT SUM(vwp.position_value)
-         FROM ${viewWeeklyPosition} vwp
-         WHERE vwp.account_key = a.account_key
-         AND vwp.position_status = 'OPEN'
-         AND vwp.security_type = 'STOCK'
-         AND DATE_TRUNC('month', vwp.first_transaction_date) = DATE_TRUNC('month', CURRENT_DATE)
-         AND vwp.week_start = (SELECT MAX(week_start) FROM ${viewWeeklyPosition} WHERE account_key = a.account_key)), 0
-      ) as monthly_realised_pnl
+      -- Non-stock trades (options, dividends, etc.) as direct cash flow
+      SUM(CASE
+        WHEN ds.security_type != 'STOCK' THEN ft.net_amount
+        ELSE 0
+      END) +
+      -- Stock realized profits from viewStockProfit (only actual realized gains/losses)
+      COALESCE(SUM(CASE
+        WHEN ds.security_type = 'STOCK' THEN vsp.realized_profit
+        ELSE 0
+      END), 0) as monthly_realised_pnl
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    LEFT JOIN ${viewStockProfit} vsp ON ft.account_key = vsp.account_key
+      AND ft.transaction_key = vsp.transaction_key
     WHERE
       tt.action_category IN ('TRADE', 'INCOME')
       AND d.year = EXTRACT(YEAR FROM CURRENT_DATE)
@@ -1044,27 +1197,26 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   ),
 
   realised_yearly_pnl AS (
-    -- Realised P/L for current year including stock position adjustments
-    -- Note: Stock purchases show as negative cash flow but create equivalent asset value
-    -- This calculation accounts for both to show true realized P&L from trading
+    -- Realised P/L for current year using viewStockProfit for stocks
     SELECT
       a.account_key,
-      -- Raw cash flows from trades and income this year
-      SUM(ft.net_amount) + COALESCE(
-        -- Add back stock position values for trades that happened this year
-        -- This prevents stock purchases from appearing as "losses" in P&L
-        (SELECT SUM(vwp.position_value)
-         FROM ${viewWeeklyPosition} vwp
-         WHERE vwp.account_key = a.account_key
-         AND vwp.position_status = 'OPEN'
-         AND vwp.security_type = 'STOCK'
-         AND EXTRACT(YEAR FROM vwp.first_transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-         AND vwp.week_start = (SELECT MAX(week_start) FROM ${viewWeeklyPosition} WHERE account_key = a.account_key)), 0
-      ) as yearly_realised_pnl
+      -- Non-stock trades (options, dividends, etc.) as direct cash flow
+      SUM(CASE
+        WHEN ds.security_type != 'STOCK' THEN ft.net_amount
+        ELSE 0
+      END) +
+      -- Stock realized profits from viewStockProfit (only actual realized gains/losses)
+      COALESCE(SUM(CASE
+        WHEN ds.security_type = 'STOCK' THEN vsp.realized_profit
+        ELSE 0
+      END), 0) as yearly_realised_pnl
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    LEFT JOIN ${viewStockProfit} vsp ON ft.account_key = vsp.account_key
+      AND ft.transaction_key = vsp.transaction_key
     WHERE
       tt.action_category IN ('TRADE', 'INCOME')
       AND d.year = EXTRACT(YEAR FROM CURRENT_DATE)
@@ -1156,6 +1308,50 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   WHERE a.is_active = true
 `);
 
+// Profit Distribution View - Shows profit/loss distribution by underlying symbol for pie chart
+export const viewProfitDistribution = pgView("view_profit_distribution", {
+  accountKey: integer("account_key"),
+  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
+  totalProfit: decimal("total_profit", { precision: 18, scale: 8 }),
+  tradeCount: integer("trade_count"),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  SELECT
+    a.account_key,
+    s.underlying_symbol,
+    SUM(CASE
+        -- For options: include all net amounts (premiums received/paid)
+        WHEN s.security_type != 'STOCK' THEN ft.net_amount
+        -- For stocks: include realized profits from sales
+        WHEN s.security_type = 'STOCK' THEN COALESCE(vsp.realized_profit, 0)
+        ELSE 0
+    END) as total_profit,
+    COUNT(CASE
+        WHEN s.security_type != 'STOCK' THEN 1
+        WHEN s.security_type = 'STOCK' AND vsp.realized_profit IS NOT NULL AND vsp.realized_profit != 0 THEN 1
+        ELSE NULL
+    END)::integer as trade_count
+  FROM ${factTransaction} ft
+  JOIN ${dimSecurity} s ON ft.security_key = s.security_key
+  JOIN ${dimAccount} a ON ft.account_key = a.account_key
+  JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+  LEFT JOIN ${viewStockProfit} vsp ON ft.account_key = vsp.account_key
+    AND ft.transaction_key = vsp.transaction_key
+  WHERE tt.action_category = 'TRADE'
+  GROUP BY a.account_key, s.underlying_symbol
+  HAVING SUM(CASE
+      WHEN s.security_type != 'STOCK' THEN ft.net_amount
+      WHEN s.security_type = 'STOCK' THEN COALESCE(vsp.realized_profit, 0)
+      ELSE 0
+  END) != 0
+  ORDER BY SUM(CASE
+      WHEN s.security_type != 'STOCK' THEN ft.net_amount
+      WHEN s.security_type = 'STOCK' THEN COALESCE(vsp.realized_profit, 0)
+      ELSE 0
+  END) DESC
+`);
+
 // Daily Trading Activity Heatmap View - Shows daily trading activity with expiry information
 export const viewDailyActivity = pgView("view_daily_activity", {
   accountKey: integer("account_key"),
@@ -1190,42 +1386,27 @@ export const viewDailyActivity = pgView("view_daily_activity", {
       AND d.full_date <= er.max_expiry_date
       AND EXTRACT(dow FROM d.full_date) BETWEEN 1 AND 5
   ),
-  stock_positions AS (
-    -- Calculate net stock positions to identify completed vs open trades
-    SELECT
-      ft.account_key,
-      s.underlying_symbol,
-      s.symbol,
-      SUM(ft.quantity) as net_quantity
-    FROM ${factTransaction} ft
-    JOIN ${dimSecurity} s ON ft.security_key = s.security_key
-    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    WHERE tt.action_category = 'TRADE' AND s.security_type = 'STOCK'
-    GROUP BY ft.account_key, s.underlying_symbol, s.symbol
-  ),
   daily_data AS (
     SELECT
         d.full_date,
         d.week_starting_date,
         a.account_key,
         SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as daily_transfers,
-        -- Use same stock logic as profit distribution: exclude open stock positions, include closed ones
+        -- Use new stock profit logic: include non-stock gains and realized stock profits
         SUM(CASE
             WHEN tt.action_category NOT IN ('TRANSFER') AND ds.security_type != 'STOCK'
             THEN ft.net_amount
-            WHEN tt.action_category NOT IN ('TRANSFER') AND ds.security_type = 'STOCK' AND sp.net_quantity = 0
-            THEN ft.net_amount
             ELSE 0
-        END) as daily_gains,
+        END) +
+        COALESCE(SUM(vsp.realized_profit), 0) as daily_gains,
         COUNT(CASE WHEN tt.action_category = 'TRADE' THEN ft.transaction_key END) as trade_count
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
     JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
-    LEFT JOIN stock_positions sp ON ft.account_key = sp.account_key
-      AND ds.symbol = sp.symbol
-      AND ds.security_type = 'STOCK'
+    LEFT JOIN ${viewStockProfit} vsp ON ft.account_key = vsp.account_key
+      AND ft.transaction_key = vsp.transaction_key
     WHERE d.full_date <= CURRENT_DATE
       AND d.full_date >= CURRENT_DATE - INTERVAL '6 months'
       AND EXTRACT(dow FROM d.full_date) BETWEEN 1 AND 5
@@ -1237,6 +1418,7 @@ export const viewDailyActivity = pgView("view_daily_activity", {
         account_key,
         week_start,
         total_portfolio_value,
+        cumulative_transfers,
         LAG(total_portfolio_value) OVER (PARTITION BY account_key ORDER BY week_start) as previous_week_portfolio_value
     FROM ${viewWeeklyPortfolioValue}
     WHERE week_start >= (CURRENT_DATE - INTERVAL '6 months')::date
@@ -1251,6 +1433,9 @@ export const viewDailyActivity = pgView("view_daily_activity", {
         CASE
             WHEN wpd.previous_week_portfolio_value IS NOT NULL AND wpd.previous_week_portfolio_value != 0
             THEN ROUND((dd.daily_gains / ABS(wpd.previous_week_portfolio_value)) * 100, 2)
+            -- For first week, use cumulative transfers as baseline if available
+            WHEN wpd.previous_week_portfolio_value IS NULL AND wpd.cumulative_transfers IS NOT NULL AND wpd.cumulative_transfers > 0
+            THEN ROUND((dd.daily_gains / ABS(wpd.cumulative_transfers)) * 100, 2)
             ELSE 0
         END as daily_return_percent
     FROM daily_data dd

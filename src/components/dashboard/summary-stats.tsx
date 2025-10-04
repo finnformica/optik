@@ -92,7 +92,9 @@ const SummaryStats = ({ portfolioSummary: summary }: SummaryStatsProps) => {
       },
       subtitleColor: cashBalance < 0 ? "text-orange-400" : "text-blue-400",
       helpContent:
-        "Cash balance may be negative when using margin or buying power provided by your broker",
+        cashBalance < 0
+          ? "Cash balance may be negative when using margin or buying power provided by your broker"
+          : undefined,
     },
     {
       id: "monthly-pnl",

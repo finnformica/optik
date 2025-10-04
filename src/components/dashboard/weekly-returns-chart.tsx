@@ -31,7 +31,9 @@ const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
   // Format data for chart
   const chartData = sortedData.map((item) => {
     const absoluteReturns = parseFloat(item.weeklyReturnAbsolute || "0");
-    const percentReturns = parseFloat(item.weeklyReturnPercent || "0");
+    const percentReturns = parseFloat(
+      parseFloat(item.weeklyReturnPercent || "0").toFixed(2),
+    );
 
     return {
       week: new Date(item.weekStart || "").toLocaleDateString("en-GB", {
