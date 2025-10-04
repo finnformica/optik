@@ -1,6 +1,6 @@
 "use client";
 
-import CurrentPositions from "@/components/dashboard/current-positions";
+import CurrentPositionsMock from "@/components/home/current-positions-mock";
 import PortfolioDistribution from "@/components/dashboard/portfolio-distribution";
 import SummaryStats from "@/components/dashboard/summary-stats";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
@@ -54,7 +54,7 @@ export function DashboardMockup() {
         </div>
 
         {/* Current Positions */}
-        <CurrentPositions positions={mockPositions} />
+        <CurrentPositionsMock positions={mockPositions} />
       </div>
     </div>
   );
