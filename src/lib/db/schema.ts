@@ -1418,6 +1418,7 @@ export const viewDailyActivity = pgView("view_daily_activity", {
         account_key,
         week_start,
         total_portfolio_value,
+        cumulative_transfers,
         LAG(total_portfolio_value) OVER (PARTITION BY account_key ORDER BY week_start) as previous_week_portfolio_value
     FROM ${viewWeeklyPortfolioValue}
     WHERE week_start >= (CURRENT_DATE - INTERVAL '6 months')::date
@@ -1432,6 +1433,9 @@ export const viewDailyActivity = pgView("view_daily_activity", {
         CASE
             WHEN wpd.previous_week_portfolio_value IS NOT NULL AND wpd.previous_week_portfolio_value != 0
             THEN ROUND((dd.daily_gains / ABS(wpd.previous_week_portfolio_value)) * 100, 2)
+            -- For first week, use cumulative transfers as baseline if available
+            WHEN wpd.previous_week_portfolio_value IS NULL AND wpd.cumulative_transfers IS NOT NULL AND wpd.cumulative_transfers > 0
+            THEN ROUND((dd.daily_gains / ABS(wpd.cumulative_transfers)) * 100, 2)
             ELSE 0
         END as daily_return_percent
     FROM daily_data dd
