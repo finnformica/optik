@@ -919,65 +919,6 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
   ORDER BY account_key, week_start
 `);
 
-// Profit Distribution View - Shows profit/loss distribution by underlying symbol for pie chart
-export const viewProfitDistribution = pgView("view_profit_distribution", {
-  accountKey: integer("account_key"),
-  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
-  totalProfit: decimal("total_profit", { precision: 18, scale: 8 }),
-  tradeCount: integer("trade_count"),
-}).with({
-  securityInvoker: true,
-}).as(sql`
-  WITH stock_positions AS (
-    -- Calculate net stock positions to identify completed vs open trades
-    SELECT
-      ft.account_key,
-      s.underlying_symbol,
-      s.symbol,
-      SUM(ft.quantity) as net_quantity,
-      SUM(ft.net_amount) as total_net_amount
-    FROM ${factTransaction} ft
-    JOIN ${dimSecurity} s ON ft.security_key = s.security_key
-    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    WHERE tt.action_category = 'TRADE' AND s.security_type = 'STOCK'
-    GROUP BY ft.account_key, s.underlying_symbol, s.symbol
-  )
-  SELECT
-    a.account_key,
-    s.underlying_symbol,
-    SUM(CASE
-        -- For options: include all net amounts (premiums received/paid)
-        WHEN s.security_type != 'STOCK' THEN ft.net_amount
-        -- For stocks: only include profits from closed positions (net_quantity = 0)
-        WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
-        ELSE 0
-    END) as total_profit,
-    COUNT(CASE
-        WHEN s.security_type != 'STOCK' THEN 1
-        WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN 1
-        ELSE NULL
-    END)::integer as trade_count
-  FROM ${factTransaction} ft
-  JOIN ${dimSecurity} s ON ft.security_key = s.security_key
-  JOIN ${dimAccount} a ON ft.account_key = a.account_key
-  JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-  LEFT JOIN stock_positions sp ON ft.account_key = sp.account_key
-    AND s.symbol = sp.symbol
-    AND s.security_type = 'STOCK'
-  WHERE tt.action_category = 'TRADE'
-  GROUP BY a.account_key, s.underlying_symbol
-  HAVING SUM(CASE
-      WHEN s.security_type != 'STOCK' THEN ft.net_amount
-      WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
-      ELSE 0
-  END) != 0
-  ORDER BY SUM(CASE
-      WHEN s.security_type != 'STOCK' THEN ft.net_amount
-      WHEN s.security_type = 'STOCK' AND sp.net_quantity = 0 THEN ft.net_amount
-      ELSE 0
-  END) DESC
-`);
-
 // Portfolio Summary View - Aggregates key portfolio metrics for dashboard
 export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   accountKey: integer("account_key"),
@@ -1173,7 +1114,10 @@ export const viewStockProfit = pgView("view_stock_profit", {
   runningCostBasis: decimal("running_cost_basis", { precision: 18, scale: 8 }),
   avgCostPerShare: decimal("avg_cost_per_share", { precision: 18, scale: 8 }),
   realizedProfit: decimal("realized_profit", { precision: 18, scale: 8 }),
-  cumulativeRealizedProfit: decimal("cumulative_realized_profit", { precision: 18, scale: 8 }),
+  cumulativeRealizedProfit: decimal("cumulative_realized_profit", {
+    precision: 18,
+    scale: 8,
+  }),
 }).with({
   securityInvoker: true,
 }).as(sql`
@@ -1277,6 +1221,50 @@ export const viewStockProfit = pgView("view_stock_profit", {
   ORDER BY pc.account_key, pc.symbol, pc.transaction_sequence
 `);
 
+// Profit Distribution View - Shows profit/loss distribution by underlying symbol for pie chart
+export const viewProfitDistribution = pgView("view_profit_distribution", {
+  accountKey: integer("account_key"),
+  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
+  totalProfit: decimal("total_profit", { precision: 18, scale: 8 }),
+  tradeCount: integer("trade_count"),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  SELECT
+    a.account_key,
+    s.underlying_symbol,
+    SUM(CASE
+        -- For options: include all net amounts (premiums received/paid)
+        WHEN s.security_type != 'STOCK' THEN ft.net_amount
+        -- For stocks: include realized profits from sales
+        WHEN s.security_type = 'STOCK' THEN COALESCE(vsp.realized_profit, 0)
+        ELSE 0
+    END) as total_profit,
+    COUNT(CASE
+        WHEN s.security_type != 'STOCK' THEN 1
+        WHEN s.security_type = 'STOCK' AND vsp.realized_profit IS NOT NULL AND vsp.realized_profit != 0 THEN 1
+        ELSE NULL
+    END)::integer as trade_count
+  FROM ${factTransaction} ft
+  JOIN ${dimSecurity} s ON ft.security_key = s.security_key
+  JOIN ${dimAccount} a ON ft.account_key = a.account_key
+  JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+  LEFT JOIN ${viewStockProfit} vsp ON ft.account_key = vsp.account_key
+    AND ft.transaction_key = vsp.transaction_key
+  WHERE tt.action_category = 'TRADE'
+  GROUP BY a.account_key, s.underlying_symbol
+  HAVING SUM(CASE
+      WHEN s.security_type != 'STOCK' THEN ft.net_amount
+      WHEN s.security_type = 'STOCK' THEN COALESCE(vsp.realized_profit, 0)
+      ELSE 0
+  END) != 0
+  ORDER BY SUM(CASE
+      WHEN s.security_type != 'STOCK' THEN ft.net_amount
+      WHEN s.security_type = 'STOCK' THEN COALESCE(vsp.realized_profit, 0)
+      ELSE 0
+  END) DESC
+`);
+
 // Daily Trading Activity Heatmap View - Shows daily trading activity with expiry information
 export const viewDailyActivity = pgView("view_daily_activity", {
   accountKey: integer("account_key"),
@@ -1330,9 +1318,8 @@ export const viewDailyActivity = pgView("view_daily_activity", {
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
     JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
-    LEFT JOIN stock_positions sp ON ft.account_key = sp.account_key
-      AND ds.symbol = sp.symbol
-      AND ds.security_type = 'STOCK'
+    LEFT JOIN ${viewStockProfit} vsp ON ft.account_key = vsp.account_key
+      AND ft.transaction_key = vsp.transaction_key
     WHERE d.full_date <= CURRENT_DATE
       AND d.full_date >= CURRENT_DATE - INTERVAL '6 months'
       AND EXTRACT(dow FROM d.full_date) BETWEEN 1 AND 5
