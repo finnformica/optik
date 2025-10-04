@@ -588,11 +588,13 @@ export const viewWeeklyPosition = pgView("view_weekly_position", {
     pc.first_transaction_date,
     pc.last_transaction_date,
 
-    -- Position value: stocks use cost basis, puts use collateral value, calls use stock as collateral (zero cash)
+    -- Position value: stocks use cost basis, sold puts use cash collateral, bought calls use cash collateral
     CASE
       WHEN ds.security_type = 'STOCK' THEN ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
-      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'PUT' THEN ABS(pc.cumulative_quantity) * ds.strike_price * 100
-      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'CALL' THEN 0
+      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'PUT' AND pc.cumulative_quantity < 0 THEN ABS(pc.cumulative_quantity) * ds.strike_price * 100
+      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'PUT' AND pc.cumulative_quantity > 0 THEN 0
+      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'CALL' AND pc.cumulative_quantity > 0 THEN ABS(pc.cumulative_quantity) * ds.strike_price * 100
+      WHEN ds.security_type = 'OPTION' AND ds.option_type = 'CALL' AND pc.cumulative_quantity < 0 THEN 0
       ELSE ABS(pc.cumulative_quantity) * pc.avg_cost_per_unit
     END as position_value,
 
