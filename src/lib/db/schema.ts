@@ -1053,16 +1053,28 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
   securityInvoker: true,
 }).as(sql`
   WITH weekly_transfers AS (
-    -- Calculate weekly transfers separately for returns calculation
+    -- Calculate weekly transfers and gains using viewStockProfit for accurate stock calculations
     SELECT
       a.account_key,
       d.week_starting_date as week_start,
       SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_transfers,
-      SUM(CASE WHEN tt.action_category != 'TRANSFER' THEN ft.net_amount ELSE 0 END) as weekly_gains
+      -- Separate non-stock gains from stock realized profits
+      SUM(CASE
+        WHEN tt.action_category = 'TRADE' AND ds.security_type != 'STOCK' THEN ft.net_amount
+        WHEN tt.action_category = 'INCOME' THEN ft.net_amount
+        ELSE 0
+      END) +
+      COALESCE(SUM(CASE
+        WHEN tt.action_category = 'TRADE' AND ds.security_type = 'STOCK' THEN vsp.realized_profit
+        ELSE 0
+      END), 0) as weekly_gains
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
+    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    LEFT JOIN ${viewStockProfit} vsp ON ft.account_key = vsp.account_key
+      AND ft.transaction_key = vsp.transaction_key
     WHERE d.full_date <= CURRENT_DATE
     GROUP BY a.account_key, d.week_starting_date
   ),
