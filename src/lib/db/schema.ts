@@ -1158,6 +1158,125 @@ export const viewPortfolioSummary = pgView("view_portfolio_summary", {
   WHERE a.is_active = true
 `);
 
+// Stock Profit View - Shows running cumulative stock profit calculations with FIFO logic
+export const viewStockProfit = pgView("view_stock_profit", {
+  accountKey: integer("account_key"),
+  symbol: varchar("symbol", { length: 50 }),
+  underlyingSymbol: varchar("underlying_symbol", { length: 50 }),
+  transactionDate: date("transaction_date"),
+  transactionKey: integer("transaction_key"),
+  transactionType: varchar("transaction_type", { length: 50 }),
+  quantity: decimal("quantity", { precision: 18, scale: 8 }),
+  pricePerUnit: decimal("price_per_unit", { precision: 18, scale: 8 }),
+  netAmount: decimal("net_amount", { precision: 18, scale: 8 }),
+  runningQuantity: decimal("running_quantity", { precision: 18, scale: 8 }),
+  runningCostBasis: decimal("running_cost_basis", { precision: 18, scale: 8 }),
+  avgCostPerShare: decimal("avg_cost_per_share", { precision: 18, scale: 8 }),
+  realizedProfit: decimal("realized_profit", { precision: 18, scale: 8 }),
+  cumulativeRealizedProfit: decimal("cumulative_realized_profit", { precision: 18, scale: 8 }),
+}).with({
+  securityInvoker: true,
+}).as(sql`
+  WITH stock_transactions AS (
+    -- Get all stock transactions ordered by date
+    SELECT
+      ft.transaction_key,
+      ft.account_key,
+      ds.symbol,
+      ds.underlying_symbol,
+      d.full_date as transaction_date,
+      tt.action_code as transaction_type,
+      ft.quantity,
+      ft.price_per_unit,
+      ft.net_amount,
+      ROW_NUMBER() OVER (
+        PARTITION BY ft.account_key, ds.symbol
+        ORDER BY d.full_date, ft.transaction_key
+      ) as transaction_sequence
+    FROM ${factTransaction} ft
+    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
+    JOIN ${dimDate} d ON ft.date_key = d.date_key
+    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
+    WHERE ds.security_type = 'STOCK'
+      AND tt.action_category = 'TRADE'
+  ),
+
+  running_calculations AS (
+    SELECT
+      st.*,
+      -- Running quantity (cumulative shares owned)
+      SUM(st.quantity) OVER (
+        PARTITION BY st.account_key, st.symbol
+        ORDER BY st.transaction_sequence
+        ROWS UNBOUNDED PRECEDING
+      ) as running_quantity,
+
+      -- Running cost basis (only for buys, exclude sells from cost basis)
+      SUM(CASE WHEN st.quantity > 0 THEN ABS(st.net_amount) ELSE 0 END) OVER (
+        PARTITION BY st.account_key, st.symbol
+        ORDER BY st.transaction_sequence
+        ROWS UNBOUNDED PRECEDING
+      ) as running_cost_basis,
+
+      -- Average cost per share up to this point (for shares still owned)
+      CASE
+        WHEN SUM(CASE WHEN st.quantity > 0 THEN st.quantity ELSE 0 END) OVER (
+          PARTITION BY st.account_key, st.symbol
+          ORDER BY st.transaction_sequence
+          ROWS UNBOUNDED PRECEDING
+        ) > 0
+        THEN SUM(CASE WHEN st.quantity > 0 THEN ABS(st.net_amount) ELSE 0 END) OVER (
+          PARTITION BY st.account_key, st.symbol
+          ORDER BY st.transaction_sequence
+          ROWS UNBOUNDED PRECEDING
+        ) / SUM(CASE WHEN st.quantity > 0 THEN st.quantity ELSE 0 END) OVER (
+          PARTITION BY st.account_key, st.symbol
+          ORDER BY st.transaction_sequence
+          ROWS UNBOUNDED PRECEDING
+        )
+        ELSE 0
+      END as avg_cost_per_share
+    FROM stock_transactions st
+  ),
+
+  profit_calculations AS (
+    SELECT
+      rc.*,
+      -- Calculate realized profit for sell transactions only
+      CASE
+        WHEN rc.quantity < 0 THEN
+          -- For sells: (sale_price - avg_cost) * shares_sold
+          (ABS(rc.net_amount) / ABS(rc.quantity)) * ABS(rc.quantity) -
+          (rc.avg_cost_per_share * ABS(rc.quantity))
+        ELSE 0
+      END as realized_profit
+    FROM running_calculations rc
+  )
+
+  SELECT
+    pc.account_key,
+    pc.symbol,
+    pc.underlying_symbol,
+    pc.transaction_date,
+    pc.transaction_key,
+    pc.transaction_type,
+    pc.quantity,
+    pc.price_per_unit,
+    pc.net_amount,
+    pc.running_quantity,
+    pc.running_cost_basis,
+    pc.avg_cost_per_share,
+    pc.realized_profit,
+    -- Cumulative realized profit over time
+    SUM(pc.realized_profit) OVER (
+      PARTITION BY pc.account_key, pc.symbol
+      ORDER BY pc.transaction_sequence
+      ROWS UNBOUNDED PRECEDING
+    ) as cumulative_realized_profit
+  FROM profit_calculations pc
+  ORDER BY pc.account_key, pc.symbol, pc.transaction_sequence
+`);
+
 // Daily Trading Activity Heatmap View - Shows daily trading activity with expiry information
 export const viewDailyActivity = pgView("view_daily_activity", {
   accountKey: integer("account_key"),
@@ -1192,33 +1311,19 @@ export const viewDailyActivity = pgView("view_daily_activity", {
       AND d.full_date <= er.max_expiry_date
       AND EXTRACT(dow FROM d.full_date) BETWEEN 1 AND 5
   ),
-  stock_positions AS (
-    -- Calculate net stock positions to identify completed vs open trades
-    SELECT
-      ft.account_key,
-      s.underlying_symbol,
-      s.symbol,
-      SUM(ft.quantity) as net_quantity
-    FROM ${factTransaction} ft
-    JOIN ${dimSecurity} s ON ft.security_key = s.security_key
-    JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
-    WHERE tt.action_category = 'TRADE' AND s.security_type = 'STOCK'
-    GROUP BY ft.account_key, s.underlying_symbol, s.symbol
-  ),
   daily_data AS (
     SELECT
         d.full_date,
         d.week_starting_date,
         a.account_key,
         SUM(CASE WHEN tt.action_category = 'TRANSFER' THEN ft.net_amount ELSE 0 END) as daily_transfers,
-        -- Use same stock logic as profit distribution: exclude open stock positions, include closed ones
+        -- Use new stock profit logic: include non-stock gains and realized stock profits
         SUM(CASE
             WHEN tt.action_category NOT IN ('TRANSFER') AND ds.security_type != 'STOCK'
             THEN ft.net_amount
-            WHEN tt.action_category NOT IN ('TRANSFER') AND ds.security_type = 'STOCK' AND sp.net_quantity = 0
-            THEN ft.net_amount
             ELSE 0
-        END) as daily_gains,
+        END) +
+        COALESCE(SUM(vsp.realized_profit), 0) as daily_gains,
         COUNT(CASE WHEN tt.action_category = 'TRADE' THEN ft.transaction_key END) as trade_count
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
