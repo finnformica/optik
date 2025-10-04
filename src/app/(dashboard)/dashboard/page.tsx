@@ -5,6 +5,7 @@ import ProfitDistribution from "@/components/dashboard/profit-distribution";
 import SummaryStats from "@/components/dashboard/summary-stats";
 import TradingActivityHeatmap from "@/components/dashboard/trading-activity-heatmap";
 import WeeklyReturnsChart from "@/components/dashboard/weekly-returns-chart";
+import { Suspense } from "react";
 import { getDashboardData } from "./actions";
 
 export default async function DashboardPage() {
@@ -24,20 +25,23 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <SummaryStats portfolioSummary={portfolioSummary} />
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <WeeklyReturnsChart weeklyData={weeklyReturnsData} />
         <AccountValueChart accountValueData={weeklyReturnsData} />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <CurrentPositions positions={positionsData} />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <Suspense fallback={<CurrentPositions positions={positionsData} />}>
+          <CurrentPositions positions={positionsData} showPrices />
+        </Suspense>
+
         <PortfolioDistribution
           distribution={distributionData}
           cashBalance={Number(availableCash)}
         />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <TradingActivityHeatmap dailyData={dailyActivityData} />
         <ProfitDistribution profitData={profitDistributionData} />
       </div>
