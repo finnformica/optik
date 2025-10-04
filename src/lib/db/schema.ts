@@ -1071,7 +1071,7 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
     FROM ${factTransaction} ft
     JOIN ${dimDate} d ON ft.date_key = d.date_key
     JOIN ${dimAccount} a ON ft.account_key = a.account_key
-    JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
+    LEFT JOIN ${dimSecurity} ds ON ft.security_key = ds.security_key
     JOIN ${dimTransactionType} tt ON ft.transaction_type_key = tt.transaction_type_key
     LEFT JOIN ${viewStockProfit} vsp ON ft.account_key = vsp.account_key
       AND ft.transaction_key = vsp.transaction_key
