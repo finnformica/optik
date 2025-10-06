@@ -22,15 +22,15 @@ export default async function DashboardPage() {
   const availableCash = portfolioSummary?.availableCash || "0";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 md:space-y-6">
       <SummaryStats portfolioSummary={portfolioSummary} />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:gap-6 xl:grid-cols-2">
         <WeeklyReturnsChart weeklyData={weeklyReturnsData} />
         <AccountValueChart accountValueData={weeklyReturnsData} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:gap-6 xl:grid-cols-2">
         <Suspense fallback={<CurrentPositions positions={positionsData} />}>
           <CurrentPositions positions={positionsData} showPrices />
         </Suspense>
@@ -41,7 +41,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:gap-6 xl:grid-cols-2">
         <TradingActivityHeatmap dailyData={dailyActivityData} />
         <ProfitDistribution profitData={profitDistributionData} />
       </div>
