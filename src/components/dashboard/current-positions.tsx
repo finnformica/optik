@@ -7,6 +7,7 @@ import {
   type EnrichedPosition,
   type Position,
 } from "@/app/(dashboard)/dashboard/actions";
+import { ChartButton } from "@/components/dashboard/chart-button";
 import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
 import RefreshPricesButton from "@/components/dashboard/refresh-prices-button";
 import { Badge } from "@/components/ui/badge";
@@ -98,10 +99,15 @@ function PositionRows({ positions, showPrices = false }: PositionsTableProps) {
         return (
           <tr
             key={`${position.underlyingSymbol}-${position.strikePrice}-${index}`}
-            className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-300"
+            className="group transition-colors hover:bg-gray-800/50 [&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-300"
           >
-            <td className="font-medium text-white">
-              {position.underlyingSymbol}
+            <td className="relative font-medium text-white">
+              <div className="flex items-center gap-2">
+                <span>{position.underlyingSymbol}</span>
+                {position.underlyingSymbol && (
+                  <ChartButton symbol={position.underlyingSymbol} />
+                )}
+              </div>
             </td>
             <td>{position.optionType ?? position.securityType ?? "N/A"}</td>
             <td>
