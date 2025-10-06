@@ -66,7 +66,7 @@ const Sidebar = () => {
   const bottomMenuItems = menuItems.filter((item) => item.bottom);
 
   return (
-    <div className="fixed top-0 left-0 flex h-screen w-18 flex-col bg-[#0a101e] text-white">
+    <div className="fixed top-0 left-0 hidden h-screen w-18 flex-col bg-[#0a101e] text-white md:flex">
       <div className="m-2 mb-2 flex justify-center rounded-lg bg-[#111827] p-4">
         <Logo size="xs" />
       </div>

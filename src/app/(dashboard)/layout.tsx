@@ -1,5 +1,6 @@
-import Sidebar from "@/components/layout/sidebar";
 import { AccountLimitChecker } from "@/components/layout/account-limit-checker";
+import BottomNavigation from "@/components/layout/bottom-navigation";
+import Sidebar from "@/components/layout/sidebar";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import React from "react";
 
@@ -14,11 +15,12 @@ export default async function DashboardLayout({
   return (
     <>
       <Sidebar />
-      <div className="h-screen w-screen py-2 pr-2">
-        <main className="ml-18 h-full overflow-x-clip overflow-y-scroll rounded-lg bg-[#111827] p-6">
+      <div className="h-screen w-screen md:py-2 md:pr-2">
+        <main className="h-full overflow-x-clip overflow-y-scroll bg-[#111827] p-2 pb-20 md:ml-18 md:rounded-lg md:p-6 md:pb-6">
           {children}
         </main>
       </div>
+      <BottomNavigation />
       <AccountLimitChecker />
     </>
   );
