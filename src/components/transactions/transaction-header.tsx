@@ -9,7 +9,7 @@ import { useAccountKey } from "@/api/user";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { channels } from "@/lib/utils";
 import { SyncProgressData } from "@/types/sync-progress";
 
@@ -61,6 +61,7 @@ export function TransactionHeader({
   useEffect(() => {
     if (!accountKey) return;
 
+    const supabase = createClient();
     const channelName = channels.syncSessionProgress(accountKey);
 
     const channel = supabase
@@ -95,7 +96,7 @@ export function TransactionHeader({
     return () => {
       channel.unsubscribe();
     };
-  }, [accountKey, onSyncComplete, setShowAlert, syncProgress]);
+  }, [accountKey, onSyncComplete]);
 
   const syncing = loading || _syncing;
 
