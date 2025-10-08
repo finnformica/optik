@@ -701,6 +701,13 @@
       "when": 1759866910822,
       "tag": "0099_exotic_natasha_romanoff",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1759868282462,
+      "tag": "0100_new_exodus",
+      "breakpoints": true
     }
   ]
 }

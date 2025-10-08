@@ -74,6 +74,9 @@ export const stgTransaction = pgTable(
       length: 50,
     }).notNull(),
 
+    // Data source tracking
+    dataSource: varchar("data_source", { length: 10 }).notNull().default("api"), // "api", "csv", "manual"
+
     // Raw broker data
     rawData: jsonb("raw_data").notNull(),
 

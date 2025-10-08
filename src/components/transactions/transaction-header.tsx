@@ -1,10 +1,10 @@
 "use client";
 
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ChevronDown, Plus, RefreshCw, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-import { syncTransactions } from "@/api/transactions";
+import { importCsvTransactions, syncTransactions } from "@/api/transactions";
 import { useAccountKey } from "@/api/user";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,19 @@ export function TransactionHeader({
   const [syncProgress, setSyncProgress] = useState<SyncProgressData | null>(
     null,
   );
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<
+    "sync" | "import" | "manual"
+  >(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("preferredDataAction");
+      return (saved as "sync" | "import" | "manual") || "sync";
+    }
+    return "sync";
+  });
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const subHeaderText = `${filteredTransactionsLength} of ${transactionsLength} ${
     transactionsLength !== 1 ? "transactions" : "transaction"
@@ -56,6 +69,102 @@ export function TransactionHeader({
         setSyncing(false);
       });
   };
+
+  const handleFileImport = async (file: File) => {
+    setError(null);
+    setImporting(true);
+
+    try {
+      const result = await importCsvTransactions(file);
+      setShowAlert(true);
+      onSyncComplete();
+
+      // Show success message based on result
+      if (result.newTransactions === 0) {
+        setError(
+          `All ${result.totalRows} transactions already exist in the database`,
+        );
+      } else {
+        setError(null);
+      }
+    } catch (e: any) {
+      setError(e.message || "Failed to import CSV file");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleFileImport(file);
+    }
+    // Reset the input value so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleActionSelect = (action: "sync" | "import" | "manual") => {
+    setSelectedAction(action);
+    setShowDropdown(false);
+
+    // Save preference to localStorage
+    localStorage.setItem("preferredDataAction", action);
+
+    if (action === "sync") {
+      syncData();
+    } else if (action === "import") {
+      triggerFileInput();
+    } else if (action === "manual") {
+      // TODO: Implement manual transaction entry
+      setError("Manual transaction entry not yet implemented");
+    }
+  };
+
+  const getActionIcon = (action: "sync" | "import" | "manual") => {
+    switch (action) {
+      case "sync":
+        return <RefreshCw className="h-4 w-4" />;
+      case "import":
+        return <Upload className="h-4 w-4" />;
+      case "manual":
+        return <Plus className="h-4 w-4" />;
+    }
+  };
+
+  const getActionLabel = (action: "sync" | "import" | "manual") => {
+    switch (action) {
+      case "sync":
+        return "Sync Data";
+      case "import":
+        return "Import CSV";
+      case "manual":
+        return "Manual Entry";
+    }
+  };
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showDropdown]);
 
   // Manage realtime subscription for sync progress
   useEffect(() => {
@@ -99,6 +208,7 @@ export function TransactionHeader({
   }, [accountKey, onSyncComplete]);
 
   const syncing = loading || _syncing;
+  const isProcessing = syncing || importing;
 
   return (
     <>
@@ -111,14 +221,73 @@ export function TransactionHeader({
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <Button
-            onClick={syncData}
-            disabled={syncing}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-          >
-            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Syncing..." : "Sync Data"}
-          </Button>
+          <div className="relative" ref={dropdownRef}>
+            <div className="flex">
+              <Button
+                onClick={() => handleActionSelect(selectedAction)}
+                disabled={isProcessing}
+                className="flex items-center gap-2 rounded-r-none border-r border-blue-500 bg-blue-600 hover:bg-blue-700"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    {selectedAction === "sync" && "Syncing..."}
+                    {selectedAction === "import" && "Importing..."}
+                    {selectedAction === "manual" && "Processing..."}
+                  </>
+                ) : (
+                  <>
+                    {getActionIcon(selectedAction)}
+                    {getActionLabel(selectedAction)}
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => setShowDropdown(!showDropdown)}
+                disabled={isProcessing}
+                className="rounded-l-none bg-blue-600 px-2 hover:bg-blue-700"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {showDropdown && (
+              <div className="absolute top-full right-0 z-10 mt-1 w-48 rounded-md border border-gray-600 bg-gray-800 shadow-lg">
+                <div className="py-1">
+                  <button
+                    onClick={() => handleActionSelect("sync")}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-white transition-colors hover:bg-gray-700"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Sync Data
+                  </button>
+                  <button
+                    onClick={() => handleActionSelect("import")}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-white transition-colors hover:bg-gray-700"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Import CSV
+                  </button>
+                  <button
+                    onClick={() => handleActionSelect("manual")}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-white transition-colors hover:bg-gray-700"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Manual Entry
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Hidden file input for CSV import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
         </div>
       </div>
 
