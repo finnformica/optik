@@ -441,7 +441,8 @@ CREATE TABLE IF NOT EXISTS "public"."dim_user" (
     "last_name" character varying(50),
     "auth_user_id" "uuid",
     "stripe_customer_id" character varying(255),
-    "role_override" character varying(20)
+    "role_override" character varying(20),
+    "onboarding_completed" boolean DEFAULT false NOT NULL
 );
 
 
@@ -529,7 +530,8 @@ CREATE TABLE IF NOT EXISTS "public"."stg_transaction" (
     "processed_at" timestamp without time zone,
     "created_at" timestamp without time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp without time zone DEFAULT "now"() NOT NULL,
-    "account_key" integer NOT NULL
+    "account_key" integer NOT NULL,
+    "data_source" character varying(10) DEFAULT 'api'::character varying NOT NULL
 );
 
 
@@ -603,6 +605,105 @@ ALTER SEQUENCE "public"."users_id_seq" OWNED BY "public"."dim_user"."id";
 
 
 
+CREATE OR REPLACE VIEW "public"."view_stock_profit" WITH ("security_invoker"='true') AS
+ WITH "stock_transactions" AS (
+         SELECT "ft"."transaction_key",
+            "ft"."account_key",
+            "ds"."symbol",
+            "ds"."underlying_symbol",
+            "d"."full_date" AS "transaction_date",
+            "tt"."action_code" AS "transaction_type",
+            "ft"."quantity",
+            "ft"."price_per_unit",
+            "ft"."net_amount",
+            "row_number"() OVER (PARTITION BY "ft"."account_key", "ds"."symbol" ORDER BY "d"."full_date", "ft"."transaction_key") AS "transaction_sequence"
+           FROM ((("public"."fact_transaction" "ft"
+             JOIN "public"."dim_security" "ds" ON (("ft"."security_key" = "ds"."security_key")))
+             JOIN "public"."dim_date" "d" ON (("ft"."date_key" = "d"."date_key")))
+             JOIN "public"."dim_transaction_type" "tt" ON (("ft"."transaction_type_key" = "tt"."transaction_type_key")))
+          WHERE ((("ds"."security_type")::"text" = 'STOCK'::"text") AND (("tt"."action_category")::"text" = 'TRADE'::"text"))
+        ), "running_calculations" AS (
+         SELECT "st"."transaction_key",
+            "st"."account_key",
+            "st"."symbol",
+            "st"."underlying_symbol",
+            "st"."transaction_date",
+            "st"."transaction_type",
+            "st"."quantity",
+            "st"."price_per_unit",
+            "st"."net_amount",
+            "st"."transaction_sequence",
+            "sum"("st"."quantity") OVER (PARTITION BY "st"."account_key", "st"."symbol" ORDER BY "st"."transaction_sequence" ROWS UNBOUNDED PRECEDING) AS "running_quantity",
+                CASE
+                    WHEN ("sum"("st"."quantity") OVER (PARTITION BY "st"."account_key", "st"."symbol" ORDER BY "st"."transaction_sequence" ROWS UNBOUNDED PRECEDING) > (0)::numeric) THEN ("sum"("st"."quantity") OVER (PARTITION BY "st"."account_key", "st"."symbol" ORDER BY "st"."transaction_sequence" ROWS UNBOUNDED PRECEDING) * ("sum"(
+                    CASE
+                        WHEN ("st"."quantity" > (0)::numeric) THEN "abs"("st"."net_amount")
+                        ELSE (0)::numeric
+                    END) OVER (PARTITION BY "st"."account_key", "st"."symbol" ORDER BY "st"."transaction_sequence" ROWS UNBOUNDED PRECEDING) / NULLIF("sum"(
+                    CASE
+                        WHEN ("st"."quantity" > (0)::numeric) THEN "st"."quantity"
+                        ELSE (0)::numeric
+                    END) OVER (PARTITION BY "st"."account_key", "st"."symbol" ORDER BY "st"."transaction_sequence" ROWS UNBOUNDED PRECEDING), (0)::numeric)))
+                    ELSE (0)::numeric
+                END AS "running_cost_basis",
+                CASE
+                    WHEN ("sum"(
+                    CASE
+                        WHEN ("st"."quantity" > (0)::numeric) THEN "st"."quantity"
+                        ELSE (0)::numeric
+                    END) OVER (PARTITION BY "st"."account_key", "st"."symbol" ORDER BY "st"."transaction_sequence" ROWS UNBOUNDED PRECEDING) > (0)::numeric) THEN ("sum"(
+                    CASE
+                        WHEN ("st"."quantity" > (0)::numeric) THEN "abs"("st"."net_amount")
+                        ELSE (0)::numeric
+                    END) OVER (PARTITION BY "st"."account_key", "st"."symbol" ORDER BY "st"."transaction_sequence" ROWS UNBOUNDED PRECEDING) / "sum"(
+                    CASE
+                        WHEN ("st"."quantity" > (0)::numeric) THEN "st"."quantity"
+                        ELSE (0)::numeric
+                    END) OVER (PARTITION BY "st"."account_key", "st"."symbol" ORDER BY "st"."transaction_sequence" ROWS UNBOUNDED PRECEDING))
+                    ELSE (0)::numeric
+                END AS "avg_cost_per_share"
+           FROM "stock_transactions" "st"
+        ), "profit_calculations" AS (
+         SELECT "rc"."transaction_key",
+            "rc"."account_key",
+            "rc"."symbol",
+            "rc"."underlying_symbol",
+            "rc"."transaction_date",
+            "rc"."transaction_type",
+            "rc"."quantity",
+            "rc"."price_per_unit",
+            "rc"."net_amount",
+            "rc"."transaction_sequence",
+            "rc"."running_quantity",
+            "rc"."running_cost_basis",
+            "rc"."avg_cost_per_share",
+                CASE
+                    WHEN ("rc"."quantity" < (0)::numeric) THEN ((("abs"("rc"."net_amount") / "abs"("rc"."quantity")) * "abs"("rc"."quantity")) - ("rc"."avg_cost_per_share" * "abs"("rc"."quantity")))
+                    ELSE (0)::numeric
+                END AS "realized_profit"
+           FROM "running_calculations" "rc"
+        )
+ SELECT "account_key",
+    "symbol",
+    "underlying_symbol",
+    "transaction_date",
+    "transaction_key",
+    "transaction_type",
+    "quantity",
+    "price_per_unit",
+    "net_amount",
+    "running_quantity",
+    "running_cost_basis",
+    "avg_cost_per_share",
+    "realized_profit",
+    "sum"("realized_profit") OVER (PARTITION BY "account_key", "symbol" ORDER BY "transaction_sequence" ROWS UNBOUNDED PRECEDING) AS "cumulative_realized_profit"
+   FROM "profit_calculations" "pc"
+  ORDER BY "account_key", "symbol", "transaction_sequence";
+
+
+ALTER VIEW "public"."view_stock_profit" OWNER TO "postgres";
+
+
 CREATE OR REPLACE VIEW "public"."view_weekly_position" WITH ("security_invoker"='true') AS
  WITH "weekly_date_series" AS (
          SELECT DISTINCT "d"."week_starting_date" AS "week_start",
@@ -611,52 +712,90 @@ CREATE OR REPLACE VIEW "public"."view_weekly_position" WITH ("security_invoker"=
              JOIN "public"."dim_date" "d" ON (("ft"."date_key" = "d"."date_key")))
              JOIN "public"."dim_account" "a" ON (("ft"."account_key" = "a"."account_key")))
           WHERE ("a"."is_active" = true)
-        ), "position_calculations" AS (
+        ), "non_stock_positions" AS (
          SELECT "wds"."account_key",
             "wds"."week_start",
-            "ds_1"."symbol",
-            "ds_1"."security_type",
-            "ds_1"."underlying_symbol",
+            "ds"."symbol",
+            "ds"."security_type",
+            "ds"."underlying_symbol",
             "sum"("ft"."quantity") AS "cumulative_quantity",
-            "sum"("abs"("ft"."net_amount")) AS "total_cost",
-            "sum"("abs"("ft"."quantity")) AS "total_quantity",
                 CASE
                     WHEN ("sum"("abs"("ft"."quantity")) > (0)::numeric) THEN ("sum"("abs"("ft"."net_amount")) / "sum"("abs"("ft"."quantity")))
                     ELSE (0)::numeric
                 END AS "avg_cost_per_unit",
             "min"("d"."full_date") AS "first_transaction_date",
-            "max"("d"."full_date") AS "last_transaction_date"
+            "max"("d"."full_date") AS "last_transaction_date",
+            "ds"."expiry_date",
+            "ds"."option_type",
+            "ds"."strike_price"
            FROM (((("weekly_date_series" "wds"
              JOIN "public"."fact_transaction" "ft" ON (("ft"."account_key" = "wds"."account_key")))
              JOIN "public"."dim_date" "d" ON (("ft"."date_key" = "d"."date_key")))
-             JOIN "public"."dim_security" "ds_1" ON (("ft"."security_key" = "ds_1"."security_key")))
+             JOIN "public"."dim_security" "ds" ON (("ft"."security_key" = "ds"."security_key")))
              JOIN "public"."dim_transaction_type" "tt" ON (("ft"."transaction_type_key" = "tt"."transaction_type_key")))
-          WHERE (("d"."week_starting_date" <= "wds"."week_start") AND (("tt"."action_category")::"text" = ANY ((ARRAY['TRADE'::character varying, 'CORPORATE'::character varying])::"text"[])))
-          GROUP BY "wds"."account_key", "wds"."week_start", "ds_1"."symbol", "ds_1"."security_type", "ds_1"."underlying_symbol"
+          WHERE (("d"."week_starting_date" <= "wds"."week_start") AND (("tt"."action_category")::"text" = ANY ((ARRAY['TRADE'::character varying, 'CORPORATE'::character varying])::"text"[])) AND (("ds"."security_type")::"text" <> 'STOCK'::"text"))
+          GROUP BY "wds"."account_key", "wds"."week_start", "ds"."symbol", "ds"."security_type", "ds"."underlying_symbol", "ds"."expiry_date", "ds"."option_type", "ds"."strike_price"
          HAVING ("sum"("ft"."quantity") <> (0)::numeric)
+        ), "stock_positions" AS (
+         SELECT "wds"."account_key",
+            "wds"."week_start",
+            "vsp"."symbol",
+            'STOCK'::character varying(20) AS "security_type",
+            "vsp"."underlying_symbol",
+            ( SELECT "vsp2"."running_quantity"
+                   FROM ("public"."view_stock_profit" "vsp2"
+                     JOIN "public"."dim_date" "d2" ON (("vsp2"."transaction_date" = "d2"."full_date")))
+                  WHERE (("vsp2"."account_key" = "wds"."account_key") AND (("vsp2"."symbol")::"text" = ("vsp"."symbol")::"text") AND ("d2"."week_starting_date" <= "wds"."week_start"))
+                  ORDER BY "vsp2"."transaction_date" DESC, "vsp2"."transaction_key" DESC
+                 LIMIT 1) AS "cumulative_quantity",
+            ( SELECT "vsp2"."avg_cost_per_share"
+                   FROM ("public"."view_stock_profit" "vsp2"
+                     JOIN "public"."dim_date" "d2" ON (("vsp2"."transaction_date" = "d2"."full_date")))
+                  WHERE (("vsp2"."account_key" = "wds"."account_key") AND (("vsp2"."symbol")::"text" = ("vsp"."symbol")::"text") AND ("d2"."week_starting_date" <= "wds"."week_start"))
+                  ORDER BY "vsp2"."transaction_date" DESC, "vsp2"."transaction_key" DESC
+                 LIMIT 1) AS "avg_cost_per_unit",
+            "min"("vsp"."transaction_date") AS "first_transaction_date",
+            "max"("vsp"."transaction_date") AS "last_transaction_date",
+            NULL::"text" AS "expiry_date",
+            NULL::"text" AS "option_type",
+            NULL::"text" AS "strike_price"
+           FROM (("weekly_date_series" "wds"
+             JOIN "public"."view_stock_profit" "vsp" ON (("vsp"."account_key" = "wds"."account_key")))
+             JOIN "public"."dim_date" "d" ON (("vsp"."transaction_date" = "d"."full_date")))
+          WHERE ("d"."week_starting_date" <= "wds"."week_start")
+          GROUP BY "wds"."account_key", "wds"."week_start", "vsp"."symbol", "vsp"."underlying_symbol"
+         HAVING (( SELECT "vsp2"."running_quantity"
+                   FROM ("public"."view_stock_profit" "vsp2"
+                     JOIN "public"."dim_date" "d2" ON (("vsp2"."transaction_date" = "d2"."full_date")))
+                  WHERE (("vsp2"."account_key" = "wds"."account_key") AND (("vsp2"."symbol")::"text" = ("vsp"."symbol")::"text") AND ("d2"."week_starting_date" <= "wds"."week_start"))
+                  ORDER BY "vsp2"."transaction_date" DESC, "vsp2"."transaction_key" DESC
+                 LIMIT 1) > (0)::numeric)
         )
- SELECT "pc"."account_key",
-    "pc"."week_start",
-    "pc"."symbol",
-    "pc"."security_type",
-    "pc"."underlying_symbol",
-    "pc"."cumulative_quantity" AS "quantity",
-    "pc"."avg_cost_per_unit",
-    "pc"."first_transaction_date",
-    "pc"."last_transaction_date",
+ SELECT COALESCE("nsp"."account_key", "sp"."account_key") AS "account_key",
+    COALESCE("nsp"."week_start", "sp"."week_start") AS "week_start",
+    COALESCE("nsp"."symbol", "sp"."symbol") AS "symbol",
+    COALESCE("nsp"."security_type", "sp"."security_type") AS "security_type",
+    COALESCE("nsp"."underlying_symbol", "sp"."underlying_symbol") AS "underlying_symbol",
+    COALESCE("nsp"."cumulative_quantity", "sp"."cumulative_quantity") AS "quantity",
+    COALESCE("nsp"."avg_cost_per_unit", "sp"."avg_cost_per_unit") AS "avg_cost_per_unit",
+    COALESCE("nsp"."first_transaction_date", "sp"."first_transaction_date") AS "first_transaction_date",
+    COALESCE("nsp"."last_transaction_date", "sp"."last_transaction_date") AS "last_transaction_date",
         CASE
-            WHEN (("ds"."security_type")::"text" = 'STOCK'::"text") THEN ("abs"("pc"."cumulative_quantity") * "pc"."avg_cost_per_unit")
-            WHEN (("ds"."security_type")::"text" = 'OPTION'::"text") THEN (("abs"("pc"."cumulative_quantity") * "ds"."strike_price") * (100)::numeric)
-            ELSE ("abs"("pc"."cumulative_quantity") * "pc"."avg_cost_per_unit")
+            WHEN ((COALESCE("nsp"."security_type", "sp"."security_type"))::"text" = 'STOCK'::"text") THEN ("abs"(COALESCE("sp"."cumulative_quantity", (0)::numeric)) * COALESCE("sp"."avg_cost_per_unit", (0)::numeric))
+            WHEN ((("nsp"."security_type")::"text" = 'OPTION'::"text") AND (("nsp"."option_type")::"text" = 'PUT'::"text") AND ("nsp"."cumulative_quantity" < (0)::numeric)) THEN (("abs"("nsp"."cumulative_quantity") * "nsp"."strike_price") * (100)::numeric)
+            WHEN ((("nsp"."security_type")::"text" = 'OPTION'::"text") AND (("nsp"."option_type")::"text" = 'PUT'::"text") AND ("nsp"."cumulative_quantity" > (0)::numeric)) THEN (0)::numeric
+            WHEN ((("nsp"."security_type")::"text" = 'OPTION'::"text") AND (("nsp"."option_type")::"text" = 'CALL'::"text") AND ("nsp"."cumulative_quantity" > (0)::numeric)) THEN (("abs"("nsp"."cumulative_quantity") * "nsp"."strike_price") * (100)::numeric)
+            WHEN ((("nsp"."security_type")::"text" = 'OPTION'::"text") AND (("nsp"."option_type")::"text" = 'CALL'::"text") AND ("nsp"."cumulative_quantity" < (0)::numeric)) THEN (0)::numeric
+            ELSE ("abs"(COALESCE("nsp"."cumulative_quantity", (0)::numeric)) * COALESCE("nsp"."avg_cost_per_unit", (0)::numeric))
         END AS "position_value",
     'OPEN'::"text" AS "position_status",
     0 AS "unrealized_pnl",
-    "ds"."expiry_date",
-    "ds"."option_type",
-    "ds"."strike_price"
-   FROM ("position_calculations" "pc"
-     LEFT JOIN "public"."dim_security" "ds" ON ((("pc"."symbol")::"text" = ("ds"."symbol")::"text")))
-  ORDER BY "pc"."account_key", "pc"."week_start", "pc"."symbol";
+    "nsp"."expiry_date",
+    "nsp"."option_type",
+    "nsp"."strike_price"
+   FROM ("non_stock_positions" "nsp"
+     FULL JOIN "stock_positions" "sp" ON ((("nsp"."account_key" = "sp"."account_key") AND ("nsp"."week_start" = "sp"."week_start") AND (("nsp"."symbol")::"text" = ("sp"."symbol")::"text"))))
+  ORDER BY COALESCE("nsp"."account_key", "sp"."account_key"), COALESCE("nsp"."week_start", "sp"."week_start"), COALESCE("nsp"."symbol", "sp"."symbol");
 
 
 ALTER VIEW "public"."view_weekly_position" OWNER TO "postgres";
@@ -697,17 +836,15 @@ CREATE OR REPLACE VIEW "public"."view_weekly_portfolio_value" WITH ("security_in
     COALESCE(( SELECT "sum"("vwp"."position_value") AS "sum"
            FROM "public"."view_weekly_position" "vwp"
           WHERE (("vwp"."account_key" = "wcf"."account_key") AND ("vwp"."week_start" = "wcf"."week_start") AND (("vwp"."security_type")::"text" = 'STOCK'::"text") AND ("vwp"."position_status" = 'OPEN'::"text"))), (0)::numeric) AS "stock_position_value",
-    COALESCE(( SELECT "sum"((("ds"."strike_price" * "abs"("vwp"."quantity")) * (100)::numeric)) AS "sum"
-           FROM ("public"."view_weekly_position" "vwp"
-             JOIN "public"."dim_security" "ds" ON ((("vwp"."symbol")::"text" = ("ds"."symbol")::"text")))
+    COALESCE(( SELECT "sum"("vwp"."position_value") AS "sum"
+           FROM "public"."view_weekly_position" "vwp"
           WHERE (("vwp"."account_key" = "wcf"."account_key") AND ("vwp"."week_start" = "wcf"."week_start") AND (("vwp"."security_type")::"text" = 'OPTION'::"text") AND ("vwp"."position_status" = 'OPEN'::"text"))), (0)::numeric) AS "option_collateral_value",
     "wt"."cumulative_transfers",
     ("wcf"."cash_flows_to_date" + COALESCE(( SELECT "sum"("vwp"."position_value") AS "sum"
            FROM "public"."view_weekly_position" "vwp"
           WHERE (("vwp"."account_key" = "wcf"."account_key") AND ("vwp"."week_start" = "wcf"."week_start") AND (("vwp"."security_type")::"text" = 'STOCK'::"text") AND ("vwp"."position_status" = 'OPEN'::"text"))), (0)::numeric)) AS "total_portfolio_value",
-    ("wcf"."cash_flows_to_date" - COALESCE(( SELECT "sum"((("ds"."strike_price" * "abs"("vwp"."quantity")) * (100)::numeric)) AS "sum"
-           FROM ("public"."view_weekly_position" "vwp"
-             JOIN "public"."dim_security" "ds" ON ((("vwp"."symbol")::"text" = ("ds"."symbol")::"text")))
+    ("wcf"."cash_flows_to_date" - COALESCE(( SELECT "sum"("vwp"."position_value") AS "sum"
+           FROM "public"."view_weekly_position" "vwp"
           WHERE (("vwp"."account_key" = "wcf"."account_key") AND ("vwp"."week_start" = "wcf"."week_start") AND (("vwp"."security_type")::"text" = 'OPTION'::"text") AND ("vwp"."position_status" = 'OPEN'::"text"))), (0)::numeric)) AS "available_cash"
    FROM ("weekly_cash_flows" "wcf"
      JOIN "weekly_transfers" "wt" ON ((("wcf"."account_key" = "wt"."account_key") AND ("wcf"."week_start" = "wt"."week_start"))))
@@ -718,39 +855,43 @@ ALTER VIEW "public"."view_weekly_portfolio_value" OWNER TO "postgres";
 
 
 CREATE OR REPLACE VIEW "public"."view_current_portfolio_value" WITH ("security_invoker"='true') AS
- SELECT "account_key",
-    "cash_flows",
-    "stock_position_value",
-    "option_collateral_value",
-    "cumulative_transfers",
-    "total_portfolio_value",
-    "available_cash"
-   FROM "public"."view_weekly_portfolio_value"
-  WHERE ("week_start" = ( SELECT "max"("view_weekly_portfolio_value_1"."week_start") AS "max"
-           FROM "public"."view_weekly_portfolio_value" "view_weekly_portfolio_value_1"));
+ SELECT "wpv"."account_key",
+    "wpv"."cash_flows",
+    "wpv"."stock_position_value",
+    "wpv"."option_collateral_value",
+    "wpv"."cumulative_transfers",
+    "wpv"."total_portfolio_value",
+    "wpv"."available_cash"
+   FROM ("public"."view_weekly_portfolio_value" "wpv"
+     JOIN ( SELECT "view_weekly_portfolio_value"."account_key",
+            "max"("view_weekly_portfolio_value"."week_start") AS "max_week_start"
+           FROM "public"."view_weekly_portfolio_value"
+          GROUP BY "view_weekly_portfolio_value"."account_key") "latest_weeks" ON ((("wpv"."account_key" = "latest_weeks"."account_key") AND ("wpv"."week_start" = "latest_weeks"."max_week_start"))));
 
 
 ALTER VIEW "public"."view_current_portfolio_value" OWNER TO "postgres";
 
 
 CREATE OR REPLACE VIEW "public"."view_current_position" WITH ("security_invoker"='true') AS
- SELECT "account_key",
-    "symbol",
-    "security_type",
-    "underlying_symbol",
-    "quantity",
-    "avg_cost_per_unit",
-    "first_transaction_date",
-    "last_transaction_date",
-    "position_value",
-    "position_status",
-    "unrealized_pnl",
-    "option_type",
-    "expiry_date",
-    "strike_price"
-   FROM "public"."view_weekly_position"
-  WHERE ("week_start" = ( SELECT "max"("view_weekly_position_1"."week_start") AS "max"
-           FROM "public"."view_weekly_position" "view_weekly_position_1"));
+ SELECT "vwp"."account_key",
+    "vwp"."symbol",
+    "vwp"."security_type",
+    "vwp"."underlying_symbol",
+    "vwp"."quantity",
+    "vwp"."avg_cost_per_unit",
+    "vwp"."first_transaction_date",
+    "vwp"."last_transaction_date",
+    "vwp"."position_value",
+    "vwp"."position_status",
+    "vwp"."unrealized_pnl",
+    "vwp"."option_type",
+    "vwp"."expiry_date",
+    "vwp"."strike_price"
+   FROM ("public"."view_weekly_position" "vwp"
+     JOIN ( SELECT "view_weekly_position"."account_key",
+            "max"("view_weekly_position"."week_start") AS "max_week_start"
+           FROM "public"."view_weekly_position"
+          GROUP BY "view_weekly_position"."account_key") "latest_weeks" ON ((("vwp"."account_key" = "latest_weeks"."account_key") AND ("vwp"."week_start" = "latest_weeks"."max_week_start"))));
 
 
 ALTER VIEW "public"."view_current_position" OWNER TO "postgres";
@@ -771,16 +912,6 @@ CREATE OR REPLACE VIEW "public"."view_daily_activity" WITH ("security_invoker"='
            FROM "public"."dim_date" "d",
             "expiry_range" "er"
           WHERE (("d"."full_date" >= (CURRENT_DATE - '6 mons'::interval)) AND ("d"."full_date" <= "er"."max_expiry_date") AND ((EXTRACT(dow FROM "d"."full_date") >= (1)::numeric) AND (EXTRACT(dow FROM "d"."full_date") <= (5)::numeric)))
-        ), "stock_positions" AS (
-         SELECT "ft"."account_key",
-            "s"."underlying_symbol",
-            "s"."symbol",
-            "sum"("ft"."quantity") AS "net_quantity"
-           FROM (("public"."fact_transaction" "ft"
-             JOIN "public"."dim_security" "s" ON (("ft"."security_key" = "s"."security_key")))
-             JOIN "public"."dim_transaction_type" "tt" ON (("ft"."transaction_type_key" = "tt"."transaction_type_key")))
-          WHERE ((("tt"."action_category")::"text" = 'TRADE'::"text") AND (("s"."security_type")::"text" = 'STOCK'::"text"))
-          GROUP BY "ft"."account_key", "s"."underlying_symbol", "s"."symbol"
         ), "daily_data" AS (
          SELECT "d"."full_date",
             "d"."week_starting_date",
@@ -790,12 +921,11 @@ CREATE OR REPLACE VIEW "public"."view_daily_activity" WITH ("security_invoker"='
                     WHEN (("tt"."action_category")::"text" = 'TRANSFER'::"text") THEN "ft"."net_amount"
                     ELSE (0)::numeric
                 END) AS "daily_transfers",
-            "sum"(
+            ("sum"(
                 CASE
                     WHEN ((("tt"."action_category")::"text" <> 'TRANSFER'::"text") AND (("ds"."security_type")::"text" <> 'STOCK'::"text")) THEN "ft"."net_amount"
-                    WHEN ((("tt"."action_category")::"text" <> 'TRANSFER'::"text") AND (("ds"."security_type")::"text" = 'STOCK'::"text") AND ("sp"."net_quantity" = (0)::numeric)) THEN "ft"."net_amount"
                     ELSE (0)::numeric
-                END) AS "daily_gains",
+                END) + COALESCE("sum"("vsp"."realized_profit"), (0)::numeric)) AS "daily_gains",
             "count"(
                 CASE
                     WHEN (("tt"."action_category")::"text" = 'TRADE'::"text") THEN "ft"."transaction_key"
@@ -806,13 +936,14 @@ CREATE OR REPLACE VIEW "public"."view_daily_activity" WITH ("security_invoker"='
              JOIN "public"."dim_account" "a" ON (("ft"."account_key" = "a"."account_key")))
              JOIN "public"."dim_transaction_type" "tt" ON (("ft"."transaction_type_key" = "tt"."transaction_type_key")))
              JOIN "public"."dim_security" "ds" ON (("ft"."security_key" = "ds"."security_key")))
-             LEFT JOIN "stock_positions" "sp" ON ((("ft"."account_key" = "sp"."account_key") AND (("ds"."symbol")::"text" = ("sp"."symbol")::"text") AND (("ds"."security_type")::"text" = 'STOCK'::"text"))))
+             LEFT JOIN "public"."view_stock_profit" "vsp" ON ((("ft"."account_key" = "vsp"."account_key") AND ("ft"."transaction_key" = "vsp"."transaction_key"))))
           WHERE (("d"."full_date" <= CURRENT_DATE) AND ("d"."full_date" >= (CURRENT_DATE - '6 mons'::interval)) AND ((EXTRACT(dow FROM "d"."full_date") >= (1)::numeric) AND (EXTRACT(dow FROM "d"."full_date") <= (5)::numeric)))
           GROUP BY "a"."account_key", "d"."full_date", "d"."week_starting_date"
         ), "weekly_portfolio_data" AS (
          SELECT "view_weekly_portfolio_value"."account_key",
             "view_weekly_portfolio_value"."week_start",
             "view_weekly_portfolio_value"."total_portfolio_value",
+            "view_weekly_portfolio_value"."cumulative_transfers",
             "lag"("view_weekly_portfolio_value"."total_portfolio_value") OVER (PARTITION BY "view_weekly_portfolio_value"."account_key" ORDER BY "view_weekly_portfolio_value"."week_start") AS "previous_week_portfolio_value"
            FROM "public"."view_weekly_portfolio_value"
           WHERE ("view_weekly_portfolio_value"."week_start" >= ((CURRENT_DATE - '6 mons'::interval))::"date")
@@ -823,6 +954,7 @@ CREATE OR REPLACE VIEW "public"."view_daily_activity" WITH ("security_invoker"='
             "dd"."daily_gains" AS "daily_premium",
                 CASE
                     WHEN (("wpd"."previous_week_portfolio_value" IS NOT NULL) AND ("wpd"."previous_week_portfolio_value" <> (0)::numeric)) THEN "round"((("dd"."daily_gains" / "abs"("wpd"."previous_week_portfolio_value")) * (100)::numeric), 2)
+                    WHEN (("wpd"."previous_week_portfolio_value" IS NULL) AND ("wpd"."cumulative_transfers" IS NOT NULL) AND ("wpd"."cumulative_transfers" > (0)::numeric)) THEN "round"((("dd"."daily_gains" / "abs"("wpd"."cumulative_transfers")) * (100)::numeric), 2)
                     ELSE (0)::numeric
                 END AS "daily_return_percent"
            FROM ("daily_data" "dd"
@@ -872,28 +1004,40 @@ ALTER VIEW "public"."view_portfolio_distribution" OWNER TO "postgres";
 CREATE OR REPLACE VIEW "public"."view_portfolio_summary" WITH ("security_invoker"='true') AS
  WITH "realised_monthly_pnl" AS (
          SELECT "a_1"."account_key",
-            ("sum"("ft"."net_amount") + COALESCE(( SELECT "sum"("vwp"."position_value") AS "sum"
-                   FROM "public"."view_weekly_position" "vwp"
-                  WHERE (("vwp"."account_key" = "a_1"."account_key") AND ("vwp"."position_status" = 'OPEN'::"text") AND (("vwp"."security_type")::"text" = 'STOCK'::"text") AND ("date_trunc"('month'::"text", ("vwp"."first_transaction_date")::timestamp with time zone) = "date_trunc"('month'::"text", (CURRENT_DATE)::timestamp with time zone)) AND ("vwp"."week_start" = ( SELECT "max"("view_weekly_position"."week_start") AS "max"
-                           FROM "public"."view_weekly_position"
-                          WHERE ("view_weekly_position"."account_key" = "a_1"."account_key"))))), (0)::numeric)) AS "monthly_realised_pnl"
-           FROM ((("public"."fact_transaction" "ft"
+            ("sum"(
+                CASE
+                    WHEN (("ds"."security_type")::"text" <> 'STOCK'::"text") THEN "ft"."net_amount"
+                    ELSE (0)::numeric
+                END) + COALESCE("sum"(
+                CASE
+                    WHEN (("ds"."security_type")::"text" = 'STOCK'::"text") THEN "vsp"."realized_profit"
+                    ELSE (0)::numeric
+                END), (0)::numeric)) AS "monthly_realised_pnl"
+           FROM ((((("public"."fact_transaction" "ft"
              JOIN "public"."dim_date" "d" ON (("ft"."date_key" = "d"."date_key")))
              JOIN "public"."dim_account" "a_1" ON (("ft"."account_key" = "a_1"."account_key")))
+             JOIN "public"."dim_security" "ds" ON (("ft"."security_key" = "ds"."security_key")))
              JOIN "public"."dim_transaction_type" "tt_1" ON (("ft"."transaction_type_key" = "tt_1"."transaction_type_key")))
+             LEFT JOIN "public"."view_stock_profit" "vsp" ON ((("ft"."account_key" = "vsp"."account_key") AND ("ft"."transaction_key" = "vsp"."transaction_key"))))
           WHERE ((("tt_1"."action_category")::"text" = ANY ((ARRAY['TRADE'::character varying, 'INCOME'::character varying])::"text"[])) AND (("d"."year")::numeric = EXTRACT(year FROM CURRENT_DATE)) AND (("d"."month_number")::numeric = EXTRACT(month FROM CURRENT_DATE)))
           GROUP BY "a_1"."account_key"
         ), "realised_yearly_pnl" AS (
          SELECT "a_1"."account_key",
-            ("sum"("ft"."net_amount") + COALESCE(( SELECT "sum"("vwp"."position_value") AS "sum"
-                   FROM "public"."view_weekly_position" "vwp"
-                  WHERE (("vwp"."account_key" = "a_1"."account_key") AND ("vwp"."position_status" = 'OPEN'::"text") AND (("vwp"."security_type")::"text" = 'STOCK'::"text") AND (EXTRACT(year FROM "vwp"."first_transaction_date") = EXTRACT(year FROM CURRENT_DATE)) AND ("vwp"."week_start" = ( SELECT "max"("view_weekly_position"."week_start") AS "max"
-                           FROM "public"."view_weekly_position"
-                          WHERE ("view_weekly_position"."account_key" = "a_1"."account_key"))))), (0)::numeric)) AS "yearly_realised_pnl"
-           FROM ((("public"."fact_transaction" "ft"
+            ("sum"(
+                CASE
+                    WHEN (("ds"."security_type")::"text" <> 'STOCK'::"text") THEN "ft"."net_amount"
+                    ELSE (0)::numeric
+                END) + COALESCE("sum"(
+                CASE
+                    WHEN (("ds"."security_type")::"text" = 'STOCK'::"text") THEN "vsp"."realized_profit"
+                    ELSE (0)::numeric
+                END), (0)::numeric)) AS "yearly_realised_pnl"
+           FROM ((((("public"."fact_transaction" "ft"
              JOIN "public"."dim_date" "d" ON (("ft"."date_key" = "d"."date_key")))
              JOIN "public"."dim_account" "a_1" ON (("ft"."account_key" = "a_1"."account_key")))
+             JOIN "public"."dim_security" "ds" ON (("ft"."security_key" = "ds"."security_key")))
              JOIN "public"."dim_transaction_type" "tt_1" ON (("ft"."transaction_type_key" = "tt_1"."transaction_type_key")))
+             LEFT JOIN "public"."view_stock_profit" "vsp" ON ((("ft"."account_key" = "vsp"."account_key") AND ("ft"."transaction_key" = "vsp"."transaction_key"))))
           WHERE ((("tt_1"."action_category")::"text" = ANY ((ARRAY['TRADE'::character varying, 'INCOME'::character varying])::"text"[])) AND (("d"."year")::numeric = EXTRACT(year FROM CURRENT_DATE)))
           GROUP BY "a_1"."account_key"
         ), "total_transfers_calc" AS (
@@ -955,49 +1099,37 @@ ALTER VIEW "public"."view_portfolio_summary" OWNER TO "postgres";
 
 
 CREATE OR REPLACE VIEW "public"."view_profit_distribution" WITH ("security_invoker"='true') AS
- WITH "stock_positions" AS (
-         SELECT "ft_1"."account_key",
-            "s_1"."underlying_symbol",
-            "s_1"."symbol",
-            "sum"("ft_1"."quantity") AS "net_quantity",
-            "sum"("ft_1"."net_amount") AS "total_net_amount"
-           FROM (("public"."fact_transaction" "ft_1"
-             JOIN "public"."dim_security" "s_1" ON (("ft_1"."security_key" = "s_1"."security_key")))
-             JOIN "public"."dim_transaction_type" "tt_1" ON (("ft_1"."transaction_type_key" = "tt_1"."transaction_type_key")))
-          WHERE ((("tt_1"."action_category")::"text" = 'TRADE'::"text") AND (("s_1"."security_type")::"text" = 'STOCK'::"text"))
-          GROUP BY "ft_1"."account_key", "s_1"."underlying_symbol", "s_1"."symbol"
-        )
  SELECT "a"."account_key",
     "s"."underlying_symbol",
     "sum"(
         CASE
             WHEN (("s"."security_type")::"text" <> 'STOCK'::"text") THEN "ft"."net_amount"
-            WHEN ((("s"."security_type")::"text" = 'STOCK'::"text") AND ("sp"."net_quantity" = (0)::numeric)) THEN "ft"."net_amount"
+            WHEN (("s"."security_type")::"text" = 'STOCK'::"text") THEN COALESCE("vsp"."realized_profit", (0)::numeric)
             ELSE (0)::numeric
         END) AS "total_profit",
     ("count"(
         CASE
             WHEN (("s"."security_type")::"text" <> 'STOCK'::"text") THEN 1
-            WHEN ((("s"."security_type")::"text" = 'STOCK'::"text") AND ("sp"."net_quantity" = (0)::numeric)) THEN 1
+            WHEN ((("s"."security_type")::"text" = 'STOCK'::"text") AND ("vsp"."realized_profit" IS NOT NULL) AND ("vsp"."realized_profit" <> (0)::numeric)) THEN 1
             ELSE NULL::integer
         END))::integer AS "trade_count"
    FROM (((("public"."fact_transaction" "ft"
      JOIN "public"."dim_security" "s" ON (("ft"."security_key" = "s"."security_key")))
      JOIN "public"."dim_account" "a" ON (("ft"."account_key" = "a"."account_key")))
      JOIN "public"."dim_transaction_type" "tt" ON (("ft"."transaction_type_key" = "tt"."transaction_type_key")))
-     LEFT JOIN "stock_positions" "sp" ON ((("ft"."account_key" = "sp"."account_key") AND (("s"."symbol")::"text" = ("sp"."symbol")::"text") AND (("s"."security_type")::"text" = 'STOCK'::"text"))))
+     LEFT JOIN "public"."view_stock_profit" "vsp" ON ((("ft"."account_key" = "vsp"."account_key") AND ("ft"."transaction_key" = "vsp"."transaction_key"))))
   WHERE (("tt"."action_category")::"text" = 'TRADE'::"text")
   GROUP BY "a"."account_key", "s"."underlying_symbol"
  HAVING ("sum"(
         CASE
             WHEN (("s"."security_type")::"text" <> 'STOCK'::"text") THEN "ft"."net_amount"
-            WHEN ((("s"."security_type")::"text" = 'STOCK'::"text") AND ("sp"."net_quantity" = (0)::numeric)) THEN "ft"."net_amount"
+            WHEN (("s"."security_type")::"text" = 'STOCK'::"text") THEN COALESCE("vsp"."realized_profit", (0)::numeric)
             ELSE (0)::numeric
         END) <> (0)::numeric)
   ORDER BY ("sum"(
         CASE
             WHEN (("s"."security_type")::"text" <> 'STOCK'::"text") THEN "ft"."net_amount"
-            WHEN ((("s"."security_type")::"text" = 'STOCK'::"text") AND ("sp"."net_quantity" = (0)::numeric)) THEN "ft"."net_amount"
+            WHEN (("s"."security_type")::"text" = 'STOCK'::"text") THEN COALESCE("vsp"."realized_profit", (0)::numeric)
             ELSE (0)::numeric
         END)) DESC;
 
@@ -1014,15 +1146,22 @@ CREATE OR REPLACE VIEW "public"."view_weekly_return" WITH ("security_invoker"='t
                     WHEN (("tt"."action_category")::"text" = 'TRANSFER'::"text") THEN "ft"."net_amount"
                     ELSE (0)::numeric
                 END) AS "weekly_transfers",
-            "sum"(
+            ("sum"(
                 CASE
-                    WHEN (("tt"."action_category")::"text" <> 'TRANSFER'::"text") THEN "ft"."net_amount"
+                    WHEN ((("tt"."action_category")::"text" = 'TRADE'::"text") AND (("ds"."security_type")::"text" <> 'STOCK'::"text")) THEN "ft"."net_amount"
+                    WHEN (("tt"."action_category")::"text" = 'INCOME'::"text") THEN "ft"."net_amount"
                     ELSE (0)::numeric
-                END) AS "weekly_gains"
-           FROM ((("public"."fact_transaction" "ft"
+                END) + COALESCE("sum"(
+                CASE
+                    WHEN ((("tt"."action_category")::"text" = 'TRADE'::"text") AND (("ds"."security_type")::"text" = 'STOCK'::"text")) THEN "vsp"."realized_profit"
+                    ELSE (0)::numeric
+                END), (0)::numeric)) AS "weekly_gains"
+           FROM ((((("public"."fact_transaction" "ft"
              JOIN "public"."dim_date" "d" ON (("ft"."date_key" = "d"."date_key")))
              JOIN "public"."dim_account" "a" ON (("ft"."account_key" = "a"."account_key")))
+             LEFT JOIN "public"."dim_security" "ds" ON (("ft"."security_key" = "ds"."security_key")))
              JOIN "public"."dim_transaction_type" "tt" ON (("ft"."transaction_type_key" = "tt"."transaction_type_key")))
+             LEFT JOIN "public"."view_stock_profit" "vsp" ON ((("ft"."account_key" = "vsp"."account_key") AND ("ft"."transaction_key" = "vsp"."transaction_key"))))
           WHERE ("d"."full_date" <= CURRENT_DATE)
           GROUP BY "a"."account_key", "d"."week_starting_date"
         ), "portfolio_with_transfers" AS (
@@ -1050,11 +1189,12 @@ CREATE OR REPLACE VIEW "public"."view_weekly_return" WITH ("security_invoker"='t
     "cumulative_transfers",
     "weekly_return_absolute",
         CASE
-            WHEN ("prev_week_portfolio_value" > (0)::numeric) THEN (((("cumulative_portfolio_value" - "weekly_transfers") - "prev_week_portfolio_value") / "prev_week_portfolio_value") * (100)::numeric)
+            WHEN ("prev_week_portfolio_value" > (0)::numeric) THEN (((("cumulative_portfolio_value" - "weekly_transfers") - "prev_week_portfolio_value") / ("prev_week_portfolio_value" + ("weekly_transfers" / (2)::numeric))) * (100)::numeric)
             WHEN (("prev_week_portfolio_value" IS NULL) AND ("cumulative_transfers" > (0)::numeric)) THEN (("weekly_return_absolute" / "cumulative_transfers") * (100)::numeric)
             ELSE NULL::numeric
         END AS "weekly_return_percent"
    FROM "returns_calculation"
+  WHERE ("week_start" <= CURRENT_DATE)
   ORDER BY "account_key", "week_start";
 
 
@@ -2554,39 +2694,237 @@ ALTER TABLE "public"."fact_stock_prices" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."fact_transaction" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."rtm_sync_progress" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."stg_transaction" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "users_own_account_tokens" ON "public"."dim_account_access_token" TO "authenticated" USING (("account_key" IN ( SELECT "dim_account"."account_key"
-   FROM "public"."dim_account"
-  WHERE ("dim_account"."user_id" = ("current_setting"('app.current_user_id'::"text"))::integer))));
+CREATE POLICY "users_own_account_tokens" ON "public"."dim_account_access_token" TO "authenticated" USING (("account_key" IN ( SELECT "da"."account_key"
+   FROM ("public"."dim_account" "da"
+     JOIN "public"."dim_user" "du" ON (("da"."user_id" = "du"."id")))
+  WHERE ("du"."auth_user_id" = "auth"."uid"()))));
 
 
 
-CREATE POLICY "users_own_accounts" ON "public"."dim_account" TO "authenticated" USING (("user_id" = ("current_setting"('app.current_user_id'::"text"))::integer));
+CREATE POLICY "users_own_accounts" ON "public"."dim_account" TO "authenticated" USING (("user_id" IN ( SELECT "dim_user"."id"
+   FROM "public"."dim_user"
+  WHERE ("dim_user"."auth_user_id" = "auth"."uid"()))));
 
 
 
-CREATE POLICY "users_own_broker_accounts" ON "public"."dim_broker_account" TO "authenticated" USING (("account_key" IN ( SELECT "dim_account"."account_key"
-   FROM "public"."dim_account"
-  WHERE ("dim_account"."user_id" = ("current_setting"('app.current_user_id'::"text"))::integer))));
+CREATE POLICY "users_own_broker_accounts" ON "public"."dim_broker_account" TO "authenticated" USING (("account_key" IN ( SELECT "da"."account_key"
+   FROM ("public"."dim_account" "da"
+     JOIN "public"."dim_user" "du" ON (("da"."user_id" = "du"."id")))
+  WHERE ("du"."auth_user_id" = "auth"."uid"()))));
 
 
 
-CREATE POLICY "users_own_data" ON "public"."dim_user" TO "authenticated" USING (("id" = ("current_setting"('app.current_user_id'::"text"))::integer));
+CREATE POLICY "users_own_data" ON "public"."dim_user" TO "authenticated" USING (("auth_user_id" = "auth"."uid"()));
 
 
 
-CREATE POLICY "users_own_staging_transactions" ON "public"."stg_transaction" TO "authenticated" USING (("account_key" IN ( SELECT "dim_account"."account_key"
-   FROM "public"."dim_account"
-  WHERE ("dim_account"."user_id" = ("current_setting"('app.current_user_id'::"text"))::integer))));
+CREATE POLICY "users_own_staging_transactions" ON "public"."stg_transaction" TO "authenticated" USING (("account_key" IN ( SELECT "da"."account_key"
+   FROM ("public"."dim_account" "da"
+     JOIN "public"."dim_user" "du" ON (("da"."user_id" = "du"."id")))
+  WHERE ("du"."auth_user_id" = "auth"."uid"()))));
 
 
 
-CREATE POLICY "users_own_transactions" ON "public"."fact_transaction" TO "authenticated" USING (("account_key" IN ( SELECT "dim_account"."account_key"
-   FROM "public"."dim_account"
-  WHERE ("dim_account"."user_id" = ("current_setting"('app.current_user_id'::"text"))::integer))));
+CREATE POLICY "users_own_sync_progress" ON "public"."rtm_sync_progress" TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") IS NOT NULL)) WITH CHECK (("account_key" IN ( SELECT "da"."account_key"
+   FROM ("public"."dim_account" "da"
+     JOIN "public"."dim_user" "du" ON (("da"."user_id" = "du"."id")))
+  WHERE ("du"."auth_user_id" = "auth"."uid"()))));
 
+
+
+CREATE POLICY "users_own_transactions" ON "public"."fact_transaction" TO "authenticated" USING (("account_key" IN ( SELECT "da"."account_key"
+   FROM ("public"."dim_account" "da"
+     JOIN "public"."dim_user" "du" ON (("da"."user_id" = "du"."id")))
+  WHERE ("du"."auth_user_id" = "auth"."uid"()))));
+
+
+
+ALTER TABLE "stripe"."active_entitlements" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "authenticated_full_access_active_entitlements" ON "stripe"."active_entitlements" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_charges" ON "stripe"."charges" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_checkout_session_line_items" ON "stripe"."checkout_session_line_items" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_checkout_sessions" ON "stripe"."checkout_sessions" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_coupons" ON "stripe"."coupons" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_credit_notes" ON "stripe"."credit_notes" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_customers" ON "stripe"."customers" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_disputes" ON "stripe"."disputes" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_early_fraud_warnings" ON "stripe"."early_fraud_warnings" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_events" ON "stripe"."events" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_features" ON "stripe"."features" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_invoices" ON "stripe"."invoices" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_migrations" ON "stripe"."migrations" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_payment_intents" ON "stripe"."payment_intents" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_payment_methods" ON "stripe"."payment_methods" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_payouts" ON "stripe"."payouts" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_plans" ON "stripe"."plans" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_prices" ON "stripe"."prices" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_products" ON "stripe"."products" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_refunds" ON "stripe"."refunds" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_reviews" ON "stripe"."reviews" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_setup_intents" ON "stripe"."setup_intents" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_subscription_items" ON "stripe"."subscription_items" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_subscription_schedules" ON "stripe"."subscription_schedules" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_subscriptions" ON "stripe"."subscriptions" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "authenticated_full_access_tax_ids" ON "stripe"."tax_ids" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+ALTER TABLE "stripe"."charges" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."checkout_session_line_items" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."checkout_sessions" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."coupons" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."credit_notes" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."customers" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."disputes" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."early_fraud_warnings" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."events" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."features" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."invoices" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."migrations" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."payment_intents" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."payment_methods" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."payouts" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."plans" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."prices" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."products" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."refunds" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."reviews" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."setup_intents" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."subscription_items" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."subscription_schedules" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."subscriptions" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "stripe"."tax_ids" ENABLE ROW LEVEL SECURITY;
 
 
 
@@ -2939,6 +3277,12 @@ GRANT ALL ON SEQUENCE "public"."rtm_sync_progress_id_seq" TO "service_role";
 GRANT ALL ON SEQUENCE "public"."users_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "public"."users_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "public"."users_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."view_stock_profit" TO "anon";
+GRANT ALL ON TABLE "public"."view_stock_profit" TO "authenticated";
+GRANT ALL ON TABLE "public"."view_stock_profit" TO "service_role";
 
 
 
