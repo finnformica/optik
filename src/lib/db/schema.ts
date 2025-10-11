@@ -134,7 +134,9 @@ export const dimUser = pgTable(
     roleOverride: varchar("role_override", { length: 20 }), // basic, pro, admin - manual override
 
     // Onboarding tracking
-    onboardingCompleted: boolean("onboarding_completed").default(false),
+    onboardingCompleted: boolean("onboarding_completed")
+      .default(false)
+      .notNull(),
 
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
