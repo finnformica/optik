@@ -126,26 +126,29 @@ export function TransactionHeader({
     }
   };
 
-  const getActionIcon = (action: "sync" | "import" | "manual") => {
-    switch (action) {
-      case "sync":
-        return <RefreshCw className="h-4 w-4" />;
-      case "import":
-        return <Upload className="h-4 w-4" />;
-      case "manual":
-        return <Plus className="h-4 w-4" />;
-    }
-  };
+  const actionOptions = [
+    {
+      key: "sync" as const,
+      label: "Sync Data",
+      icon: <RefreshCw className="h-4 w-4" />,
+      loadingText: "Syncing...",
+    },
+    {
+      key: "import" as const,
+      label: "Import CSV",
+      icon: <Upload className="h-4 w-4" />,
+      loadingText: "Importing...",
+    },
+    {
+      key: "manual" as const,
+      label: "Manual Entry",
+      icon: <Plus className="h-4 w-4" />,
+      loadingText: "Processing...",
+    },
+  ];
 
-  const getActionLabel = (action: "sync" | "import" | "manual") => {
-    switch (action) {
-      case "sync":
-        return "Sync Data";
-      case "import":
-        return "Import CSV";
-      case "manual":
-        return "Manual Entry";
-    }
+  const getActionOption = (action: "sync" | "import" | "manual") => {
+    return actionOptions.find(option => option.key === action)!;
   };
 
   // Handle click outside to close dropdown
@@ -231,14 +234,12 @@ export function TransactionHeader({
                 {isProcessing ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    {selectedAction === "sync" && "Syncing..."}
-                    {selectedAction === "import" && "Importing..."}
-                    {selectedAction === "manual" && "Processing..."}
+                    {getActionOption(selectedAction).loadingText}
                   </>
                 ) : (
                   <>
-                    {getActionIcon(selectedAction)}
-                    {getActionLabel(selectedAction)}
+                    {getActionOption(selectedAction).icon}
+                    {getActionOption(selectedAction).label}
                   </>
                 )}
               </Button>
@@ -254,27 +255,16 @@ export function TransactionHeader({
             {showDropdown && (
               <div className="absolute top-full right-0 z-10 mt-1 w-48 rounded-md border border-gray-600 bg-gray-800 shadow-lg">
                 <div className="py-1">
-                  <button
-                    onClick={() => handleActionSelect("sync")}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-white transition-colors hover:bg-gray-700"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Sync Data
-                  </button>
-                  <button
-                    onClick={() => handleActionSelect("import")}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-white transition-colors hover:bg-gray-700"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Import CSV
-                  </button>
-                  <button
-                    onClick={() => handleActionSelect("manual")}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-white transition-colors hover:bg-gray-700"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Manual Entry
-                  </button>
+                  {actionOptions.map((option) => (
+                    <button
+                      key={option.key}
+                      onClick={() => handleActionSelect(option.key)}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-white transition-colors hover:bg-gray-700"
+                    >
+                      {option.icon}
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
