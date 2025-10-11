@@ -6,6 +6,7 @@ import { getAccountKey } from "@/lib/supabase/server";
 import { updateSyncProgress } from "@/lib/sync-progress";
 import { BrokerCode } from "@/types/broker";
 import { processSchwabTransactions, SchwabActivity } from "./schwab";
+import { processCsvTransactions } from "./csv-transactions";
 
 /*
  * Insert API data in raw transactions table
@@ -38,14 +39,15 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
   return formattedData.length;
 }
 
-// Updated helper to group pending transactions by broker
-async function getPendingTransactionIdsByBroker(batchSize: number) {
+// Updated helper to group pending transactions by broker and data source
+async function getPendingTransactionIdsByBrokerAndSource(batchSize: number) {
   const accountKey = await getAccountKey();
 
   const pendingTransactions = await db
     .select({
       id: stgTransaction.id,
       brokerCode: stgTransaction.brokerCode,
+      dataSource: stgTransaction.dataSource,
     })
     .from(stgTransaction)
     .where(
@@ -54,30 +56,31 @@ async function getPendingTransactionIdsByBroker(batchSize: number) {
         inArray(stgTransaction.status, ["PENDING", "FAILED"]),
       ),
     )
-    .orderBy(stgTransaction.brokerCode, stgTransaction.id);
+    .orderBy(stgTransaction.brokerCode, stgTransaction.dataSource, stgTransaction.id);
 
-  // Group by broker and split into batches
-  const brokerBatches: Record<string, number[][]> = {};
+  // Group by broker+dataSource and split into batches
+  const brokerSourceBatches: Record<string, number[][]> = {};
 
   for (const tx of pendingTransactions) {
-    if (!brokerBatches[tx.brokerCode]) {
-      brokerBatches[tx.brokerCode] = [];
+    const key = `${tx.brokerCode}-${tx.dataSource}`;
+    if (!brokerSourceBatches[key]) {
+      brokerSourceBatches[key] = [];
     }
 
-    // Get the current batch for this broker
+    // Get the current batch for this broker+source combination
     let currentBatch =
-      brokerBatches[tx.brokerCode][brokerBatches[tx.brokerCode].length - 1];
+      brokerSourceBatches[key][brokerSourceBatches[key].length - 1];
 
     // If no batch exists or current batch is full, create new batch
     if (!currentBatch || currentBatch.length >= batchSize) {
       currentBatch = [];
-      brokerBatches[tx.brokerCode].push(currentBatch);
+      brokerSourceBatches[key].push(currentBatch);
     }
 
     currentBatch.push(tx.id);
   }
 
-  return brokerBatches;
+  return brokerSourceBatches;
 }
 
 async function getPendingTransactionCount() {
@@ -102,15 +105,18 @@ export async function processRawTransactionsWithProgress(batchSize: number) {
   let totalFailed = 0;
   let allErrors: any[] = [];
 
-  const brokerBatches = await getPendingTransactionIdsByBroker(batchSize);
+  const brokerSourceBatches = await getPendingTransactionIdsByBrokerAndSource(batchSize);
   const pendingTransactionCount = await getPendingTransactionCount();
 
-  // Process each broker's batches
-  for (const [brokerCode, batches] of Object.entries(brokerBatches)) {
+  // Process each broker+source combination's batches
+  for (const [brokerSourceKey, batches] of Object.entries(brokerSourceBatches)) {
+    const [brokerCode, dataSource] = brokerSourceKey.split('-');
+
     for (const batchIds of batches) {
-      // Call broker-specific processing function
+      // Call broker+source-specific processing function
       const batchResult = await processBrokerTransactionsBatch(
         brokerCode,
+        dataSource,
         batchIds,
       );
 
@@ -134,15 +140,22 @@ export async function processRawTransactionsWithProgress(batchSize: number) {
   };
 }
 
-// Broker dispatcher function
+// Broker+DataSource dispatcher function
 async function processBrokerTransactionsBatch(
   brokerCode: BrokerCode,
+  dataSource: string,
   stgTransactionIds: number[],
 ) {
+  // For CSV imports, use universal CSV processor regardless of broker
+  if (dataSource === "csv") {
+    return await processCsvTransactions(stgTransactionIds);
+  }
+
+  // For API data, use broker-specific processors
   switch (brokerCode) {
     case "schwab":
       return await processSchwabTransactions(stgTransactionIds);
     default:
-      throw new Error(`Unsupported broker: ${brokerCode}`);
+      throw new Error(`Unsupported broker for API data: ${brokerCode}`);
   }
 }

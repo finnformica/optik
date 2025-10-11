@@ -1,14 +1,15 @@
+import { and, eq, inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import Papa from "papaparse";
-import { and, eq, inArray } from "drizzle-orm";
 
-import { getAccountKey } from "@/lib/supabase/server";
-import { db } from "@/lib/db/config";
-import { stgTransaction } from "@/lib/db/schema";
 import {
   detectBrokerFromCsv,
   transformCsvToStandardized,
 } from "@/lib/csv/broker-detection";
+import { db } from "@/lib/db/config";
+import { processRawTransactionsWithProgress } from "@/lib/db/etl/queries";
+import { stgTransaction } from "@/lib/db/schema";
+import { getAccountKey } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json(
         { success: false, message: "No file provided" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (!file.name.toLowerCase().endsWith(".csv")) {
       return NextResponse.json(
         { success: false, message: "File must be a CSV" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -46,9 +47,9 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           message: "CSV parsing failed",
-          errors: parseResult.errors.map(e => e.message),
+          errors: parseResult.errors.map((e) => e.message),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -61,12 +62,15 @@ export async function POST(request: NextRequest) {
           message: "Unable to detect broker type from CSV headers",
           detectedHeaders: parseResult.meta?.fields || [],
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Transform data to standardized format
-    const transformedData = transformCsvToStandardized(parseResult, brokerSchema);
+    const transformedData = transformCsvToStandardized(
+      parseResult,
+      brokerSchema,
+    );
     const brokerCode = brokerSchema.type;
 
     if (transformedData.length === 0) {
@@ -75,12 +79,12 @@ export async function POST(request: NextRequest) {
           success: false,
           message: "No valid transactions found in CSV",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Check for existing transactions to prevent duplicates
-    const transactionIds = transformedData.map(t => t.brokerTransactionId);
+    const transactionIds = transformedData.map((t) => t.brokerTransactionId);
     const existingTransactions = await db
       .select({ brokerTransactionId: stgTransaction.brokerTransactionId })
       .from(stgTransaction)
@@ -88,17 +92,17 @@ export async function POST(request: NextRequest) {
         and(
           eq(stgTransaction.accountKey, accountKey),
           eq(stgTransaction.brokerCode, brokerCode),
-          inArray(stgTransaction.brokerTransactionId, transactionIds)
-        )
+          inArray(stgTransaction.brokerTransactionId, transactionIds),
+        ),
       );
 
     const existingIds = new Set(
-      existingTransactions.map(t => t.brokerTransactionId)
+      existingTransactions.map((t) => t.brokerTransactionId),
     );
 
     // Filter out existing transactions
     const newTransactions = transformedData.filter(
-      t => !existingIds.has(t.brokerTransactionId)
+      (t) => !existingIds.has(t.brokerTransactionId),
     );
 
     if (newTransactions.length === 0) {
@@ -110,12 +114,12 @@ export async function POST(request: NextRequest) {
           newTransactions: 0,
           duplicates: transformedData.length,
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
     // Insert new transactions into staging table
-    const stagingRecords = newTransactions.map(transaction => ({
+    const stagingRecords = newTransactions.map((transaction) => ({
       accountKey,
       brokerCode,
       brokerTransactionId: transaction.brokerTransactionId,
@@ -125,9 +129,31 @@ export async function POST(request: NextRequest) {
       status: "PENDING" as const,
     }));
 
-    await db.transaction(async (tx) => {
-      await tx.insert(stgTransaction).values(stagingRecords);
+    // Insert transactions and get the inserted IDs
+    const insertedRecords = await db.transaction(async (tx) => {
+      return await tx
+        .insert(stgTransaction)
+        .values(stagingRecords)
+        .returning({ id: stgTransaction.id });
     });
+
+    // Process the newly inserted transactions immediately
+    const insertedIds = insertedRecords.map((record) => record.id);
+    let processingResults: {
+      processed: number;
+      failed: number;
+      errors: any[];
+    } = { processed: 0, failed: 0, errors: [] };
+    let processingError: string | null = null;
+
+    if (insertedIds.length > 0) {
+      try {
+        processingResults = await processRawTransactionsWithProgress(10); // Use smaller batch size for CSV
+      } catch (error) {
+        console.error("Error processing CSV transactions:", error);
+        // Continue with response to show user what happened
+      }
+    }
 
     return NextResponse.json(
       {
@@ -137,8 +163,13 @@ export async function POST(request: NextRequest) {
         totalRows: transformedData.length,
         newTransactions: newTransactions.length,
         duplicates: transformedData.length - newTransactions.length,
+        processing: {
+          processed: processingResults.processed,
+          failed: processingResults.failed,
+          errors: processingResults.errors,
+        },
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("CSV import error:", error);
@@ -148,7 +179,7 @@ export async function POST(request: NextRequest) {
         message: "Error processing CSV import",
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

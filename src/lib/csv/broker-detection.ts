@@ -1,6 +1,10 @@
 import { BrokerCode } from "@/types/broker";
+import {
+  BrokerColumnMapping,
+  BrokerValueTransformers,
+  StandardizedTransaction,
+} from "@/types/import-csv";
 import { ParseResult } from "papaparse";
-import { BrokerColumnMapping, BrokerValueTransformers, StandardizedTransaction } from "@/types/import-csv";
 
 export interface BrokerSchema {
   type: BrokerCode;
@@ -13,7 +17,7 @@ export interface BrokerSchema {
 const BROKER_SCHEMAS: BrokerSchema[] = [
   {
     type: "ibkr",
-    name: "Interactive Brokers",
+    name: "Interactive Brokers - Trades",
     requiredHeaders: [
       "Strike",
       "Expiry",
@@ -63,8 +67,36 @@ const BROKER_SCHEMAS: BrokerSchema[] = [
         const fee = parseFloat(value);
         return Math.abs(fee).toString();
       },
-      actionCode: (value: string) => {
-        return value.toUpperCase(); // Ensure BUY/SELL are uppercase
+      actionCode: (value: string, row: any) => {
+        const action = value.toUpperCase();
+        const strike = row.Strike;
+        const expiry = row.Expiry;
+        const putCall = row["Put/Call"];
+        const quantity = parseFloat(row.Quantity) || 0;
+
+        // If it's an option (has strike, expiry, and put/call)
+        if (
+          strike &&
+          strike.trim() !== "" &&
+          expiry &&
+          expiry.trim() !== "" &&
+          putCall &&
+          putCall.trim() !== ""
+        ) {
+          // For options, determine opening vs closing based on quantity sign and action
+          if (action === "BUY") {
+            // Positive quantity + BUY = buy_to_close (buying back a short position)
+            // Negative quantity + BUY = buy_to_open (opening a long position)
+            return quantity > 0 ? "buy_to_close" : "buy_to_open";
+          } else if (action === "SELL") {
+            // Positive quantity + SELL = sell_to_close (closing a long position)
+            // Negative quantity + SELL = sell_to_open (opening a short position)
+            return quantity > 0 ? "sell_to_close" : "sell_to_open";
+          }
+        }
+
+        // For stocks, use simple buy/sell
+        return action.toLowerCase();
       },
       optionType: (value: string) => {
         if (value === "P") return "PUT";
@@ -73,7 +105,7 @@ const BROKER_SCHEMAS: BrokerSchema[] = [
       },
       securityType: (value: string) => {
         // If Strike, Expiry, and Put/Call are populated, it's an option
-        return (value && value.trim() !== "") ? "OPTION" : "STOCK";
+        return value && value.trim() !== "" ? "OPTION" : "STOCK";
       },
       strikePrice: (value: string) => {
         return value && value.trim() !== "" ? value : undefined;
@@ -86,6 +118,65 @@ const BROKER_SCHEMAS: BrokerSchema[] = [
           throw new Error(`Invalid expiry date format: ${value}`);
         }
         return date;
+      },
+    },
+  },
+  {
+    type: "ibkr",
+    name: "Interactive Brokers - Transfers",
+    requiredHeaders: [
+      "Description",
+      "Date/Time",
+      "Amount",
+      "Type",
+      "Strike",
+      "CurrencyPrimary",
+      "Symbol",
+    ],
+    columnMapping: {
+      brokerTransactionId: "Description", // Will be combined with date for uniqueness
+      quantity: "", // Quantity is zero for transfers
+      grossAmount: "Amount",
+      fees: "", // Fees are zero for transfers
+      netAmount: "Amount",
+      transactionDate: "Date/Time",
+      symbol: "Symbol", // Usually empty for transfers
+      actionCode: "Type", // "Deposits/Withdrawals" or "Broker Interest Received"
+      description: "Description",
+    },
+    valueTransformers: {
+      transactionDate: (value: string) => {
+        // Parse "18/05/2025" format (DD/MM/YYYY)
+        const [day, month, year] = value.split("/");
+        const date = new Date(`${year}-${month}-${day}`);
+        if (isNaN(date.getTime())) {
+          throw new Error(`Invalid date format: ${value}`);
+        }
+        return date;
+      },
+      quantity: (): number => 0,
+      grossAmount: (value: string): number => {
+        // Remove commas and quotes from amount
+        return parseFloat(value.replace(/[,"]/g, ""));
+      },
+      netAmount: (value: string): number => {
+        // Remove commas and quotes from amount
+        return parseFloat(value.replace(/[,"]/g, ""));
+      },
+      fees: (): number => 0,
+      actionCode: (value: string) => {
+        // Map IB transfer types to our action codes
+        switch (value) {
+          case "Deposits/Withdrawals":
+            return "transfer";
+          case "Broker Interest Received":
+            return "interest";
+          default:
+            return "other";
+        }
+      },
+      securityType: () => {
+        return null; // Transfers don't have securities
       },
     },
   },
@@ -157,7 +248,7 @@ export function transformCsvToStandardized(
         : new Date(row[mapping.transactionDate]);
 
       const actionCode = transformers.actionCode
-        ? transformers.actionCode(row[mapping.actionCode])
+        ? transformers.actionCode(row[mapping.actionCode], row)
         : row[mapping.actionCode];
 
       const symbol = row[mapping.symbol];
@@ -166,7 +257,9 @@ export function transformCsvToStandardized(
       const strikeValue = mapping.strikePrice ? row[mapping.strikePrice] : "";
       const securityType = transformers.securityType
         ? transformers.securityType(strikeValue)
-        : (strikeValue && strikeValue.trim() !== "" ? "OPTION" : "STOCK");
+        : strikeValue && strikeValue.trim() !== ""
+          ? "OPTION"
+          : "STOCK";
 
       // Handle underlying symbol
       let underlyingSymbol = symbol;
@@ -180,32 +273,48 @@ export function transformCsvToStandardized(
         ? transformers.fees(row[mapping.fees])
         : row[mapping.fees];
 
+      const quantity = transformers.quantity
+        ? transformers.quantity(row[mapping.quantity])
+        : row[mapping.quantity];
+
       // Handle gross/net amount calculation
-      let grossAmount = row[mapping.grossAmount];
-      let netAmount = row[mapping.netAmount];
+      let grossAmount = transformers.grossAmount
+        ? transformers.grossAmount(row[mapping.grossAmount])
+        : row[mapping.grossAmount];
+      let netAmount = transformers.netAmount
+        ? transformers.netAmount(row[mapping.netAmount])
+        : row[mapping.netAmount];
 
-      if (transformers.grossAmount) {
-        grossAmount = transformers.grossAmount(grossAmount);
+      // Create unique transaction ID for transfers (combine Date + Amount + Type)
+      let transactionId = row[mapping.brokerTransactionId];
+      if (brokerSchema.name.includes("Transfers")) {
+        // For transfers, create ID from Date + Amount + Type for uniqueness
+        const dateStr = transactionDate.toISOString().split("T")[0]; // YYYY-MM-DD
+        const amount = row[mapping.grossAmount].replace(/,/g, ""); // Remove commas
+        const type = row[mapping.actionCode]; // Type field
+        transactionId = `${dateStr}_${amount}_${type}`;
+      } else if (!transactionId || transactionId.trim() === "") {
+        // Fallback for other types
+        transactionId = `${row[mapping.description || "description"] || "transaction"}_${transactionDate.getTime()}`;
       }
 
-      // For IB, NetCash is already net of fees, so calculate gross
-      if (brokerSchema.type === "ibkr") {
-        const netValue = parseFloat(netAmount);
-        const feeValue = parseFloat(fees);
-        // Add fees back to get gross amount
-        grossAmount = (netValue + (netValue > 0 ? feeValue : -feeValue)).toString();
-      }
+      // Handle empty symbol for transfers
+      const finalSymbol = symbol && symbol.trim() !== "" ? symbol : "CASH";
+      const finalUnderlyingSymbol =
+        underlyingSymbol && underlyingSymbol.trim() !== ""
+          ? underlyingSymbol
+          : "CASH";
 
       const standardized: StandardizedTransaction = {
-        brokerTransactionId: row[mapping.brokerTransactionId],
-        quantity: row[mapping.quantity],
+        brokerTransactionId: transactionId,
+        quantity,
         grossAmount,
         fees,
         netAmount,
         transactionDate,
-        symbol,
+        symbol: finalSymbol,
         securityType,
-        underlyingSymbol,
+        underlyingSymbol: finalUnderlyingSymbol,
         actionCode,
         rawData: row,
       };

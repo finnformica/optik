@@ -15,9 +15,9 @@ export interface StandardizedTransaction {
 
   // Security information (for determining securityKey)
   symbol: string;
-  securityType: 'STOCK' | 'OPTION';
+  securityType: "STOCK" | "OPTION" | null;
   underlyingSymbol: string;
-  optionType?: 'PUT' | 'CALL';
+  optionType?: "PUT" | "CALL";
   strikePrice?: string;
   expiryDate?: Date;
 
@@ -56,14 +56,14 @@ export interface BrokerColumnMapping {
 // Value transformation functions
 export interface BrokerValueTransformers {
   transactionDate?: (value: string) => Date;
-  quantity?: (value: string) => string;
-  grossAmount?: (value: string) => string;
-  fees?: (value: string) => string;
-  netAmount?: (value: string) => string;
-  pricePerUnit?: (value: string) => string;
-  strikePrice?: (value: string) => string | undefined;
+  quantity?: (value: string) => string | number;
+  grossAmount?: (value: string) => string | number;
+  fees?: (value: string) => string | number;
+  netAmount?: (value: string) => string | number;
+  pricePerUnit?: (value: string) => string | number;
+  strikePrice?: (value: string) => string | number | undefined;
   expiryDate?: (value: string) => Date | undefined;
-  actionCode?: (value: string) => string;
-  optionType?: (value: string) => 'PUT' | 'CALL';
-  securityType?: (value: string) => 'STOCK' | 'OPTION';
+  actionCode?: (value: string, row?: any) => string;
+  optionType?: (value: string) => "PUT" | "CALL";
+  securityType?: (value: string) => "STOCK" | "OPTION" | null;
 }
