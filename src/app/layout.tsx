@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SWRConfig } from "swr";
 
 import { Toaster } from "@/components/ui/sonner";
+import { OnboardingWrapper } from "@/components/onboarding";
 
 import "./globals.css";
 
@@ -54,7 +55,9 @@ export default function RootLayout({
             keepPreviousData: true,
           }}
         >
-          {children}
+          <OnboardingWrapper>
+            {children}
+          </OnboardingWrapper>
         </SWRConfig>
         <Toaster richColors position="bottom-right" />
         <script

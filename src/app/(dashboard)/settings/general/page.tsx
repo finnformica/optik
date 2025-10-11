@@ -2,6 +2,7 @@
 
 import { useUser } from "@/api/user";
 import { updateUser } from "@/app/(auth)/actions";
+import { RestartTourButton } from "@/components/onboarding/restart-tour-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -130,6 +131,23 @@ export default function GeneralPage() {
               )}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-[#1a2236] border-gray-800 mt-6">
+        <CardHeader>
+          <CardTitle className="text-white">Help & Support</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-white mb-2 block">Application Tour</Label>
+              <p className="text-gray-400 text-sm mb-3">
+                Take a guided tour of Optik Trading to learn about key features and how to get started.
+              </p>
+              <RestartTourButton />
+            </div>
+          </div>
         </CardContent>
       </Card>
     </section>

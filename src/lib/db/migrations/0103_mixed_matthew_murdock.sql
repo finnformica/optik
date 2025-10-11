@@ -1,0 +1,1 @@
+ALTER TABLE "dim_user" ADD COLUMN "onboarding_completed" boolean DEFAULT false;

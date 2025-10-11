@@ -23,7 +23,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-3 md:space-y-6">
-      <SummaryStats portfolioSummary={portfolioSummary} />
+      <div data-tour="summary-stats">
+        <SummaryStats portfolioSummary={portfolioSummary} />
+      </div>
 
       <div className="grid grid-cols-1 gap-3 md:gap-6 xl:grid-cols-2">
         <WeeklyReturnsChart weeklyData={weeklyReturnsData} />

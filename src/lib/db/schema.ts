@@ -133,6 +133,9 @@ export const dimUser = pgTable(
     stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
     roleOverride: varchar("role_override", { length: 20 }), // basic, pro, admin - manual override
 
+    // Onboarding tracking
+    onboardingCompleted: boolean("onboarding_completed").default(false),
+
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     deletedAt: timestamp("deleted_at"),

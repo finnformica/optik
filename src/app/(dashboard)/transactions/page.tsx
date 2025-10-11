@@ -259,7 +259,7 @@ export default function TransactionsPage() {
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead>
+            <thead data-tour="transactions-table">
               <tr className="border-b border-gray-700">
                 <th className="text-left p-3 text-gray-300 font-medium">
                   <button
