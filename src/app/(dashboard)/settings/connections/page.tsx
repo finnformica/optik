@@ -109,7 +109,7 @@ export default async function ConnectionsPage({
 
       <div className="space-y-6">
         {/* Schwab Connection */}
-        <Card className="bg-[#1a2236] border-gray-800">
+        <Card data-tour="schwab-connection" className="bg-[#1a2236] border-gray-800">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -160,6 +160,7 @@ export default async function ConnectionsPage({
                 ) : (
                   <form action={connectSchwab}>
                     <Button
+                      data-tour="connect-schwab-button"
                       type="submit"
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >

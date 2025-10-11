@@ -225,7 +225,7 @@ export function TransactionHeader({
 
         <div className="flex flex-col items-end gap-2">
           <div className="relative" ref={dropdownRef}>
-            <div className="flex">
+            <div className="flex" data-tour="sync-button">
               <Button
                 onClick={() => handleActionSelect(selectedAction)}
                 disabled={isProcessing}
@@ -244,6 +244,7 @@ export function TransactionHeader({
                 )}
               </Button>
               <Button
+                data-tour="import-dropdown"
                 onClick={() => setShowDropdown(!showDropdown)}
                 disabled={isProcessing}
                 className="rounded-l-none bg-blue-600 px-2 hover:bg-blue-700"
