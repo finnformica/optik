@@ -11,7 +11,7 @@ import {
 } from "@/lib/auth/middleware";
 import { db } from "@/lib/db/config";
 import { dimAccount, dimUser, type NewDimUser } from "@/lib/db/schema";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { paths } from "@/lib/utils";
 
 const signInSchema = z.object({
@@ -320,3 +320,55 @@ export const updateUser = validatedActionWithUser(
     };
   },
 );
+
+// Onboarding server actions
+
+export async function getOnboardingCompletionStatus(): Promise<{
+  completed: boolean;
+  error?: string;
+}> {
+  try {
+    // Get authenticated Supabase user
+    const supabaseUser = await getAuthenticatedUser();
+
+    // Get user details from our database
+    const [user] = await db
+      .select({ onboardingCompleted: dimUser.onboardingCompleted })
+      .from(dimUser)
+      .where(eq(dimUser.email, supabaseUser.email!))
+      .limit(1);
+
+    if (!user) {
+      return { completed: false, error: "User not found" };
+    }
+
+    return { completed: user.onboardingCompleted ?? false };
+  } catch (error) {
+    console.error("Error getting onboarding completion status:", error);
+    return { completed: false, error: "Failed to get onboarding status" };
+  }
+}
+
+export async function markOnboardingComplete(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    // Get authenticated Supabase user
+    const supabaseUser = await getAuthenticatedUser();
+
+    // Update user in our database
+    await db
+      .update(dimUser)
+      .set({
+        onboardingCompleted: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(dimUser.email, supabaseUser.email!));
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error marking onboarding complete:", error);
+    return { success: false, error: "Failed to mark onboarding complete" };
+  }
+}

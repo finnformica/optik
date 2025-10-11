@@ -17,7 +17,7 @@ export function OnboardingTour({
   const [run, setRun] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { currentStepIndex, setCurrentStepIndex, isOnboardingInProgress } =
+  const { currentStepIndex, setCurrentStepIndex, isOnboardingInProgress, isLoading } =
     useOnboarding();
 
   const steps: Step[] = [
@@ -259,8 +259,8 @@ export function OnboardingTour({
     }
   }, [pathname, isOnboardingInProgress, shouldShow]);
 
-  // Don't render if we shouldn't show the tour
-  if (!shouldShow) {
+  // Don't render if we shouldn't show the tour or if still loading
+  if (!shouldShow || isLoading) {
     return null;
   }
 
