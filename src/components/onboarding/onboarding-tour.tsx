@@ -17,8 +17,12 @@ export function OnboardingTour({
   const [run, setRun] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { currentStepIndex, setCurrentStepIndex, isOnboardingInProgress, isLoading } =
-    useOnboarding();
+  const {
+    currentStepIndex,
+    setCurrentStepIndex,
+    isOnboardingInProgress,
+    isLoading,
+  } = useOnboarding();
 
   const steps: Step[] = [
     // Dashboard Overview
@@ -167,7 +171,7 @@ export function OnboardingTour({
         <div>
           <h2 className="mb-2 text-xl font-semibold">You're All Set! 🚀</h2>
           <p className="mb-3">You now know how to:</p>
-          <ul className="mb-3 list-inside list-disc space-y-1">
+          <ul className="mx-auto my-6 w-fit list-inside list-disc space-y-1 text-left">
             <li>Navigate the dashboard</li>
             <li>Connect your Schwab account</li>
             <li>Sync and import your trading data</li>
