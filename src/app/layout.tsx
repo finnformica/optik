@@ -57,6 +57,12 @@ export default function RootLayout({
           {children}
         </SWRConfig>
         <Toaster richColors position="bottom-right" />
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `window.$sleek=[];window.SLEEK_PRODUCT_ID=432217002;(function(){d=document;s=d.createElement("script");s.src="https://client.sleekplan.com/sdk/e.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();`
+          }}
+        />
       </body>
     </html>
   );
