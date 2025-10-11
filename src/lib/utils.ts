@@ -18,7 +18,10 @@ export const endpoints = {
     accountLimitCheck: "/api/user/account-limit-check",
     accountKey: "/api/user/account-key",
   },
-  data: "/api/data",
+  data: {
+    sync: "/api/data/sync",
+    import: "/api/data/import",
+  },
   accounts: "/api/accounts",
   transactions: "/api/transactions",
   auth: { schwab: { callback: "/api/auth/schwab/callback" } },

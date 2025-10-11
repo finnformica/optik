@@ -1,0 +1,1 @@
+ALTER TABLE "stg_transaction" ADD COLUMN "data_source" varchar(10) DEFAULT 'api' NOT NULL;

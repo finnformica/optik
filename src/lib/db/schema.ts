@@ -74,6 +74,9 @@ export const stgTransaction = pgTable(
       length: 50,
     }).notNull(),
 
+    // Data source tracking
+    dataSource: varchar("data_source", { length: 10 }).notNull().default("api"), // "api", "csv", "manual"
+
     // Raw broker data
     rawData: jsonb("raw_data").notNull(),
 
@@ -1128,9 +1131,9 @@ export const viewWeeklyReturn = pgView("view_weekly_return", {
     -- Weekly return calculation: handle first week properly
     CASE
       WHEN prev_week_portfolio_value > 0 THEN
-        -- Normal case: previous week portfolio value exists
+        -- Normal case: previous week portfolio value exists, adjusted for mid-week transfers
         ((cumulative_portfolio_value - weekly_transfers - prev_week_portfolio_value)
-          / prev_week_portfolio_value) * 100
+          / (prev_week_portfolio_value + (weekly_transfers / 2))) * 100
       WHEN prev_week_portfolio_value IS NULL AND cumulative_transfers > 0 THEN
         -- First week case: use weekly gains relative to transfers
         (weekly_return_absolute / cumulative_transfers) * 100

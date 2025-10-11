@@ -701,6 +701,27 @@
       "when": 1759866910822,
       "tag": "0099_exotic_natasha_romanoff",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1759868282462,
+      "tag": "0100_new_exodus",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1759906141560,
+      "tag": "0101_add-ibkr-broker",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1760166746017,
+      "tag": "0102_conscious_robin_chapel",
+      "breakpoints": true
     }
   ]
 }
