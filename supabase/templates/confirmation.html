@@ -1,7 +1,10 @@
 {
     "transactionalId": "cmgnpy78qupxdz50iod3135ug",
     "email": "{{ .Email }}",
+    "addToAudience": true,
     "dataVariables": {
-      "confirmationUrl": "{{ .ConfirmationURL }}"
+      "confirmationUrl": "{{ .ConfirmationURL }}",
+      "firstName": "{{ .Data.first_name }}",
+      "lastName": "{{ .Data.last_name }}"
     }
   }
