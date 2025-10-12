@@ -115,6 +115,10 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
     password,
     options: {
       emailRedirectTo: `${process.env.BASE_URL}${paths.auth.signIn}?verified=true`,
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+      },
     },
   });
 
