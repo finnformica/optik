@@ -2,14 +2,40 @@ import { endpoints } from "@/lib/utils";
 import useSWR from "swr";
 import { fetcher, postFetcher } from "./fetchers";
 
-export function useTransactions() {
+interface TransactionFilters {
+  page?: number;
+  limit?: number;
+  search?: string;
+  action?: string;
+  broker?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+function buildTransactionUrl(filters: TransactionFilters = {}) {
+  const url = new URL(endpoints.transactions, window.location.origin);
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, value.toString());
+    }
+  });
+
+  return url.toString();
+}
+
+export function useTransactions(filters: TransactionFilters = {}) {
+  const url = buildTransactionUrl(filters);
+
   const { data, error, isLoading, mutate } = useSWR(
-    endpoints.transactions,
+    url,
     fetcher
   );
 
   return {
     transactions: data?.transactions || [],
+    pagination: data?.pagination || null,
+    filters: data?.filters || null,
     error,
     isLoading,
     mutate,
