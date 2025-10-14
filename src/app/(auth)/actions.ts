@@ -23,59 +23,64 @@ const resendConfirmationSchema = z.object({
   email: z.email("Invalid email address"),
 });
 
-export const resendConfirmation = validatedAction(resendConfirmationSchema, async (data) => {
-  const { email } = data;
+export const resendConfirmation = validatedAction(
+  resendConfirmationSchema,
+  async (data) => {
+    const { email } = data;
 
-  // First, check if user exists in our database
-  const [existingUser] = await db
-    .select()
-    .from(dimUser)
-    .where(eq(dimUser.email, email))
-    .limit(1);
+    // First, check if user exists in our database
+    const [existingUser] = await db
+      .select()
+      .from(dimUser)
+      .where(eq(dimUser.email, email))
+      .limit(1);
 
-  if (!existingUser) {
-    return {
-      error: "No account found with this email address. Please sign up first.",
-      email,
-    };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.resend({
-    type: 'signup',
-    email,
-    options: {
-      emailRedirectTo: `${process.env.BASE_URL}${paths.auth.signIn}?verified=true`,
-    },
-  });
-
-  if (error) {
-    // Handle specific Supabase errors with better messages
-    if (error.message.includes('Email rate limit exceeded')) {
+    if (!existingUser) {
       return {
-        error: "Too many requests. Please wait a few minutes before trying again.",
+        error:
+          "No account found with this email address. Please sign up first.",
         email,
       };
     }
 
-    if (error.message.includes('User already confirmed')) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: `${process.env.BASE_URL}${paths.auth.signIn}?verified=true`,
+      },
+    });
+
+    if (error) {
+      // Handle specific Supabase errors with better messages
+      if (error.message.includes("Email rate limit exceeded")) {
+        return {
+          error:
+            "Too many requests. Please wait a few minutes before trying again.",
+          email,
+        };
+      }
+
+      if (error.message.includes("User already confirmed")) {
+        return {
+          error: "This email is already confirmed. You can sign in normally.",
+          email,
+        };
+      }
+
       return {
-        error: "This email is already confirmed. You can sign in normally.",
+        error: error.message,
         email,
       };
     }
 
     return {
-      error: error.message,
+      success: "Confirmation email sent. Please check your email.",
       email,
     };
-  }
-
-  return {
-    success: "Confirmation email sent. Please check your email.",
-    email,
-  };
-});
+  },
+);
 
 export const signIn = validatedAction(signInSchema, async (data) => {
   const { email, password } = data;
@@ -247,6 +252,25 @@ export const signUp = validatedAction(signUpSchema, async (data) => {
 
   redirect(`${paths.auth.signIn}?confirmation=true`);
 });
+
+export async function signInWithGoogle() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${process.env.BASE_URL}/auth/v1/callback`,
+    },
+  });
+
+  if (error) {
+    console.error("Google OAuth error:", error);
+    redirect(`${paths.auth.signIn}?error=oauth_error`);
+  }
+
+  if (data.url) {
+    redirect(data.url);
+  }
+}
 
 export async function signOut() {
   const supabase = await createClient();
