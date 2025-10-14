@@ -23,6 +23,60 @@ const resendConfirmationSchema = z.object({
   email: z.email("Invalid email address"),
 });
 
+export const resendConfirmation = validatedAction(resendConfirmationSchema, async (data) => {
+  const { email } = data;
+
+  // First, check if user exists in our database
+  const [existingUser] = await db
+    .select()
+    .from(dimUser)
+    .where(eq(dimUser.email, email))
+    .limit(1);
+
+  if (!existingUser) {
+    return {
+      error: "No account found with this email address. Please sign up first.",
+      email,
+    };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: {
+      emailRedirectTo: `${process.env.BASE_URL}${paths.auth.signIn}?verified=true`,
+    },
+  });
+
+  if (error) {
+    // Handle specific Supabase errors with better messages
+    if (error.message.includes('Email rate limit exceeded')) {
+      return {
+        error: "Too many requests. Please wait a few minutes before trying again.",
+        email,
+      };
+    }
+
+    if (error.message.includes('User already confirmed')) {
+      return {
+        error: "This email is already confirmed. You can sign in normally.",
+        email,
+      };
+    }
+
+    return {
+      error: error.message,
+      email,
+    };
+  }
+
+  return {
+    success: "Confirmation email sent. Please check your email.",
+    email,
+  };
+});
+
 export const signIn = validatedAction(signInSchema, async (data) => {
   const { email, password } = data;
 
