@@ -23,20 +23,11 @@ export async function GET(request: Request) {
     if (!error && data.user) {
       const user = data.user;
 
-      // Check if user already exists in our database
-      console.log("OAuth user:", {
-        id: user.id,
-        email: user.email,
-        metadata: user.user_metadata,
-      });
-
       const [existingUser] = await db
         .select()
         .from(dimUser)
         .where(eq(dimUser.authUserId, user.id))
         .limit(1);
-
-      console.log("Existing user found:", existingUser);
 
       if (!existingUser) {
         // Create new user record for OAuth sign-up
