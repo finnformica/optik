@@ -1,5 +1,7 @@
 "use client";
 
+import { ResendConfirmationDialog } from "@/components/auth/resend-confirmation-dialog";
+import { Logo } from "@/components/global/logo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { ActionState } from "@/lib/auth/middleware";
 import { paths } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { Logo } from "@/components/global/logo";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useActionState } from "react";
@@ -26,7 +27,7 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
   );
 
   return (
-    <div className="min-h-[100dvh] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-[#111827]">
+    <div className="flex min-h-[100dvh] flex-col justify-center bg-[#111827] px-4 py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <Logo />
@@ -42,7 +43,8 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
         {confirmation === "true" && (
           <Alert variant="info" className="mb-6">
             <AlertDescription>
-              Email confirmation sent. Please check your email to confirm your account.
+              Email confirmation sent. Please check your email to confirm your
+              account.
             </AlertDescription>
           </Alert>
         )}
@@ -76,7 +78,7 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
                     defaultValue={state.firstName}
                     required
                     maxLength={50}
-                    className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-500 text-white bg-[#1a2236] focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    className="relative block w-full appearance-none rounded-full border border-gray-600 bg-[#1a2236] px-3 py-2 text-white placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:ring-blue-500 focus:outline-none sm:text-sm"
                     placeholder="Enter your first name"
                   />
                 </div>
@@ -98,7 +100,7 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
                     defaultValue={state.lastName}
                     required
                     maxLength={50}
-                    className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-500 text-white bg-[#1a2236] focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    className="relative block w-full appearance-none rounded-full border border-gray-600 bg-[#1a2236] px-3 py-2 text-white placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:ring-blue-500 focus:outline-none sm:text-sm"
                     placeholder="Enter your last name"
                   />
                 </div>
@@ -122,7 +124,7 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
                 defaultValue={state.email}
                 required
                 maxLength={50}
-                className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-500 text-white bg-[#1a2236] focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="relative block w-full appearance-none rounded-full border border-gray-600 bg-[#1a2236] px-3 py-2 text-white placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:ring-blue-500 focus:outline-none sm:text-sm"
                 placeholder="Enter your email"
               />
             </div>
@@ -147,25 +149,25 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
                 required
                 minLength={8}
                 maxLength={100}
-                className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-500 text-white bg-[#1a2236] focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="relative block w-full appearance-none rounded-full border border-gray-600 bg-[#1a2236] px-3 py-2 text-white placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:ring-blue-500 focus:outline-none sm:text-sm"
                 placeholder="Enter your password"
               />
             </div>
           </div>
 
           {state?.error && (
-            <div className="text-red-500 text-sm">{state.error}</div>
+            <div className="text-sm text-red-500">{state.error}</div>
           )}
 
           <div>
             <Button
               type="submit"
-              className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="flex w-full items-center justify-center rounded-full border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
               disabled={pending}
             >
               {pending ? (
                 <>
-                  <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Loading...
                 </>
               ) : mode === "signin" ? (
@@ -183,7 +185,7 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
               <div className="w-full border-t border-gray-600" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-[#111827] text-gray-400">
+              <span className="bg-[#111827] px-2 text-gray-400">
                 {mode === "signin"
                   ? "New to our platform?"
                   : "Already have an account?"}
@@ -198,12 +200,17 @@ export function Login({ mode = "signin" }: { mode?: "signin" | "signup" }) {
               }${redirect ? `?redirect=${redirect}` : ""}${
                 priceId ? `&priceId=${priceId}` : ""
               }`}
-              className="w-full flex justify-center py-2 px-4 border border-gray-600 rounded-full shadow-sm text-sm font-medium text-white bg-[#1a2236] hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="flex w-full justify-center rounded-full border border-gray-600 bg-[#1a2236] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
             >
               {mode === "signin"
                 ? "Create an account"
                 : "Sign in to existing account"}
             </Link>
+          </div>
+
+          {/* Resend confirmation email link */}
+          <div className="mt-8 text-center">
+            <ResendConfirmationDialog defaultEmail={state.email || ""} />
           </div>
         </div>
       </div>
