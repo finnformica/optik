@@ -4,6 +4,7 @@ import {
   Building2,
   Calculator,
   CheckCircle,
+  FileText,
   RefreshCw,
   TrendingUp,
   Upload,
@@ -59,9 +60,10 @@ export function BrokerIntegrationFeature() {
                 </div>
                 <Badge
                   variant="secondary"
-                  className="border-orange-500/20 bg-orange-500/10 text-orange-400"
+                  className="border-gray-500/20 bg-gray-500/10 text-gray-400"
                 >
-                  Coming Soon
+                  <FileText className="mr-1 h-3 w-3" />
+                  CSV Import
                 </Badge>
               </div>
               <div className="bg-card/50 border-border/50 flex items-center justify-between rounded-lg border p-3">
