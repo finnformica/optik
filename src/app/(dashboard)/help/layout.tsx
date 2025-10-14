@@ -13,6 +13,58 @@ export default function HelpLayout({ children }: { children: React.ReactNode }) 
     return videoName.replace(/\.(mp4|webm|mov)$/i, '');
   };
 
+  const renderNavigation = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        </div>
+      );
+    }
+
+    if (tutorials.length === 0) {
+      return null;
+    }
+
+    return (
+      <nav className="space-y-6">
+        {tutorials.map((category) => (
+          <div key={category.category}>
+            {/* Category Header - styled like documentation */}
+            <h3 className="text-gray-300 font-medium text-sm mb-2">
+              {category.displayName}
+            </h3>
+
+            {/* Video Links - styled like documentation */}
+            <ul className="space-y-1">
+              {category.videos.map((video) => {
+                const videoSlug = getVideoSlug(video.name);
+                const videoPath = `/help/${category.category}/${videoSlug}`;
+                const isActive = pathname === videoPath;
+
+                return (
+                  <li key={video.name}>
+                    <Link
+                      href={videoPath}
+                      className={`flex items-center px-2 py-1.5 rounded text-sm transition-colors ${
+                        isActive
+                          ? "bg-gray-800 text-white"
+                          : "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+                      }`}
+                    >
+                      <Play className="w-3 h-3 mr-2 flex-shrink-0" />
+                      {video.displayName}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    );
+  };
+
   return (
     <div className="flex min-h-full flex-col lg:flex-row">
       {/* Sidebar Navigation */}
@@ -21,52 +73,7 @@ export default function HelpLayout({ children }: { children: React.ReactNode }) 
           Help & Tutorials
         </h2>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-          </div>
-        ) : tutorials.length === 0 ? (
-          <div className="py-8 text-center text-gray-400">
-            <p>No tutorials available yet.</p>
-            <p className="text-sm mt-2">Check back soon for helpful guides!</p>
-          </div>
-        ) : (
-          <nav className="space-y-6">
-            {tutorials.map((category) => (
-              <div key={category.category}>
-                {/* Category Header - styled like documentation */}
-                <h3 className="text-gray-300 font-medium text-sm mb-2">
-                  {category.displayName}
-                </h3>
-
-                {/* Video Links - styled like documentation */}
-                <ul className="space-y-1">
-                  {category.videos.map((video) => {
-                    const videoSlug = getVideoSlug(video.name);
-                    const videoPath = `/help/${category.category}/${videoSlug}`;
-                    const isActive = pathname === videoPath;
-
-                    return (
-                      <li key={video.name}>
-                        <Link
-                          href={videoPath}
-                          className={`flex items-center px-2 py-1.5 rounded text-sm transition-colors ${
-                            isActive
-                              ? "bg-gray-800 text-white"
-                              : "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                          }`}
-                        >
-                          <Play className="w-3 h-3 mr-2 flex-shrink-0" />
-                          {video.displayName}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
-          </nav>
-        )}
+        {renderNavigation()}
       </nav>
 
       {/* Main Content */}
