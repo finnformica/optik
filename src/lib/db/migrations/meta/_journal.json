@@ -750,6 +750,13 @@
       "when": 1760547863827,
       "tag": "0106_volatile_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1760553132344,
+      "tag": "0107_stormy_alex_wilder",
+      "breakpoints": true
     }
   ]
 }

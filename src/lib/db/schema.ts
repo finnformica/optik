@@ -143,7 +143,6 @@ export const dimUser = pgTable(
     deletedAt: timestamp("deleted_at"),
   },
   (table) => [
-    index("idx_dim_user_auth_user_id").on(table.authUserId),
     pgPolicy("users_own_data", {
       for: "all",
       to: authenticatedRole,
@@ -170,6 +169,7 @@ export const dimAccount = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [
+    index("idx_dim_account_user_id").on(table.userId),
     pgPolicy("users_own_accounts", {
       for: "all",
       to: authenticatedRole,
@@ -203,6 +203,7 @@ export const dimAccountAccessToken = pgTable(
       table.accountKey,
       table.brokerCode,
     ),
+    index("idx_dim_account_access_token_broker_code").on(table.brokerCode),
     pgPolicy("users_own_account_tokens", {
       for: "all",
       to: authenticatedRole,
@@ -262,8 +263,6 @@ export const dimTime = pgTable(
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [
-    index("idx_dim_time_hour").on(table.hour),
-    index("idx_dim_time_hour_minute").on(table.hour, table.minute),
     index("idx_dim_time_time_value").on(table.timeValue),
     pgPolicy("authenticated_can_read_times", {
       for: "select",
@@ -392,7 +391,7 @@ export const dimBrokerAccount = pgTable(
       table.accountKey,
       table.brokerKey,
     ),
-    index("idx_broker_account_hash").on(table.brokerAccountHash),
+    index("idx_dim_broker_account_broker_key").on(table.brokerKey),
     pgPolicy("users_own_broker_accounts", {
       for: "all",
       to: authenticatedRole,
@@ -476,6 +475,8 @@ export const factTransaction = pgTable(
     index("idx_fact_transaction_date_time").on(table.dateKey, table.timeKey),
     index("idx_fact_transaction_account").on(table.accountKey),
     index("idx_fact_transaction_security").on(table.securityKey),
+    index("idx_fact_transaction_broker_key").on(table.brokerKey),
+    index("idx_fact_transaction_transaction_type_key").on(table.transactionTypeKey),
 
     // RLS Policy
     pgPolicy("users_own_transactions", {
@@ -511,12 +512,10 @@ export const factStockPrices = pgTable(
       table.quarterHour,
     ),
     // Performance indexes
-    index("idx_fact_stock_prices_symbol").on(table.symbol),
     index("idx_fact_stock_prices_date_time").on(
       table.dateKey,
       table.quarterHour,
     ),
-    index("idx_fact_stock_prices_created_at").on(table.createdAt),
     // RLS Policy - all authenticated users can read stock prices
     pgPolicy("authenticated_can_read_stock_prices", {
       for: "select",
