@@ -4,6 +4,7 @@ import { Play, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTutorials } from "@/api/tutorials";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function HelpLayout({ children }: { children: React.ReactNode }) {
   const { tutorials, isLoading } = useTutorials();
@@ -44,17 +45,24 @@ export default function HelpLayout({ children }: { children: React.ReactNode }) 
 
                 return (
                   <li key={video.name}>
-                    <Link
-                      href={videoPath}
-                      className={`flex items-center px-2 py-1.5 rounded text-sm transition-colors ${
-                        isActive
-                          ? "bg-gray-800 text-white"
-                          : "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                      }`}
-                    >
-                      <Play className="w-3 h-3 mr-2 flex-shrink-0" />
-                      {video.displayName}
-                    </Link>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={videoPath}
+                          className={`flex items-center px-2 py-1.5 rounded text-sm transition-colors max-w-60 ${
+                            isActive
+                              ? "bg-gray-800 text-white"
+                              : "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+                          }`}
+                        >
+                          <Play className="w-3 h-3 mr-2 flex-shrink-0" />
+                          <span className="truncate">{video.displayName}</span>
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {video.displayName}
+                      </TooltipContent>
+                    </Tooltip>
                   </li>
                 );
               })}
