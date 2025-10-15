@@ -1,7 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { getAccountKey } from "@/lib/supabase/server";
 import {
   SchwabAuth,
   SchwabAuthenticationError,
@@ -18,6 +17,7 @@ import {
 } from "@/lib/db/etl/queries";
 import { SchwabActivity } from "@/lib/db/etl/schwab";
 import { stgTransaction } from "@/lib/db/schema";
+import { getAccountKey } from "@/lib/supabase/server";
 import {
   getActiveSyncSession,
   startSyncSession,
@@ -53,7 +53,7 @@ export async function POST() {
             "No connected Schwab accounts found, please connect your account",
           success: false,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -69,7 +69,7 @@ export async function POST() {
         const accountTransactions = await schwabAuth.getTransactionHistory(
           account.brokerAccountHash,
           lastTransactionDate,
-          new Date()
+          new Date(),
         );
 
         if (accountTransactions.length > 0) {
@@ -89,13 +89,13 @@ export async function POST() {
                 "Error fetching transactions, please re-authenticate with Schwab",
               success: false,
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
         console.error(
           `Failed to fetch transactions for account ${account.brokerAccountNumber}:`,
-          accountError
+          accountError,
         );
         // Continue with other accounts even if one fails
       }
@@ -116,8 +116,8 @@ export async function POST() {
       .where(
         and(
           eq(stgTransaction.accountKey, accountKey),
-          inArray(stgTransaction.status, ["PENDING", "ERROR"])
-        )
+          inArray(stgTransaction.status, ["PENDING", "ERROR"]),
+        ),
       )
       .limit(1);
 
@@ -151,7 +151,7 @@ export async function POST() {
         success: false,
         message: "Error syncing Schwab transactions",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

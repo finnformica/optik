@@ -125,7 +125,6 @@ export async function POST(request: NextRequest) {
       brokerTransactionId: transaction.brokerTransactionId,
       dataSource: "csv" as const,
       rawData: transaction, // Store the entire standardized transaction
-      brokerTimestamp: transaction.transactionDate,
       status: "PENDING" as const,
     }));
 

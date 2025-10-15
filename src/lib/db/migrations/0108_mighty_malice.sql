@@ -1,0 +1,1 @@
+ALTER TABLE "stg_transaction" DROP COLUMN "broker_timestamp";

@@ -85,7 +85,6 @@ export const stgTransaction = pgTable(
     errorMessage: text("error_message"),
 
     // Timestamps
-    brokerTimestamp: timestamp("broker_timestamp").notNull(), // When transaction actually occurred per broker
     processedAt: timestamp("processed_at"), // When we processed it into dimensional model
     createdAt: timestamp("created_at").notNull().defaultNow(), // When record was inserted
     updatedAt: timestamp("updated_at").notNull().defaultNow(), // When record was last modified

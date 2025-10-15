@@ -21,7 +21,6 @@ export async function insertRawTransactions(data: SchwabActivity[], tx?: any) {
     brokerCode: "schwab", // hard-coded from the dim_broker table
     brokerTransactionId: activity.activityId.toString(),
     rawData: activity,
-    brokerTimestamp: new Date(activity.tradeDate),
     status: "PENDING",
   }));
 
