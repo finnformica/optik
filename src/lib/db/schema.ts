@@ -52,7 +52,7 @@ export const rtmSyncProgress = pgTable(
       withCheck: sql`${table.accountKey} IN (
         SELECT account_key FROM dim_account da
         JOIN dim_user du ON da.user_id = du.id
-        WHERE du.auth_user_id = auth.uid()
+        WHERE du.auth_user_id = (SELECT auth.uid())
       )`,
     }),
   ],
@@ -107,7 +107,7 @@ export const stgTransaction = pgTable(
       using: sql`${table.accountKey} IN (
         SELECT account_key FROM dim_account da
         JOIN dim_user du ON da.user_id = du.id
-        WHERE du.auth_user_id = auth.uid()
+        WHERE du.auth_user_id = (SELECT auth.uid())
       )`,
     }),
   ],
@@ -147,7 +147,7 @@ export const dimUser = pgTable(
     pgPolicy("users_own_data", {
       for: "all",
       to: authenticatedRole,
-      using: sql`${table.authUserId} = auth.uid()`,
+      using: sql`${table.authUserId} = (SELECT auth.uid())`,
     }),
   ],
 );
@@ -174,7 +174,7 @@ export const dimAccount = pgTable(
       for: "all",
       to: authenticatedRole,
       using: sql`${table.userId} IN (
-        SELECT id FROM dim_user WHERE auth_user_id = auth.uid()
+        SELECT id FROM dim_user WHERE auth_user_id = (SELECT auth.uid())
       )`,
     }),
   ],
@@ -209,7 +209,7 @@ export const dimAccountAccessToken = pgTable(
       using: sql`${table.accountKey} IN (
         SELECT account_key FROM dim_account da
         JOIN dim_user du ON da.user_id = du.id
-        WHERE du.auth_user_id = auth.uid()
+        WHERE du.auth_user_id = (SELECT auth.uid())
       )`,
     }),
   ],
@@ -399,7 +399,7 @@ export const dimBrokerAccount = pgTable(
       using: sql`${table.accountKey} IN (
         SELECT account_key FROM dim_account da
         JOIN dim_user du ON da.user_id = du.id
-        WHERE du.auth_user_id = auth.uid()
+        WHERE du.auth_user_id = (SELECT auth.uid())
       )`,
     }),
   ],
@@ -484,7 +484,7 @@ export const factTransaction = pgTable(
       using: sql`${table.accountKey} IN (
         SELECT account_key FROM dim_account da
         JOIN dim_user du ON da.user_id = du.id
-        WHERE du.auth_user_id = auth.uid()
+        WHERE du.auth_user_id = (SELECT auth.uid())
       )`,
     }),
   ],
