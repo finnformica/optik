@@ -743,6 +743,20 @@
       "when": 1760472222822,
       "tag": "0105_tutorials-bucket-policy",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1760547863827,
+      "tag": "0106_volatile_iron_monger",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1760553132344,
+      "tag": "0107_stormy_alex_wilder",
+      "breakpoints": true
     }
   ]
 }
