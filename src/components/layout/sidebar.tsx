@@ -1,6 +1,12 @@
 "use client";
 
-import { LayoutDashboard, LogOut, Settings, Table2 } from "lucide-react";
+import {
+  HelpCircle,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  Table2,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -32,7 +38,7 @@ const menuItems: MenuItem[] = [
     title: "Settings",
     bottom: true,
   },
-  // { href: paths.help, icon: HelpCircle, title: "Help", bottom: true },
+  { href: paths.help, icon: HelpCircle, title: "Help", bottom: true },
   { href: paths.auth.signOut, icon: LogOut, title: "Sign Out", bottom: true },
 ];
 
@@ -45,8 +51,8 @@ const Sidebar = () => {
 
     // Add data-tour attributes for specific navigation items
     const getTourAttribute = () => {
-      if (item.href.includes('/settings')) return 'settings-nav';
-      if (item.href.includes('/transactions')) return 'transactions-nav';
+      if (item.href.includes("/settings")) return "settings-nav";
+      if (item.href.includes("/transactions")) return "transactions-nav";
       return undefined;
     };
 
@@ -74,7 +80,10 @@ const Sidebar = () => {
   const bottomMenuItems = menuItems.filter((item) => item.bottom);
 
   return (
-    <div data-tour="sidebar" className="fixed top-0 left-0 hidden h-screen w-18 flex-col bg-[#0a101e] text-white md:flex">
+    <div
+      data-tour="sidebar"
+      className="fixed top-0 left-0 hidden h-screen w-18 flex-col bg-[#0a101e] text-white md:flex"
+    >
       <div className="m-2 mb-2 flex justify-center rounded-lg bg-[#111827] p-4">
         <Logo size="xs" />
       </div>
