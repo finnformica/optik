@@ -35,7 +35,7 @@ export const paths = {
   help: "/help",
   error: "/error",
   pricing: "/pricing",
-  analysis: "/analysis",
+  ukTax: "/uk-tax",
   positions: "/positions",
   dashboard: "/dashboard",
   transactions: "/transactions",
