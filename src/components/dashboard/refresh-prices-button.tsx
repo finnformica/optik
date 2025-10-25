@@ -4,16 +4,21 @@ import { refreshStockPrices } from "@/app/(dashboard)/dashboard/actions";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useState, useTransition } from "react";
+import { useRefreshDashboard } from "@/api/dashboard";
 
 export default function RefreshPricesButton() {
   const [isPending, startTransition] = useTransition();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { refreshAll } = useRefreshDashboard();
 
   const handleRefresh = () => {
     setIsRefreshing(true);
     startTransition(async () => {
       try {
+        // Clear the server-side cache first
         await refreshStockPrices();
+        // Then refresh all SWR caches
+        await refreshAll();
       } catch (error) {
         console.error("Failed to refresh prices:", error);
       } finally {

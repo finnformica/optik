@@ -2,11 +2,13 @@
 
 import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
 import { NoDataOverlay } from "@/components/dashboard/no-data-overlay";
+import { PieChartSkeleton } from "@/components/skeletons/chart-skeletons";
 import { ViewProfitDistribution } from "@/lib/db/schema";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 interface ProfitDistributionProps {
   profitData: ViewProfitDistribution[];
+  isLoading?: boolean;
 }
 
 const OTHERS_COLOR = "#ff6b35";
@@ -28,7 +30,18 @@ const getColor = (index: number) => {
   return COLORS[(index + 2) % COLORS.length];
 };
 
-const ProfitDistribution = ({ profitData }: ProfitDistributionProps) => {
+const ProfitDistribution = ({
+  profitData,
+  isLoading = false,
+}: ProfitDistributionProps) => {
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <DashboardWidget title="Profit Distribution">
+        <PieChartSkeleton segments={6} colorTheme="profit-loss" />
+      </DashboardWidget>
+    );
+  }
   // Calculate total absolute profit to get percentages
   const totalAbsoluteProfit = profitData.reduce(
     (sum, item) => sum + Math.abs(parseFloat(item.totalProfit || "0")),

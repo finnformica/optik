@@ -1,9 +1,8 @@
-"use server";
+"use client";
 
 import { HelpCircle } from "lucide-react";
 
 import {
-  getPositionPrices,
   type EnrichedPosition,
   type Position,
 } from "@/app/(dashboard)/dashboard/actions";
@@ -16,15 +15,19 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useEnrichedPositions } from "@/api/dashboard";
 
 interface CurrentPositionsProps {
   positions: Position[];
   showPrices?: boolean;
+  isLoading?: boolean;
 }
 
 interface PositionsTableProps {
   positions: Position[];
   showPrices?: boolean;
+  pricesLoading?: boolean;
+  isLoading?: boolean;
 }
 
 const renderBadge = (itmPercentage?: number) => {
@@ -70,22 +73,37 @@ const renderBadge = (itmPercentage?: number) => {
   );
 };
 
-function PositionRows({ positions, showPrices = false }: PositionsTableProps) {
-  if (positions.length === 0) {
+function PositionRows({ positions, showPrices = false, pricesLoading = false, isLoading = false }: PositionsTableProps) {
+  // Show loading skeleton rows
+  if (isLoading || positions.length === 0) {
     return (
       <>
-        {Array.from({ length: 3 }).map((_, index) => (
+        {Array.from({ length: 5 }).map((_, index) => (
           <tr
-            key={`empty-${index}`}
-            className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap [&_td]:text-gray-600 [&_td]:opacity-50"
+            key={`skeleton-${index}`}
+            className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:whitespace-nowrap"
           >
-            <td>---</td>
-            <td>---</td>
-            <td>---</td>
-            <td>---</td>
-            <td>---</td>
-            <td>---</td>
-            <td>---</td>
+            <td>
+              <div className="h-4 w-16 animate-pulse rounded bg-gray-700" style={{ animationDelay: `${index * 100}ms` }}></div>
+            </td>
+            <td>
+              <div className="h-4 w-12 animate-pulse rounded bg-gray-700" style={{ animationDelay: `${index * 100 + 50}ms` }}></div>
+            </td>
+            <td>
+              <div className="h-4 w-14 animate-pulse rounded bg-gray-700" style={{ animationDelay: `${index * 100 + 100}ms` }}></div>
+            </td>
+            <td>
+              <div className="h-4 w-20 animate-pulse rounded bg-gray-700" style={{ animationDelay: `${index * 100 + 150}ms` }}></div>
+            </td>
+            <td>
+              <div className="h-4 w-10 animate-pulse rounded bg-gray-700" style={{ animationDelay: `${index * 100 + 200}ms` }}></div>
+            </td>
+            <td>
+              <div className="h-4 w-12 animate-pulse rounded bg-gray-700" style={{ animationDelay: `${index * 100 + 250}ms` }}></div>
+            </td>
+            <td>
+              <div className="h-5 w-16 animate-pulse rounded bg-gray-700" style={{ animationDelay: `${index * 100 + 300}ms` }}></div>
+            </td>
           </tr>
         ))}
       </>
@@ -127,14 +145,14 @@ function PositionRows({ positions, showPrices = false }: PositionsTableProps) {
             <td>
               {showPrices && enrichedPosition.currentPrice ? (
                 `$${enrichedPosition.currentPrice.toFixed(2)}`
-              ) : showPrices ? (
+              ) : showPrices && !pricesLoading ? (
                 "-"
               ) : (
                 <div className="h-4 w-12 animate-pulse rounded bg-gray-700"></div>
               )}
             </td>
             <td>
-              {showPrices ? (
+              {showPrices && !pricesLoading ? (
                 renderBadge(enrichedPosition.itmPercentage)
               ) : (
                 <div className="h-5 w-16 animate-pulse rounded bg-gray-700"></div>
@@ -147,15 +165,16 @@ function PositionRows({ positions, showPrices = false }: PositionsTableProps) {
   );
 }
 
-const CurrentPositions = async ({
+const CurrentPositions = ({
   positions,
   showPrices = false,
+  isLoading = false,
 }: CurrentPositionsProps) => {
-  let enrichedPositions = positions;
+  const { enrichedPositions: enrichedPositionsData, isLoading: pricesLoading } = useEnrichedPositions(
+    showPrices ? positions : []
+  );
 
-  if (showPrices) {
-    enrichedPositions = await getPositionPrices(positions);
-  }
+  const enrichedPositions = showPrices ? enrichedPositionsData : positions;
 
   return (
     <DashboardWidget
@@ -186,7 +205,7 @@ const CurrentPositions = async ({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-700">
-          <PositionRows positions={enrichedPositions} showPrices={showPrices} />
+          <PositionRows positions={enrichedPositions} showPrices={showPrices} pricesLoading={pricesLoading} isLoading={isLoading} />
         </tbody>
       </table>
     </DashboardWidget>

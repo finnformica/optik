@@ -6,11 +6,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { HeatmapSkeleton } from "@/components/skeletons/heatmap-skeleton";
 import { ViewDailyActivity } from "@/lib/db/schema";
 import { useEffect, useRef } from "react";
 
 interface TradingActivityHeatmapProps {
   dailyData: ViewDailyActivity[];
+  isLoading?: boolean;
 }
 
 interface HeatmapDay {
@@ -351,7 +353,19 @@ export const TradingActivityHeatmapContent = ({
   );
 };
 
-const TradingActivityHeatmap = ({ dailyData }: TradingActivityHeatmapProps) => {
+const TradingActivityHeatmap = ({ dailyData, isLoading = false }: TradingActivityHeatmapProps) => {
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <DashboardWidget
+        title="Trading Activity"
+        contentClassName="p-4 flex flex-col justify-between"
+      >
+        <HeatmapSkeleton weeks={20} />
+      </DashboardWidget>
+    );
+  }
+
   return (
     <DashboardWidget
       title="Trading Activity"
