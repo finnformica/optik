@@ -231,7 +231,7 @@ export function UkTaxClient({ profitLoss, cgtCalculation }: UkTaxClientProps) {
           {cgtCalculation.taxableGain === 0 && (
             <div className="rounded border border-green-700 bg-green-900/20 p-3">
               <p className="text-sm text-green-300">
-                ✓ No CGT liability - your gains are within the annual allowance!
+                ✓ No CGT liability - your gains are within the annual allowance.
               </p>
             </div>
           )}
