@@ -54,8 +54,10 @@ export async function GET(request: NextRequest) {
       case "symbol": return dimSecurity.symbol;
       case "actionCode": return dimTransactionType.actionCode;
       case "quantity": return factTransaction.quantity;
+      case "pricePerUnit": return factTransaction.pricePerUnit;
       case "netAmount": return factTransaction.netAmount;
       case "fees": return factTransaction.fees;
+      case "strikePrice": return dimSecurity.strikePrice;
       case "brokerName": return dimBroker.brokerName;
       case "date":
       default: return dimDate.fullDate;

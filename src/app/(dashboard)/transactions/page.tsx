@@ -254,6 +254,15 @@ export default function TransactionsPage() {
             <tr className="border-b border-gray-700">
               <th className="p-3 text-left font-medium text-gray-300">
                 <button
+                  onClick={() => handleSort("date")}
+                  className="group flex items-center gap-1 transition-colors hover:text-white"
+                >
+                  Date
+                  <SortIcon field="date" />
+                </button>
+              </th>
+              <th className="p-3 text-left font-medium text-gray-300">
+                <button
                   onClick={() => handleSort("symbol")}
                   className="group flex min-w-52 items-center gap-1 transition-colors hover:text-white"
                 >
@@ -281,6 +290,24 @@ export default function TransactionsPage() {
               </th>
               <th className="p-3 text-left font-medium text-gray-300">
                 <button
+                  onClick={() => handleSort("pricePerUnit")}
+                  className="group flex items-center gap-1 transition-colors hover:text-white"
+                >
+                  Price
+                  <SortIcon field="pricePerUnit" />
+                </button>
+              </th>
+              <th className="p-3 text-left font-medium text-gray-300">
+                <button
+                  onClick={() => handleSort("strikePrice")}
+                  className="group flex items-center gap-1 transition-colors hover:text-white"
+                >
+                  Strike Price
+                  <SortIcon field="strikePrice" />
+                </button>
+              </th>
+              <th className="p-3 text-left font-medium text-gray-300">
+                <button
                   onClick={() => handleSort("netAmount")}
                   className="group flex items-center gap-1 transition-colors hover:text-white"
                 >
@@ -299,15 +326,6 @@ export default function TransactionsPage() {
               </th>
               <th className="p-3 text-left font-medium text-gray-300">
                 <button
-                  onClick={() => handleSort("date")}
-                  className="group flex items-center gap-1 transition-colors hover:text-white"
-                >
-                  Date
-                  <SortIcon field="date" />
-                </button>
-              </th>
-              <th className="p-3 text-left font-medium text-gray-300">
-                <button
                   onClick={() => handleSort("brokerName")}
                   className="group flex items-center gap-1 transition-colors hover:text-white"
                 >
@@ -320,13 +338,13 @@ export default function TransactionsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="p-8">
+                <td colSpan={9} className="p-8">
                   <Loading message="Loading transactions..." className="h-32" />
                 </td>
               </tr>
             ) : transactions.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center">
+                <td colSpan={9} className="p-8 text-center">
                   <p className="text-gray-400">No transactions found</p>
                 </td>
               </tr>
@@ -336,6 +354,9 @@ export default function TransactionsPage() {
                   key={`${transaction.brokerTransactionId}-${index}`}
                   className="border-b border-gray-800 transition-colors hover:bg-gray-800/50"
                 >
+                  <td className="p-3 text-gray-300">
+                    {new Date(transaction.date).toLocaleDateString()}
+                  </td>
                   <td className="p-3">
                     <div>
                       <div className="font-medium text-white">
@@ -356,6 +377,20 @@ export default function TransactionsPage() {
                   <td className="p-3 text-white">
                     {formatQuantity(transaction.quantity)}
                   </td>
+                  <td className="p-3 text-gray-300">
+                    {transaction.optionType
+                      ? "-"
+                      : transaction.pricePerUnit
+                        ? formatCurrency(transaction.pricePerUnit)
+                        : "-"
+                    }
+                  </td>
+                  <td className="p-3 text-gray-300">
+                    {transaction.strikePrice
+                      ? formatCurrency(transaction.strikePrice)
+                      : "-"
+                    }
+                  </td>
                   <td className="p-3">
                     <span
                       className={`font-medium ${
@@ -371,9 +406,6 @@ export default function TransactionsPage() {
                   </td>
                   <td className="p-3 text-gray-300">
                     {formatCurrency(transaction.fees)}
-                  </td>
-                  <td className="p-3 text-gray-300">
-                    {new Date(transaction.date).toLocaleDateString()}
                   </td>
                   <td className="p-3">
                     <span className="text-gray-300 capitalize">
