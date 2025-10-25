@@ -29,10 +29,26 @@ interface SummaryCard {
 }
 
 interface SummaryStatsProps {
-  portfolioSummary: ViewPortfolioSummary;
+  portfolioSummary: ViewPortfolioSummary | null | undefined;
 }
 
 const SummaryStats = ({ portfolioSummary: summary }: SummaryStatsProps) => {
+  // Show loading state if no summary data
+  if (!summary) {
+    return (
+      <Card className="border-gray-800 bg-[#1a2236] p-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="rounded-lg bg-[#14192a] p-4">
+              <div className="h-4 w-24 animate-pulse rounded bg-gray-700 mb-2"></div>
+              <div className="h-8 w-32 animate-pulse rounded bg-gray-700 mb-2"></div>
+              <div className="h-4 w-20 animate-pulse rounded bg-gray-700"></div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    );
+  }
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {

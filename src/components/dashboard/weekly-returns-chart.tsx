@@ -2,6 +2,7 @@
 
 import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
 import { NoDataOverlay } from "@/components/dashboard/no-data-overlay";
+import { BarChartSkeleton } from "@/components/skeletons/chart-skeletons";
 import { ViewWeeklyReturn } from "@/lib/db/schema";
 import {
   Bar,
@@ -18,9 +19,18 @@ import {
 
 interface WeeklyReturnsChartProps {
   weeklyData: ViewWeeklyReturn[];
+  isLoading?: boolean;
 }
 
-const WeeklyReturnsChart = ({ weeklyData }: WeeklyReturnsChartProps) => {
+const WeeklyReturnsChart = ({ weeklyData, isLoading = false }: WeeklyReturnsChartProps) => {
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <DashboardWidget title="Weekly Returns">
+        <BarChartSkeleton bars={12} height="h-64" />
+      </DashboardWidget>
+    );
+  }
   // Sort data by date to ensure proper chronological order
   const sortedData = [...weeklyData].sort(
     (a, b) =>

@@ -2,6 +2,7 @@
 
 import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
 import { NoDataOverlay } from "@/components/dashboard/no-data-overlay";
+import { PieChartSkeleton } from "@/components/skeletons/chart-skeletons";
 import { ViewPortfolioDistribution } from "@/lib/db/schema";
 import { useMemo } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
@@ -9,6 +10,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 interface PortfolioDistributionProps {
   distribution: ViewPortfolioDistribution[];
   cashBalance: number;
+  isLoading?: boolean;
 }
 
 const CASH_COLOR = "#ff6b35";
@@ -34,7 +36,16 @@ const getColor = (index: number) => {
 const PortfolioDistribution = ({
   distribution,
   cashBalance,
+  isLoading = false,
 }: PortfolioDistributionProps) => {
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <DashboardWidget title="Portfolio Distribution">
+        <PieChartSkeleton segments={6} />
+      </DashboardWidget>
+    );
+  }
   // Only include cash if it's positive
   const includeCash = cashBalance > 0;
   const totalValue = distribution.reduce(
@@ -58,7 +69,9 @@ const PortfolioDistribution = ({
 
     const items = [
       ...distribution,
-      ...(includeCash ? [{ symbol: "Cash", positionValue: cashBalance.toString() }] : []),
+      ...(includeCash
+        ? [{ symbol: "Cash", positionValue: cashBalance.toString() }]
+        : []),
     ];
 
     return items.map((item, index) => ({

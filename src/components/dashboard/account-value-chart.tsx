@@ -2,6 +2,7 @@
 
 import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
 import { NoDataOverlay } from "@/components/dashboard/no-data-overlay";
+import { LineChartSkeleton } from "@/components/skeletons/chart-skeletons";
 import { ViewWeeklyReturn } from "@/lib/db/schema";
 import {
   CartesianGrid,
@@ -16,6 +17,7 @@ import {
 
 interface AccountValueChartProps {
   accountValueData: ViewWeeklyReturn[];
+  isLoading?: boolean;
 }
 
 const formatDate = (dateStr: string) => {
@@ -26,7 +28,18 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-const AccountValueChart = ({ accountValueData }: AccountValueChartProps) => {
+const AccountValueChart = ({
+  accountValueData,
+  isLoading = false,
+}: AccountValueChartProps) => {
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <DashboardWidget title="Account Value">
+        <LineChartSkeleton lines={2} height="h-64" />
+      </DashboardWidget>
+    );
+  }
   // Use the cumulative values calculated in the database view
   const chartData = accountValueData.map((item) => {
     const transfers = parseFloat(item.cumulativeTransfers || "0");

@@ -27,7 +27,16 @@ export const endpoints = {
   tutorials: "/api/tutorials",
   auth: { schwab: { callback: "/api/auth/schwab/callback" } },
   stripe: { webhook: "/api/stripe/webhook", checkout: "/api/stripe/checkout" },
-};
+  dashboard: {
+    portfolioSummary: '/api/dashboard/portfolio-summary',
+    weeklyReturns: '/api/dashboard/weekly-returns',
+    positions: '/api/dashboard/positions',
+    positionPrices: '/api/dashboard/position-prices',
+    portfolioDistribution: '/api/dashboard/portfolio-distribution',
+    profitDistribution: '/api/dashboard/profit-distribution',
+    dailyActivity: '/api/dashboard/daily-activity',
+  },
+} as const;
 
 export const paths = {
   root: "/",
