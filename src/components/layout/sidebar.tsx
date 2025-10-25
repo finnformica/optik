@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Calculator,
   HelpCircle,
   LayoutDashboard,
   LogOut,
@@ -30,8 +31,8 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { href: paths.dashboard, icon: LayoutDashboard, title: "Dashboard" },
   { href: paths.transactions, icon: Table2, title: "Transactions" },
+  { href: paths.ukTax, icon: Calculator, title: "UK Tax Analysis" },
   // { href: paths.positions, icon: Receipt, title: "Positions" },
-  // { href: paths.analysis, icon: BarChart3, title: "Analysis" },
   {
     href: paths.settings.general,
     icon: Settings,
