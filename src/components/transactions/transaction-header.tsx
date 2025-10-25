@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { importCsvTransactions, syncTransactions } from "@/api/transactions";
 import { useAccountKey } from "@/api/user";
+import { refreshAllDashboardData } from "@/api/dashboard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
@@ -78,6 +79,9 @@ export function TransactionHeader({
       const result = await importCsvTransactions(file);
       setShowAlert(true);
       onSyncComplete();
+
+      // Refresh dashboard data after successful import
+      await refreshAllDashboardData();
 
       // Show success message based on result
       if (result.newTransactions === 0) {
@@ -197,6 +201,11 @@ export function TransactionHeader({
             onSyncComplete();
             setShowAlert(true);
             setSyncing(false);
+
+            // Refresh dashboard data after successful sync
+            if (data.status === "completed") {
+              refreshAllDashboardData();
+            }
           } else {
             setShowAlert(false);
             setSyncing(true);

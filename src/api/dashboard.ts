@@ -1,31 +1,24 @@
 "use client";
 
-import useSWR from "swr";
 import {
-  ViewPortfolioSummary,
-  ViewWeeklyReturn,
+  EnrichedPosition,
+  Position,
+} from "@/app/(dashboard)/dashboard/actions";
+import {
+  ViewDailyActivity,
   ViewPortfolioDistribution,
+  ViewPortfolioSummary,
   ViewProfitDistribution,
-  ViewDailyActivity
+  ViewWeeklyReturn,
 } from "@/lib/db/schema";
-import { Position, EnrichedPosition } from "@/app/(dashboard)/dashboard/actions";
-
-// Dashboard API endpoints
-export const DASHBOARD_ENDPOINTS = {
-  PORTFOLIO_SUMMARY: '/api/dashboard/portfolio-summary',
-  WEEKLY_RETURNS: '/api/dashboard/weekly-returns',
-  POSITIONS: '/api/dashboard/positions',
-  POSITION_PRICES: '/api/dashboard/position-prices',
-  PORTFOLIO_DISTRIBUTION: '/api/dashboard/portfolio-distribution',
-  PROFIT_DISTRIBUTION: '/api/dashboard/profit-distribution',
-  DAILY_ACTIVITY: '/api/dashboard/daily-activity',
-} as const;
+import { endpoints } from "@/lib/utils";
+import useSWR, { mutate } from "swr";
 
 // Fetcher function for API calls
 async function fetcher(url: string) {
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error('Failed to fetch data');
+    throw new Error("Failed to fetch data");
   }
   return res.json();
 }
@@ -33,13 +26,13 @@ async function fetcher(url: string) {
 // Hook for portfolio summary data
 export function usePortfolioSummary() {
   const { data, error, isLoading, mutate } = useSWR<ViewPortfolioSummary>(
-    DASHBOARD_ENDPOINTS.PORTFOLIO_SUMMARY,
+    endpoints.dashboard.portfolioSummary,
     fetcher,
     {
       refreshInterval: 0, // Disable automatic refresh
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-    }
+    },
   );
 
   return {
@@ -53,13 +46,13 @@ export function usePortfolioSummary() {
 // Hook for weekly returns data
 export function useWeeklyReturns() {
   const { data, error, isLoading, mutate } = useSWR<ViewWeeklyReturn[]>(
-    DASHBOARD_ENDPOINTS.WEEKLY_RETURNS,
+    endpoints.dashboard.weeklyReturns,
     fetcher,
     {
       refreshInterval: 0, // Disable automatic refresh
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-    }
+    },
   );
 
   return {
@@ -73,13 +66,13 @@ export function useWeeklyReturns() {
 // Hook for current positions
 export function useCurrentPositions() {
   const { data, error, isLoading, mutate } = useSWR<Position[]>(
-    DASHBOARD_ENDPOINTS.POSITIONS,
+    endpoints.dashboard.positions,
     fetcher,
     {
       refreshInterval: 0, // Disable automatic refresh
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-    }
+    },
   );
 
   return {
@@ -93,18 +86,20 @@ export function useCurrentPositions() {
 // Hook for enriched positions with prices
 export function useEnrichedPositions(positions: Position[]) {
   const { data, error, isLoading, mutate } = useSWR<EnrichedPosition[]>(
-    positions.length > 0 ? [DASHBOARD_ENDPOINTS.POSITION_PRICES, positions] : null,
+    positions.length > 0
+      ? [endpoints.dashboard.positionPrices, positions]
+      : null,
     ([url, positions]) =>
       fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ positions }),
-      }).then(res => res.json()),
+      }).then((res) => res.json()),
     {
       refreshInterval: 0, // Disable automatic refresh
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-    }
+    },
   );
 
   return {
@@ -117,15 +112,13 @@ export function useEnrichedPositions(positions: Position[]) {
 
 // Hook for portfolio distribution
 export function usePortfolioDistribution() {
-  const { data, error, isLoading, mutate } = useSWR<ViewPortfolioDistribution[]>(
-    DASHBOARD_ENDPOINTS.PORTFOLIO_DISTRIBUTION,
-    fetcher,
-    {
-      refreshInterval: 0, // Disable automatic refresh
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
-  );
+  const { data, error, isLoading, mutate } = useSWR<
+    ViewPortfolioDistribution[]
+  >(endpoints.dashboard.portfolioDistribution, fetcher, {
+    refreshInterval: 0, // Disable automatic refresh
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
 
   return {
     portfolioDistribution: data || [],
@@ -138,13 +131,13 @@ export function usePortfolioDistribution() {
 // Hook for profit distribution
 export function useProfitDistribution() {
   const { data, error, isLoading, mutate } = useSWR<ViewProfitDistribution[]>(
-    DASHBOARD_ENDPOINTS.PROFIT_DISTRIBUTION,
+    endpoints.dashboard.profitDistribution,
     fetcher,
     {
       refreshInterval: 0, // Disable automatic refresh
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-    }
+    },
   );
 
   return {
@@ -158,13 +151,13 @@ export function useProfitDistribution() {
 // Hook for daily activity/trading heatmap
 export function useDailyActivity() {
   const { data, error, isLoading, mutate } = useSWR<ViewDailyActivity[]>(
-    DASHBOARD_ENDPOINTS.DAILY_ACTIVITY,
+    endpoints.dashboard.dailyActivity,
     fetcher,
     {
       refreshInterval: 0, // Disable automatic refresh
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-    }
+    },
   );
 
   return {
@@ -196,4 +189,20 @@ export function useRefreshDashboard() {
   };
 
   return { refreshAll };
+}
+
+// Standalone function to refresh all dashboard data (for use in components that don't need the hook)
+export async function refreshAllDashboardData() {
+  try {
+    await Promise.all([
+      mutate(endpoints.dashboard.portfolioSummary),
+      mutate(endpoints.dashboard.weeklyReturns),
+      mutate(endpoints.dashboard.positions),
+      mutate(endpoints.dashboard.portfolioDistribution),
+      mutate(endpoints.dashboard.profitDistribution),
+      mutate(endpoints.dashboard.dailyActivity),
+    ]);
+  } catch (error) {
+    console.error("Failed to refresh dashboard data:", error);
+  }
 }
